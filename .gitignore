@@ -221,3 +221,5 @@ data/
 .data/
 .conf/
 conf/
+.config/
+config/

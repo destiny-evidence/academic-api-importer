@@ -29,14 +29,15 @@ Usage:
 
 from __future__ import annotations
 
-import argparse
 import sys
 import typing
 from typing import Annotated
-from pathlib import Path
 
 import typer
 from lark import Lark, Transformer
+
+if typing.TYPE_CHECKING:
+    from pathlib import Path
 
 # --------------------------------------------------------------------------
 # Scopus field codes (per the documentation)
@@ -209,7 +210,9 @@ class FieldCall:
     __slots__ = ("expr", "name")
 
     def __init__(
-        self, name: str, expr: list[tuple[str | None, object]] | object,
+        self,
+        name: str,
+        expr: list[tuple[str | None, object]] | object,
     ) -> None:
         self.name = name
         self.expr = expr
@@ -338,7 +341,8 @@ _parser = Lark(GRAMMAR, parser="lalr", maybe_placeholders=False)
 
 
 def parse_query(
-    text: str, strict: bool = False,
+    text: str,
+    strict: bool = False,
 ) -> list[tuple[str | None, object]] | object:
     """Parse a query string and return the AST root (see QueryTransformer)."""
     tree = _parser.parse(text)
@@ -353,7 +357,10 @@ INDENT_UNIT = "  "  # two spaces per nesting level
 
 
 def _print_operand(
-    op: str | None, operand: object, level: int, lines: list[str],
+    op: str | None,
+    operand: object,
+    level: int,
+    lines: list[str],
 ) -> None:
     """Print a single (operator, operand) pair at the given indent level."""
     pad = INDENT_UNIT * level
@@ -412,10 +419,18 @@ def query_to_indented_text(query_text: str, strict: bool = False) -> str:
 # CLI
 # --------------------------------------------------------------------------
 
+
 def reformat_query(
     source: Annotated[Path, typer.Argument(help="input file")],
-    target: Annotated[Path | None, typer.Option("-o", help="output file (default: stdout)")] = None,
-    strict: Annotated[bool, typer.Option(help="error out on field codes not in the documented FIELD_CODES set")] = True,
+    target: Annotated[
+        Path | None, typer.Option("-o", help="output file (default: stdout)")
+    ] = None,
+    strict: Annotated[
+        bool,
+        typer.Option(
+            help="error out on field codes not in the documented FIELD_CODES set"
+        ),
+    ] = True,
 ) -> None:
     with source.open(encoding="utf-8") as f:
         query_text = f.read()
