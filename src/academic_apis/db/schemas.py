@@ -22,26 +22,29 @@ class Query(SQLModel, table=True):
             nullable=False,
         ),
     )
-    first_result: datetime = Field(default=None, nullable=True)
-    latest_result: datetime = Field(default=None, nullable=True)
+    first_result: datetime | None = Field(default=None, nullable=True)
+    latest_result: datetime | None = Field(default=None, nullable=True)
 
 
-class AccessToken(SQLModel, table=True):
-    __tablename__ = "access_token"
+class AccessTokenPublic(SQLModel):
     token_id: int | None = Field(default=None, primary_key=True)
     wrapper: Wrapper
-    token: str
     proxy: str | None = None
     active: bool = True
     comment: str | None = None
     last_used: datetime | None = Field(default=None, nullable=True)
-    locked_until: datetime = Field(
-        default=None, nullable=True
+    locked_until: datetime | None = Field(
+        default=None, nullable=True,
     )  # when we get API feedback, put here when used up capacity is reset
-    last_feedback: dict[str, Any] = Field(
+    last_feedback: dict[str, Any] | None = Field(
         default_factory=dict,
         sa_column=Column("last_feedback", JSON, nullable=True),
     )
+
+
+class AccessToken(AccessTokenPublic, table=True):
+    __tablename__ = "access_token"
+    token: str
 
 
 class Task(SQLModel, table=True):
@@ -70,5 +73,5 @@ class Task(SQLModel, table=True):
             nullable=False,
         ),
     )
-    latest_try: datetime = Field(default=None, nullable=True)
-    finished_at: datetime = Field(default=None, nullable=True)
+    latest_try: datetime | None = Field(default=None, nullable=True)
+    finished_at: datetime | None = Field(default=None, nullable=True)

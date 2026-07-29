@@ -9,6 +9,7 @@ from academic_apis.broker.broker import broker
 from academic_apis.utils import init_logging
 
 from .manage import route as manage_app
+from .tokens import route as token_app
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -32,3 +33,4 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa: ARG001
 api = FastAPI(lifespan=lifespan)
 
 api.include_router(manage_app, prefix="/manage")
+api.include_router(token_app, prefix="/tokens")
