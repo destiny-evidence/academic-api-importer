@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import fromstring as parse_xml
@@ -71,11 +72,11 @@ class PubmedWrapper(AbstractWrapper):
     wrapper = Wrapper.PUBMED
     page_max = 50
 
-    def _fetch_raw(
+    async def _fetch_raw(
         self,
         query: str,
         params: dict[str, Any] | None = None,
-    ) -> Generator[Element]:
+    ) -> AsyncGenerator[Element]:
         """
         Pubmed API wrapper for downloading all records for a given query.
 
@@ -98,7 +99,7 @@ class PubmedWrapper(AbstractWrapper):
 
         n_records = 0
         n_pages = 0
-        with RequestClient(
+        async with RequestClient(
             backoff_rate=self.backoff_rate,
             max_req_per_sec=self.max_req_per_sec,
             max_retries=self.max_retries,
@@ -106,7 +107,7 @@ class PubmedWrapper(AbstractWrapper):
             timeout=120,
         ) as request_client:
             self.logger.info(f"Running query: {query}")
-            search_page = request_client.post(
+            search_page = await request_client.post(
                 "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
                 data={
                     "api_key": self.api_key,
@@ -141,7 +142,7 @@ class PubmedWrapper(AbstractWrapper):
 
             request_client.on(codes.BAD_REQUEST, on_done)
             while not done:
-                result_page = request_client.get(
+                result_page = await request_client.get(
                     "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
                     params={
                         "api_key": self.api_key,
@@ -162,7 +163,8 @@ class PubmedWrapper(AbstractWrapper):
                 articles = list(tree.findall("PubmedArticle"))
 
                 n_records += len(articles)
-                yield from articles
+                for article in articles:
+                    yield article
 
                 self.logger.info(
                     f"Found {n_records:,}/{self.n_results:,} records after processing page {n_pages} ({page_size} per page) | {self.api_feedback}",
@@ -174,12 +176,12 @@ class PubmedWrapper(AbstractWrapper):
                     )
                     break
 
-    def fetch_raw(
+    async def fetch_raw(
         self,
         query: str,
         params: dict[str, Any] | None = None,
-    ) -> Generator[dict[str, Any]]:
-        for entry in self._fetch_raw(query, params=params):
+    ) -> AsyncGenerator[dict[str, Any]]:
+        async for entry in self._fetch_raw(query, params=params):
             yield xml2dict(entry)
 
     @classmethod

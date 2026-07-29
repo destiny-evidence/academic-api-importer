@@ -2,17 +2,22 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any, cast
 
-from httpx import codes
+import sqlalchemy as sa
+from httpx import Response
+from httpx._status_codes import codes as http
 from nacsos_data.models.items import AcademicItemModel
 from nacsos_data.models.items.academic import AcademicAuthorModel, AffiliationModel
 from nacsos_data.util import as_uuid, clear_empty, get
+from sqlmodel import Session  # noqa: F401
 
-from academic_apis.utils import Wrapper
+from academic_apis.db import AccessToken, db_session
+from academic_apis.utils import Wrapper, as_int
 
-from ._abc import AbstractWrapper
-from ._client import RequestClient, response_logger
+from ._abc import AbstractWrapper, OnLoopInfo
+from ._client import RequestClient
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -66,7 +71,7 @@ def translate_authors(record: dict[str, Any]) -> list[AcademicAuthorModel] | Non
             s2_id=author.get("authid"),
             name=cast("str", author.get("authname")),
             affiliations=clear_empty(
-                [affiliations.get(aff["$"]) for aff in author.get("afid", [])]
+                [affiliations.get(aff["$"]) for aff in author.get("afid", [])],
             ),
         )
         for author in authors
@@ -80,11 +85,65 @@ class ScopusWrapper(AbstractWrapper):
     page_max = 25
     wrapper = Wrapper.SCOPUS
 
-    def fetch_raw(
+    async def on_response(self, response: Response | None) -> None:
+        if response:
+            self.api_feedback: dict[str, str | int] = {
+                "scopus_requests_limit": response.headers.get("x-ratelimit-limit"),
+                "scopus_requests_remaining": response.headers.get(
+                    "x-ratelimit-remaining"
+                ),
+                "scopus_requests_reset": response.headers.get("x-ratelimit-reset"),
+                # only set to QUOTA_EXCEEDED when quota exceeded
+                "scopus_requests_exceeded": response.headers.get("x-els-status"),
+                "status": response.status_code,
+            }
+            if response.status_code != http.OK:
+                self.api_feedback |= {"message": response.text}
+
+        if self.skip_token_logging:
+            return
+
+        async with db_session() as session:  # type: Session
+            locked_until: dt.datetime | None = None
+            if (
+                as_int(self.api_feedback.get("scopus_requests_remaining"), default=0)
+                < self.page_max
+                or self.api_feedback.get("scopus_requests_exceeded") == "QUOTA_EXCEEDED"
+            ):
+                timestamp: str | int | None = self.api_feedback.get(
+                    "scopus_requests_reset",
+                )
+                if (
+                    timestamp is not None
+                    and isinstance(timestamp, int)
+                    and timestamp > 1780000000  # noqa: PLR2004
+                ):
+                    locked_until = dt.datetime.fromtimestamp(timestamp, tz=dt.UTC)
+                else:
+                    locked_until = dt.datetime.now(tz=dt.UTC) + dt.timedelta(
+                        days=2,
+                    )  # fallback to locking for two days
+
+            session.exec(
+                sa.update(AccessToken)
+                .values(
+                    last_feedback=self.api_feedback,
+                    last_used=dt.datetime.now(tz=dt.UTC),
+                    locked_until=locked_until,
+                )
+                .where(
+                    AccessToken.wrapper == self.wrapper,
+                    AccessToken.token == self.api_key,
+                ),
+            )
+            session.commit()
+        return
+
+    async def fetch_raw(
         self,
         query: str,
         params: dict[str, Any] | None = None,
-    ) -> Generator[dict[str, Any]]:
+    ) -> AsyncGenerator[dict[str, Any]]:
         """
         Scopus API wrapper for downloading all records for a given query.
 
@@ -101,24 +160,22 @@ class ScopusWrapper(AbstractWrapper):
         if self.api_key is None:
             raise AssertionError("Missing API key!")
 
-        with RequestClient(
+        async with RequestClient(
             backoff_rate=self.backoff_rate,
             max_req_per_sec=self.max_req_per_sec,
             max_retries=self.max_retries,
             proxy=self.proxy,
             timeout=120,
+            logger=self.logger.getChild("client"),
+            on_response=self.on_response,
         ) as request_client:
-            request_client.on(
-                status=codes.UNAUTHORIZED, func=response_logger(self.logger)
-            )
-
             next_cursor: str | None = "*"
             n_pages = 0
             n_records = 0
             while True:
                 self.logger.info(f"Fetching page {n_pages}...")
 
-                page = request_client.post(
+                page = await request_client.post(
                     "https://api.elsevier.com/content/search/scopus",
                     params={
                         "cursor": next_cursor,
@@ -136,28 +193,27 @@ class ScopusWrapper(AbstractWrapper):
                     },
                 )
 
-                self.api_feedback = {
-                    "scopus_requests_limit": page.headers.get("x-ratelimit-limit"),
-                    "scopus_requests_remaining": page.headers.get(
-                        "x-ratelimit-remaining"
-                    ),
-                    "scopus_requests_reset": page.headers.get("x-ratelimit-reset"),
-                    "scopus_requests_exceeded": page.headers.get(
-                        "x-els-status"
-                    ),  # only set to QUOTA_EXCEEDED when quota exceeded
-                }
-
                 n_pages += 1
                 data = page.json()
 
                 next_cursor = get(
-                    data, "search-results", "cursor", "@next", default=None
+                    data,
+                    "search-results",
+                    "cursor",
+                    "@next",
+                    default=None,
                 )
                 entries: list[dict[str, Any]] | None = get(
-                    data, "search-results", "entry", default=[]
+                    data,
+                    "search-results",
+                    "entry",
+                    default=[],
                 )
                 self.n_results: int | None = get(
-                    data, "search-results", "opensearch:totalResults", default=0
+                    data,
+                    "search-results",
+                    "opensearch:totalResults",
+                    default=0,
                 )
 
                 if (
@@ -167,19 +223,32 @@ class ScopusWrapper(AbstractWrapper):
                     or self.n_results == 0
                 ):
                     break
+
                 if len(entries) == 1 and entries[0].get("error") is not None:
                     break
 
-                yield from entries
+                for entry in entries:
+                    yield entry
 
                 n_records += len(entries)
+
+                await self.on_loop(
+                    OnLoopInfo(
+                        n_results=self.n_results,
+                        n_retrieved=n_records,
+                        api_feedback=self.api_feedback,
+                    ),
+                )
+
                 self.logger.debug(
-                    f"Found {n_records}/{self.n_results} records after processing page {n_pages} {self.api_feedback}"
+                    f"Found {n_records}/{self.n_results} records after processing page {n_pages} {self.api_feedback}",
                 )
 
     @classmethod
     def translate_record_nacsos(
-        cls, record: dict[str, Any], project_id: str | uuid.UUID | None = None
+        cls,
+        record: dict[str, Any],
+        project_id: str | uuid.UUID | None = None,
     ) -> AcademicItemModel:
         return AcademicItemModel(
             item_id=uuid.uuid4(),
@@ -216,7 +285,7 @@ class ScopusWrapper(AbstractWrapper):
 
         if py_start >= py_end:
             raise AssertionError(
-                f"Start year ({py_start}) should be strictly smaller than end year ({py_end})"
+                f"Start year ({py_start}) should be strictly smaller than end year ({py_end})",
             )
 
         for char1 in alphabet:

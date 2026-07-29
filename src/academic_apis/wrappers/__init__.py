@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import get_args
 
-from ._abc import AbstractWrapper
+from ._abc import AbstractWrapper, OnLoopInfo
 from .pubmed import PubmedWrapper
 from .scopus import ScopusWrapper
 
@@ -12,4 +12,4 @@ WRAPPERS: dict[str, type[APIWrapper]] = {
     wrapper.wrapper: wrapper for wrapper in get_args(APIWrapper.__value__)
 }
 
-__all__ = ["WRAPPERS", "APIWrapper", "PubmedWrapper", "ScopusWrapper"]
+__all__ = ["WRAPPERS", "APIWrapper", "OnLoopInfo", "PubmedWrapper", "ScopusWrapper"]

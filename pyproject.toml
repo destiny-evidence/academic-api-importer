@@ -17,7 +17,9 @@ dependencies = [
     "filelock==3.32.0",
     "sqlmodel==0.0.39",
     "pandas[excel]==3.0.5",
-    "fastapi[standard]==0.140.13"
+    "fastapi[standard]==0.141.0",
+    "orjson==3.11.9",
+    "socksio==1.*",
 ]
 [tool.uv.sources]
 nacsos_data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.54" }
@@ -83,6 +85,10 @@ lint.ignore = [
     "PLR0913", # Too many arguments in function definition (7 > 5)
     "PLR0917", # Too many positional arguments (7 > 5)
     "TC001", # Move application import `academic_apis.utils.types.Wrapper` into a type-checking block
+    "TC002", # Move third-party import `httpx.Response` into a type-checking block
+    "TC003", # Move standard library import `pathlib.Path` into a type-checking block
+    "TD002", # Missing author in TODO;
+    "TD003", # Missing issue link for this TODO
     "TRY003", # Avoid specifying long messages outside the exception class
     "TRY201", # Use `raise` without specifying exception name
     "TRY300", # Consider moving this statement to an `else` block

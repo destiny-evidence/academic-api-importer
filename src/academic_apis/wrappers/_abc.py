@@ -3,13 +3,17 @@ from __future__ import annotations
 import json
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator, AsyncIterable, Awaitable, Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+
+from taskiq.utils import maybe_awaitable
 
 from academic_apis.utils.types import Format, Record, Wrapper
 
 if TYPE_CHECKING:
     import uuid
-    from collections.abc import Generator, Iterable
+    from collections.abc import Generator
     from pathlib import Path
 
     from destiny_sdk.references import Reference as ODSReference
@@ -18,6 +22,14 @@ if TYPE_CHECKING:
 base_logger = logging.getLogger(__name__)
 
 
+@dataclass
+class OnLoopInfo:
+    n_results: int
+    n_retrieved: int
+    api_feedback: dict[str, Any] | None = None
+
+
+# https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-academic-search/-/blob/main/src/openalex_ingest/shared/apis.py?ref_type=heads
 class AbstractWrapper(ABC):
     logger: logging.Logger
 
@@ -29,6 +41,10 @@ class AbstractWrapper(ABC):
         max_retries: int = 5,
         backoff_rate: float = 5.0,
         ignored_exceptions: list[type[Exception]] | None = None,
+        skip_token_logging: bool = True,
+        on_loop: Callable[[OnLoopInfo], Awaitable[None]]
+        | Callable[[OnLoopInfo], None]
+        | None = None,
         logger: logging.Logger | None = None,
     ) -> None:
         self.api_key = api_key
@@ -39,7 +55,8 @@ class AbstractWrapper(ABC):
         self.ignored_exceptions = ignored_exceptions or []
         self.api_feedback: dict[str, int] = {}
         self.n_results: int | None = None
-
+        self.skip_token_logging = skip_token_logging
+        self._on_loop = on_loop
         self.logger = (
             logging.getLogger(type(self).__name__) if logger is None else logger
         )
@@ -57,11 +74,11 @@ class AbstractWrapper(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_raw(
+    async def fetch_raw(
         self,
         query: str,
         params: dict[str, Any] | None = None,
-    ) -> Generator[dict[str, Any]]:
+    ) -> AsyncGenerator[dict[str, Any]]:
         raise NotImplementedError
 
     @classmethod
@@ -105,22 +122,30 @@ class AbstractWrapper(ABC):
     ) -> Generator[str]:
         raise NotImplementedError
 
-    def fetch_n_results(
+    async def on_loop(self, info: OnLoopInfo) -> None:
+        if self._on_loop is None:
+            return
+
+        await maybe_awaitable(self._on_loop(info))
+
+    async def fetch_n_results(
         self,
         query: str,
         params: dict[str, Any] | None = None,
     ) -> int | None:
-        for _record in self.fetch_raw(query=query, params=params):
+        async for _record in self.fetch_raw(query=query, params=params):
             break
         return self.n_results
 
-    def download_raw(
+    async def download_raw(
         self,
         query: str,
         target: Path,
         params: dict[str, Any] | None = None,
     ) -> None:
-        collect_raw_jsonl(target=target, items=self.fetch_raw(query, params=params))
+        await collect_raw_jsonl(
+            target=target, items=self.fetch_raw(query, params=params)
+        )
 
     @classmethod
     def read_translated(
@@ -159,15 +184,18 @@ def _assert_target(target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
 
 
-def collect_raw_jsonl(target: Path, items: Iterable[dict[str, Any]]) -> None:
+async def collect_raw_jsonl(target: Path, items: AsyncIterable[dict[str, Any]]) -> None:
     _assert_target(target)
     with target.open("w", encoding="utf-8") as f:
-        f.writelines(json.dumps(item) + "\n" for item in items)
+        f.writelines(json.dumps(item) + "\n" async for item in items)
 
 
-def collect_jsonl(target: Path, items: Iterable[AcademicItemModel]) -> None:
+async def collect_jsonl(target: Path, items: AsyncIterable[AcademicItemModel]) -> None:
     _assert_target(target)
     with target.open("w", encoding="utf-8") as f:
         f.writelines(
-            (item.model_dump_json(exclude_defaults=True) + "\n" for item in items),
+            (
+                item.model_dump_json(exclude_defaults=True) + "\n"
+                async for item in items
+            ),
         )

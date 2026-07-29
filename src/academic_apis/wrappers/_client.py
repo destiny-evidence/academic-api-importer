@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+import asyncio
 import logging
-from time import perf_counter, sleep
+from collections.abc import Awaitable
+from time import perf_counter
 from typing import TYPE_CHECKING, Any, override
 
-from httpx import URL, USE_CLIENT_DEFAULT, Client, HTTPError, Response, codes
+from httpx import (
+    URL,
+    USE_CLIENT_DEFAULT,
+    AsyncClient,
+    HTTPError,
+    Response,
+    codes,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -23,16 +32,7 @@ if TYPE_CHECKING:
     )
 
 
-def response_logger(logger_: logging.Logger) -> Callable[[Response], dict[str, Any]]:
-    def inner(response: Response) -> dict[str, Any]:
-        # nonlocal logger
-        logger_.warning(response.text)
-        return {}
-
-    return inner
-
-
-class RequestClient(Client):
+class RequestClient(AsyncClient):
     def __init__(  # type: ignore[no-untyped-def]
         self,
         *,
@@ -41,6 +41,8 @@ class RequestClient(Client):
         backoff_rate: float = 120.0,
         retry_on_status: list[int] | None = None,
         logger: logging.Logger | None = None,
+        pre_request: Callable[[], Awaitable[None]] | None = None,
+        on_response: Callable[[Response | None], Awaitable[None]] | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
         super().__init__(**kwargs)
@@ -59,12 +61,22 @@ class RequestClient(Client):
         self.kwargs = kwargs
         self.callbacks: dict[int, Callable[..., Any]] = {}
         self.logger = logger or logging.getLogger(__name__)
+        self._pre_request = pre_request
+        self._on_response = on_response
 
     def on(self, status: int, func: Callable[[Response], dict[str, Any]]) -> None:
         self.callbacks[status] = func
 
+    async def pre_request(self) -> None:
+        if self._pre_request is not None:
+            await self._pre_request()
+
+    async def on_response(self, response: Response | None) -> None:
+        if self._on_response is not None:
+            await self._on_response(response)
+
     @override
-    def request(
+    async def request(
         self,
         method: str,
         url: URL | str,
@@ -88,7 +100,7 @@ class RequestClient(Client):
                 self.logger.debug(
                     f"Sleeping to keep rate limit: {self.time_per_request - time:.4f} seconds",
                 )
-                sleep(self.time_per_request - time)
+                await asyncio.sleep(self.time_per_request - time)
 
             if auth == USE_CLIENT_DEFAULT:
                 auth = None
@@ -100,7 +112,7 @@ class RequestClient(Client):
             try:
                 # Log latest request
                 self.last_request = perf_counter()
-                response = super().request(
+                response = await super().request(
                     method=method or self.kwargs.get("method"),  # type: ignore[arg-type]
                     url=url or self.kwargs.get("url"),  # type: ignore[arg-type]
                     content=content or self.kwargs.get("content"),
@@ -122,17 +134,21 @@ class RequestClient(Client):
                 # reset counters after successful request
                 self.time_per_request = 1 / self.max_req_per_sec
 
+                await self.on_response(response)
+
                 return response
 
             except HTTPError as e:
                 self.logger.warning(f"Encountered HTTP error: {e.response.status_code}")  # type: ignore[attr-defined]
                 self.logger.warning(e.response.text)  # type: ignore[attr-defined]
 
-                if e.response.status_code in self.callbacks:  # type: ignore[attr-defined]
+                await self.on_response(getattr(e, "response"))
+
+                if hasattr(e, "response") and e.response.status_code in self.callbacks:  # type: ignore[attr-defined]
                     self.logger.debug(
                         f"Found status handler for {e.response.status_code}"
-                    )  # type: ignore[attr-defined]
-                    update = self.callbacks[e.response.status_code](e.response)  # type: ignore[attr-defined]
+                    )
+                    update = self.callbacks[e.response.status_code](e.response)
                     if update and update.get("content"):
                         content = update.get("content")
                     if update and update.get("data"):
@@ -155,7 +171,8 @@ class RequestClient(Client):
 
                 # if this error is not on the list, pass on error right away; otherwise log and retry
                 elif (
-                    e.response.status_code not in self.retry_on_status
+                    hasattr(e, "response")
+                    and e.response.status_code not in self.retry_on_status
                     and len(self.retry_on_status) > 0
                 ):  # type: ignore[attr-defined]
                     self.logger.warning("No handler found for error, raising.")

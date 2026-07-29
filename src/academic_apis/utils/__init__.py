@@ -62,6 +62,16 @@ def as_uuid(val: str | uuid.UUID | None = None) -> uuid.UUID | None:
     raise TypeError(f"Not a valid UUID: {type(val)}")
 
 
+def as_int(val: object | None, default: int = 0) -> int:
+    if val is None:
+        return default
+    if isinstance(val, int):
+        return val
+    if isinstance(val, str) and val.isdecimal():
+        return int(val)
+    return default
+
+
 __all__ = [
     "CONFIG_ENV_VAR",
     "DEFAULT_CONFIG_FILE",

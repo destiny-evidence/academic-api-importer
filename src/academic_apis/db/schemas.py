@@ -35,6 +35,9 @@ class AccessToken(SQLModel, table=True):
     active: bool = True
     comment: str | None = None
     last_used: datetime | None = Field(default=None, nullable=True)
+    locked_until: datetime = Field(
+        default=None, nullable=True
+    )  # when we get API feedback, put here when used up capacity is reset
     last_feedback: dict[str, Any] = Field(
         default_factory=dict,
         sa_column=Column("last_feedback", JSON, nullable=True),
@@ -58,6 +61,7 @@ class Task(SQLModel, table=True):
         default_factory=dict,
         sa_column=Column("progress", JSON, nullable=True),
     )
+    execution_time: float | None = None
     created_at: datetime = Field(
         default_factory=datetime.now,
         sa_column=Column(

@@ -27,6 +27,7 @@ class Config(BaseSettings):
     result_dir: Path = Field(default_factory=lambda data: data["data_root"] / "results")
 
     loglevel: int = logging.DEBUG
+    max_retries: int = 5
 
     def responses_dir(self, query_id: int) -> Path:
         target = self.result_dir / str(query_id) / "responses"

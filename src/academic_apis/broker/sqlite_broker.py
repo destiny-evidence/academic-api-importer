@@ -2,26 +2,27 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-import json
 import logging
-from collections import OrderedDict
+import pickle
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
+import orjson as json
 import sqlalchemy as sa
 from taskiq.abc.broker import AsyncBroker
-from taskiq.abc.result_backend import AsyncResultBackend
+from taskiq.abc.result_backend import AsyncResultBackend, TaskiqResult
 from taskiq.depends.progress_tracker import TaskProgress, TaskState
 from taskiq.events import TaskiqEvents
 from taskiq.utils import maybe_awaitable
 
 from academic_apis.db import Task, db_session
+from academic_apis.utils import settings
 from academic_apis.utils.types import Mode, Wrapper, assert_int, assert_str
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
 
     from sqlmodel import Session  # noqa: F401
-    from taskiq.abc.result_backend import TaskiqResult
     from taskiq.message import BrokerMessage
 
 logger = logging.getLogger(__name__)
@@ -30,20 +31,27 @@ _ReturnType = TypeVar("_ReturnType")
 _T = TypeVar("_T")
 
 
+async def get_task(task_id: str) -> Task:
+    async with db_session() as session:
+        task: Task = session.exec(
+            sa.select(Task).where(Task.task_id == task_id),
+        ).scalar_one()
+        session.expunge(task)
+    return task
+
+
 class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
-    """
-    Inmemory result backend.
+    @classmethod
+    def result_file(cls, query_id: int, task_id: str) -> Path:
+        return (settings.responses_dir(query_id) / task_id).with_suffix(".jsonl")
 
-    This resultbackend is intended to be used only
-    with inmemory broker.
+    @classmethod
+    def log_file(cls, query_id: int, task_id: str) -> Path:
+        return (settings.responses_dir(query_id) / task_id).with_suffix(".log")
 
-    It stores all results in a dict in memory.
-    """
-
-    def __init__(self, max_stored_results: int = 100) -> None:
-        self.max_stored_results = max_stored_results
-        self.results: OrderedDict[str, TaskiqResult[_ReturnType]] = OrderedDict()
-        self.progress: OrderedDict[str, TaskProgress[Any]] = OrderedDict()
+    @classmethod
+    def err_file(cls, query_id: int, task_id: str) -> Path:
+        return (settings.responses_dir(query_id) / task_id).with_suffix(".err")
 
     async def set_result(self, task_id: str, result: TaskiqResult[_ReturnType]) -> None:
         """
@@ -56,29 +64,59 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
         :param task_id: id of a task.
         :param result: result of an execution.
         """
-        if (
-            self.max_stored_results != -1
-            and len(self.results) >= self.max_stored_results
-        ):
-            self.results.popitem(last=False)
-        self.results[task_id] = result
+        async with db_session() as session:
+            task: Task = session.exec(
+                sa.select(Task).where(Task.task_id == task_id),
+            ).scalar_one()
+            logger.info(f"Found task: {task}")
+            result_file = self.result_file(task_id=task_id, query_id=task.query_id)
+            log_file = self.log_file(task_id=task_id, query_id=task.query_id)
+            exc_file = self.err_file(task_id=task_id, query_id=task.query_id)
+
+            task.execution_time = result.execution_time
+            task.labels = (task.labels | {}) | (result.labels | {})
+            if result.is_err:
+                task.num_retries += 1
+                if task.num_retries > settings.max_retries:
+                    task.status = TaskState.FAILURE
+                else:
+                    task.status = TaskState.RETRY
+                task.latest_try = dt.datetime.now(tz=dt.UTC)
+            else:
+                task.status = TaskState.SUCCESS
+                task.finished_at = dt.datetime.now(tz=dt.UTC)
+
+            session.commit()
+
+            if result.error:
+                with exc_file.open("wb") as exc_fp:
+                    pickle.dump(result.error, exc_fp)
+            if result.log:
+                with log_file.open("w") as log_fp:
+                    log_fp.write(result.log)
+            if result.return_value:
+                with result_file.open("wb") as result_fp:
+                    [
+                        result_fp.write(json.dumps(record) + b"\n")
+                        for record in result.return_value
+                    ]
 
     async def is_result_ready(self, task_id: str) -> bool:
         """
         Checks whether result is ready.
 
-        Readiness means that result with this task_id is
-        present in results dict.
+        Readiness means that result file exists.
 
         :param task_id: id of a task to check.
         :return: True if ready.
         """
-        return task_id in self.results
+        task = await get_task(task_id)
+        return self.result_file(query_id=task.query_id, task_id=task_id).exists()
 
     async def get_result(
         self,
         task_id: str,
-        with_logs: bool = False,  # noqa: ARG002
+        with_logs: bool = False,
     ) -> TaskiqResult[_ReturnType]:
         """
         Get result of a task.
@@ -94,7 +132,34 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
         :param with_logs: this option is ignored.
         :return: result of a task execution.
         """
-        return self.results[task_id]
+        task = await get_task(task_id)
+
+        log: str | None = None
+        log_file = self.log_file(query_id=task.query_id, task_id=task_id)
+        if with_logs and log_file.exists():
+            with log_file.open() as log_fp:
+                log = log_fp.read()
+
+        exc: BaseException | None = None
+        err_file = self.err_file(query_id=task.query_id, task_id=task_id)
+        if err_file.exists():
+            with err_file.open("rb") as err_fp:
+                exc = pickle.load(err_fp)  # noqa: S301
+
+        result: list[dict[str, Any]] = []
+        result_file = self.result_file(query_id=task.query_id, task_id=task_id)
+        if result_file.exists():
+            with result_file.open() as file:
+                result = [json.loads(line) for line in file]
+
+        return TaskiqResult(
+            is_err=exc is not None,
+            log=log,
+            execution_time=task.execution_time or -1.0,
+            labels=task.labels,
+            error=exc,
+            return_value=result,
+        )
 
     async def set_progress(
         self,
@@ -118,14 +183,15 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
     async def get_progress(
         self,
         task_id: str,
-    ) -> TaskProgress[Any] | None:
+    ) -> TaskProgress[dict[str, Any]] | None:
         """
         Get progress of task execution.
 
         :param task_id: task id
         :return: progress or None
         """
-        return self.progress.get(task_id)
+        task = await get_task(task_id)
+        return TaskProgress(state=task.status, meta=task.progress)
 
 
 class SQLiteBroker(AsyncBroker):
@@ -181,14 +247,14 @@ class SQLiteBroker(AsyncBroker):
         while True:
             try:
                 next_task: Task | None = None
-                async with db_session() as session:  # type: Session  # session is a transaction
+                async with db_session(Mode.WRITE) as session:  # type: Session  # session is a transaction
                     next_task = session.exec(
                         sa.select(Task)
                         .where(
                             Task.queue_name == self.queue_name,
                             sa.or_(
                                 Task.status.not_in(
-                                    [TaskState.SUCCESS, TaskState.STARTED]
+                                    [TaskState.SUCCESS, TaskState.STARTED],
                                 ),
                                 Task.status == None,  # noqa: E711
                             ),
