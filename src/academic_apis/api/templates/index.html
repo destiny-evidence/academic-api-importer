@@ -1,0 +1,44 @@
+<!-- landing page for unauthenticated users -->
+{% extends "_base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <section class="home-hero">
+        <div class="home-hero-copy">
+            <p class="home-hero-eyebrow">Production-ready starter</p>
+            <h1 class="home-hero-title">Ship the boring parts on day one.</h1>
+            <p class="home-hero-lead">
+                A typed, pure-Python web stack &mdash; FastAPI, Jinja2, and PostgreSQL &mdash;
+                with authentication, organizations, and role-based permissions already wired up.
+                Clone it and start building the part that matters.
+            </p>
+            <div class="home-hero-actions">
+                <a href="{{ url_for('read_register') }}" class="btn btn-primary btn-lg">Get started</a>
+                <a href="{{ url_for('read_login') }}" class="btn btn-outline-secondary btn-lg">Log in</a>
+            </div>
+        </div>
+
+        <div class="stack-term" role="img"
+             aria-label="Terminal listing the stack: FastAPI, Jinja2, PostgreSQL, and htmx.">
+            <div class="stack-term-bar">
+                <span class="dot dot-r"></span>
+                <span class="dot dot-y"></span>
+                <span class="dot dot-g"></span>
+                <span class="stack-term-title">~/project — stack --list</span>
+            </div>
+            <div class="stack-term-body">
+                <div class="stack-term-cmd">$ <b>stack</b> --list</div>
+                <ul class="stack-term-list">
+                    <li><span class="stack-term-ok">✓</span><span class="stack-term-pkg">fastapi</span><span class="stack-term-desc">high-performance async Python API framework</span></li>
+                    <li><span class="stack-term-ok">✓</span><span class="stack-term-pkg">jinja2</span><span class="stack-term-desc">server-rendered HTML templating</span></li>
+                    <li><span class="stack-term-ok">✓</span><span class="stack-term-pkg">postgres</span><span class="stack-term-desc">relational database + SQLModel ORM</span></li>
+                    <li><span class="stack-term-ok">✓</span><span class="stack-term-pkg">htmx</span><span class="stack-term-desc">dynamic UI without a JS build step</span></li>
+                </ul>
+                <div class="stack-term-foot">4 packages, 0 build tools<span class="stack-term-cursor" aria-hidden="true"></span></div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

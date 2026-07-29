@@ -48,17 +48,10 @@ class AccessToken(AccessTokenPublic, table=True):
     token: str
 
 
-class Task(SQLModel, table=True):
+class TaskPublic(SQLModel):
     task_id: str = Field(default_factory=lambda: uuid.uuid4().hex, primary_key=True)
     query_id: int
-    queue_name: str
     subquery: str
-    task_name: str
-    message: bytes
-    labels: dict[str, Any] = Field(
-        default_factory=dict,
-        sa_column=Column("labels", JSON, nullable=True),
-    )
     num_retries: int = 0
     status: TaskState | None = None
     progress: dict[str, Any] = Field(
@@ -76,3 +69,13 @@ class Task(SQLModel, table=True):
     )
     latest_try: datetime | None = Field(default=None, nullable=True)
     finished_at: datetime | None = Field(default=None, nullable=True)
+
+
+class Task(TaskPublic, table=True):
+    task_name: str
+    queue_name: str
+    message: bytes
+    labels: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column("labels", JSON, nullable=True),
+    )

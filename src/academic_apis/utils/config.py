@@ -31,6 +31,8 @@ class Config(BaseSettings):
     max_retries: int = 5
     access_tokens: set[str] = set()
 
+    web_origins: list[str] = []
+
     def responses_dir(self, query_id: int) -> Path:
         target = self.result_dir / str(query_id) / "responses"
         target.mkdir(parents=True, exist_ok=True)
