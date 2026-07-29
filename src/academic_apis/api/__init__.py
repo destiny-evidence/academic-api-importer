@@ -52,7 +52,7 @@ api.add_middleware(
 
 
 @api.post("/set-cookie")
-async def set_cookie(response: Response, token: Annotated[str, Body()]) -> dict[str, str]:
+async def set_cookie(response: Response,  token: Annotated[str, Body()]) -> dict[str, str]:
     response.set_cookie(
         key="aai_auth_token",
         value=token,
@@ -63,6 +63,17 @@ async def set_cookie(response: Response, token: Annotated[str, Body()]) -> dict[
     )
     return {"message": "Cookie set successfully"}
 
+@api.post("/set-admin-cookie")
+async def set_cookie(response: Response,  token: Annotated[str, Body()]) -> dict[str, str]:
+    response.set_cookie(
+        key="aai_admin_token",
+        value=token,
+        path="/",
+        samesite="lax",  # Default behavior for same-origin or top-level navigation
+        httponly=False,  # Set to True if you don't need frontend JS to read it directly
+        secure=False,  # Set to True if using HTTPS
+    )
+    return {"message": "Cookie set successfully"}
 
 api.mount(
     "/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static",
