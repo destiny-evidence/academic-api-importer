@@ -11,18 +11,19 @@ authors = [
 dependencies = [
     "destiny-sdk[labs]>=0.13.0",
     "nacsos_data",
-    "taskiq==0.12.4",
+    "taskiq>=0.12.4",
     #"taskiq-dashboard==0.4.4",
     #"taskiq-admin",
-    "filelock==3.32.0",
-    "sqlmodel==0.0.39",
-    "pandas[excel]==3.0.5",
-    "fastapi[standard]==0.141.0",
-    "orjson==3.11.9",
+    "filelock>=3.30.0",
+    "sqlmodel>=0.0.39",
+    "pandas[excel]>=3.0.0",
+    "fastapi[standard]>=0.140.0",
+    "orjson>=3.11.0",
     "socksio==1.*",
+    "jinja2>=3.1.6",
 ]
 [tool.uv.sources]
-nacsos_data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.54" }
+nacsos_data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.55" }
 
 
 [dependency-groups]

@@ -24,6 +24,7 @@ dependencies = [
     { name = "destiny-sdk" },
     { name = "fastapi", extra = ["standard"] },
     { name = "filelock" },
+    { name = "jinja2" },
     { name = "nacsos-data" },
     { name = "orjson" },
     { name = "pandas", extra = ["excel"] },
@@ -43,14 +44,15 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "destiny-sdk", extras = ["labs"], specifier = ">=0.13.0" },
-    { name = "fastapi", extras = ["standard"], specifier = "==0.141.0" },
-    { name = "filelock", specifier = "==3.32.0" },
-    { name = "nacsos-data", git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git?tag=v0.24.54" },
-    { name = "orjson", specifier = "==3.11.9" },
-    { name = "pandas", extras = ["excel"], specifier = "==3.0.5" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.140.0" },
+    { name = "filelock", specifier = ">=3.30.0" },
+    { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "nacsos-data", git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git?tag=v0.24.55" },
+    { name = "orjson", specifier = ">=3.11.0" },
+    { name = "pandas", extras = ["excel"], specifier = ">=3.0.0" },
     { name = "socksio", specifier = "==1.*" },
-    { name = "sqlmodel", specifier = "==0.0.39" },
-    { name = "taskiq", specifier = "==0.12.4" },
+    { name = "sqlmodel", specifier = ">=0.0.39" },
+    { name = "taskiq", specifier = ">=0.12.4" },
 ]
 
 [package.metadata.requires-dev]
@@ -1145,8 +1147,8 @@ wheels = [
 
 [[package]]
 name = "nacsos-data"
-version = "0.24.54"
-source = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git?tag=v0.24.54#97347dae95e3813d6ce5e6c8ea05683d7bea509c" }
+version = "0.24.55"
+source = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git?tag=v0.24.55#ef7735fffd2851654bf058834f1f0199b16da5e8" }
 dependencies = [
     { name = "email-validator" },
     { name = "lark" },
