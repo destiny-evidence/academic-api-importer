@@ -6,7 +6,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CONFIG_ENV_VAR = "AAI_CONF_FILE"
-DEFAULT_CONFIG_FILE = ".conf/secret.env"
+DEFAULT_CONFIG_FILE = ".config/secret.env"
 
 
 class Config(BaseSettings):
@@ -15,6 +15,7 @@ class Config(BaseSettings):
         extra="allow",
         env_nested_delimiter="__",
         env_prefix="AAI_",
+        case_sensitive=False,
     )
     data_root: Path = Path("data/")
 
@@ -28,6 +29,7 @@ class Config(BaseSettings):
 
     loglevel: int = logging.DEBUG
     max_retries: int = 5
+    access_tokens: set[str] = set()
 
     def responses_dir(self, query_id: int) -> Path:
         target = self.result_dir / str(query_id) / "responses"

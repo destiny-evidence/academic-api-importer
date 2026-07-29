@@ -34,7 +34,8 @@ class AccessTokenPublic(SQLModel):
     comment: str | None = None
     last_used: datetime | None = Field(default=None, nullable=True)
     locked_until: datetime | None = Field(
-        default=None, nullable=True,
+        default=None,
+        nullable=True,
     )  # when we get API feedback, put here when used up capacity is reset
     last_feedback: dict[str, Any] | None = Field(
         default_factory=dict,
