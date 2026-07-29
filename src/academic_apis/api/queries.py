@@ -3,9 +3,14 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Annotated, cast
 
-from fastapi import APIRouter, Body
-
+from fastapi import APIRouter, Body, Cookie, HTTPException, Header
+from starlette import status
+from starlette.requests import Request
+from starlette.responses import HTMLResponse
+from starlette.templating import Jinja2Templates
+from sqlmodel import select
 from academic_apis.db import Query, db_session
+from academic_apis.utils import settings
 from academic_apis.utils.types import Wrapper
 from academic_apis.wrappers import WRAPPERS
 
@@ -25,7 +30,14 @@ async def submit_query(
     py_end: int | None = None,
     py_steps: int = 2,
     use_py_filter: bool = False,
+    aai_admin_token: Annotated[str | None, Header()] = None,
 ) -> int:
+    if not aai_admin_token or aai_admin_token not in settings.admin_tokens:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized: Invalid or missing auth cookie",
+        )
+
     from academic_apis.broker.tasks import retrieve_query
 
     API = WRAPPERS[wrapper]  # noqa: N806
@@ -53,3 +65,21 @@ async def submit_query(
         await retrieve_query.kiq(query=subquery, wrapper=wrapper, query_id=query_id)
 
     return query_id
+
+
+templates = Jinja2Templates(directory="src/academic_apis/api/templates")
+
+
+@route.get("/")
+async def list_queries() -> list[Query]:
+    async with db_session() as session:  # type: Session
+        return session.exec(select(Query)).all()
+
+
+@route.get("/html", response_class=HTMLResponse)
+async def list_queries_html(request: Request) -> HTMLResponse:
+    queries = await list_queries()
+
+    return templates.TemplateResponse(
+        request, "queries.html", {"request": request, "queries": queries},
+    )

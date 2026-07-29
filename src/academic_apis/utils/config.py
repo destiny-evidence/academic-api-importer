@@ -30,6 +30,7 @@ class Config(BaseSettings):
     loglevel: int = logging.DEBUG
     max_retries: int = 5
     access_tokens: set[str] = set()
+    admin_tokens: set[str] = set()
 
     web_origins: list[str] = []
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,8 +12,8 @@ from starlette.staticfiles import StaticFiles
 from academic_apis.broker.broker import broker
 from academic_apis.utils import init_logging, settings
 
-from .submit import route as manage_app
-from .middlewares import verify_auth_key_cookie, verify_auth_key_header
+from .queries import route as manage_app
+from .middlewares import verify_auth_key_cookie
 from .tokens import route as token_app
 from .progress import route as progress_app
 
@@ -52,7 +52,7 @@ api.add_middleware(
 
 
 @api.post("/set-cookie")
-async def set_cookie(response: Response, token: str = Body()):
+async def set_cookie(response: Response, token: Annotated[str, Body()]) -> dict[str, str]:
     response.set_cookie(
         key="aai_auth_token",
         value=token,
@@ -68,6 +68,6 @@ api.mount(
     "/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static",
 )
 
-api.include_router(manage_app, prefix="/submit")
+api.include_router(manage_app, prefix="/queries")
 api.include_router(token_app, prefix="/tokens")
 api.include_router(progress_app, prefix="/tasks")

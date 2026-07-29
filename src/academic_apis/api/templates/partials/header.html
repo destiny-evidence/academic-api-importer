@@ -1,7 +1,13 @@
-<header class="navbar navbar-expand-lg navbar-light bg-light">
+<header class="navbar navbar-expand-lg navbar-light bg-dark text-light">
   <ul class="navbar-nav ">
     <li class="nav-item" id="mobile-nav-profile">
-      <a class="nav-link" href="{{ url_for('list_tokens_html') }}">Tokens</a>
+      <a class="nav-link text-light" href="{{ url_for('list_queries_html') }}">Queries</a>
+    </li>
+    <li class="nav-item" id="mobile-nav-profile">
+      <a class="nav-link text-light" href="{{ url_for('list_tasks_html') }}">Tasks (subqueries)</a>
+    </li>
+    <li class="nav-item" id="mobile-nav-profile">
+      <a class="nav-link text-light" href="{{ url_for('list_tokens_html') }}">API Tokens</a>
     </li>
   </ul>
 </header>

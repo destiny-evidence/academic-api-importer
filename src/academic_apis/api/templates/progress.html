@@ -1,11 +1,103 @@
-<!-- landing page for unauthenticated users -->
 {% extends "_base.html" %}
 
-{% block title %}Tokens{% endblock %}
+{% block title %}Task Progress{% endblock %}
 
 {% block content %}
 
-<div class="container py-5" x-data="{ search: '' }">
-   TODO
-</div>
-{% endblock %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    {% if query_id %}
+      <h1 class="h3">Tasks for Query {{ query_id }}</h1>
+      <form method="get" class="d-flex gap-2 w-auto">
+        <input type="hidden" name="query_id" value="{{ query_id }}">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Statuses</option>
+          {% for s in ['STARTED', 'FAILURE', 'SUCCESS', 'RETRY'] %}
+          <option value="{{ s }}" {% if status== s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    {% else %}
+      <h1 class="h3">Task Progress</h1>
+      <form method="get" class="d-flex gap-2 w-auto">
+        <input type="number" name="query_id" class="form-control form-control-sm" placeholder="Enter Query ID" required>
+        <button type="submit" class="btn btn-sm btn-primary">View Tasks</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-dark">
+        <tr>
+          <th>Task ID</th>
+          <th>Status</th>
+          <th>Subquery (end)</th>
+          <th>Retries</th>
+          <th>Created At</th>
+          <th>Progress</th>
+          <th>Execution Time</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for task in tasks %}
+        <tr>
+          <td><code>{{ task.task_id }}</code></td>
+          <td>
+            <span
+              class="badge {% if task.status.value == 'SUCCESS' %}bg-success{% elif task.status.value == 'FAILURE' %}bg-danger{% elif task.status.value == 'STARTED' %}bg-primary{% else %}bg-secondary{% endif %}">
+              {{ task.status.value  }}
+            </span>
+          </td>
+          <td><code>{{ task.subquery }}</code></td>
+          <td>{{ task.num_retries }}</td>
+          <td>{{ task.created_at.strftime('%Y-%m-%d %H:%M') if task.created_at else '-' }}</td>
+          <td>
+            <div class="progress" style="height: 10px;">
+              <div class="progress-bar {% if task.status.value == 'FAILURE' %}bg-danger{% endif %}"
+                   role="progressbar"
+                   style="width: {{ task.progress }}%"
+                   aria-valuenow="{{ task.progress }}"
+                   aria-valuemin="0"
+                   aria-valuemax="100"></div>
+            </div>
+            <small class="text-muted">{{ task.progress }}%</small>
+          </td>
+          <td>{{ task.execution_time or '-' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-footer d-flex justify-content-between align-items-center py-3">
+      <small class="text-muted">
+        Showing {{ offset + 1 if total > 0 else 0 }} to {{ (offset + (tasks|length)) if (offset + (tasks|length) <=
+        total) else total }} of {{ total }} tasks
+      </small>
+      <div class="d-flex gap-2">
+        {% set prev_offset = offset - limit %}
+        {% if prev_offset >= 0 %}
+        {% set prev_url = url_for('list_tasks_html').include_query_params(query_id=query_id, limit=limit,
+        offset=prev_offset) %}
+        {% if status %}{% set prev_url = prev_url.include_query_params(status=status.value) %}{% endif %}
+        <a href="{{ prev_url }}" class="btn btn-sm btn-outline-secondary">Previous</a>
+        {% else %}
+        <span class="btn btn-sm btn-outline-secondary disabled">Previous</span>
+        {% endif %}
+
+        {% set next_offset = offset + limit %}
+        {% if next_offset < total %}
+        {% set next_url = url_for('list_tasks_html').include_query_params(query_id=query_id, limit=limit,
+        offset=next_offset) %}
+        {% if status %}{% set next_url = next_url.include_query_params(status=status.value) %}{% endif %}
+        <a href="{{ next_url }}" class="btn btn-sm btn-outline-secondary">Next</a>
+        {% else %}
+        <span class="btn btn-sm btn-outline-secondary disabled">Next</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% endblock %}

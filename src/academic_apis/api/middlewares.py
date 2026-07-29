@@ -6,7 +6,7 @@ from starlette import status
 from academic_apis.utils import settings
 
 # List of paths that bypass authentication
-PUBLIC_PATHS = {"/docs", "/redoc", "/openapi.json", "/set-cookie"}
+PUBLIC_PATHS = {"/docs", "/redoc", "/openapi.json", "/set-cookie", "/queries/query"}
 
 
 async def verify_auth_key_header(
@@ -28,8 +28,6 @@ async def verify_auth_key_cookie(
 ) -> str | None:
     if request.url.path in PUBLIC_PATHS:
         return None
-
-    print(aai_auth_token)
 
     if not aai_auth_token or aai_auth_token not in settings.access_tokens:
         raise HTTPException(

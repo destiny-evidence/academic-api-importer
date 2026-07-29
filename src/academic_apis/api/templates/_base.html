@@ -15,6 +15,7 @@
          document-level event delegation working across AJAX navigations. defer
          maintains execution order and waits for DOM parsing to complete. -->
     <link href="{{ url_for('static', path='css/bootstrap.min.css') }}" rel="stylesheet">
+    <script defer src="{{ url_for('static', path='js/bootstrap.js') }}"></script>
     <script defer src="{{ url_for('static', path='alpine.3.x.x.js') }}"></script>
 
     {% block extra_head %}{% endblock %}
