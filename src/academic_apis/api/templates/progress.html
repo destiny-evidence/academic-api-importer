@@ -79,7 +79,7 @@
       <div class="d-flex gap-2">
         {% set prev_offset = offset - limit %}
         {% if prev_offset >= 0 %}
-        {% set prev_url = url_for('list_tasks_html').include_query_params(query_id=query_id, limit=limit,
+        {% set prev_url = request.url_for('list_tasks_html').include_query_params(query_id=query_id, limit=limit,
         offset=prev_offset) %}
         {% if status %}{% set prev_url = prev_url.include_query_params(status=status.value) %}{% endif %}
         <a href="{{ prev_url }}" class="btn btn-sm btn-outline-secondary">Previous</a>
@@ -89,7 +89,7 @@
 
         {% set next_offset = offset + limit %}
         {% if next_offset < total %}
-        {% set next_url = url_for('list_tasks_html').include_query_params(query_id=query_id, limit=limit,
+        {% set next_url = request.url_for('list_tasks_html').include_query_params(query_id=query_id, limit=limit,
         offset=next_offset) %}
         {% if status %}{% set next_url = next_url.include_query_params(status=status.value) %}{% endif %}
         <a href="{{ next_url }}" class="btn btn-sm btn-outline-secondary">Next</a>

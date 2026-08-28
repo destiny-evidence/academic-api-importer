@@ -17,7 +17,7 @@
             <tbody>
                 {% for q in queries %}
                 <tr style="cursor: pointer" 
-                    @click="window.location.href='{{ url_for('list_tasks_html').include_query_params(query_id=q.query_id) }}'">
+                    @click="window.location.href='{{ request.url_for('list_tasks_html').include_query_params(query_id=q.query_id) }}'">
                     <td><span class="fw-bold">{{ q.query_id }}</span></td>
                     <td>
                         {{ q.query[:100] }}{% if q.query|length > 100 %}...{% endif %}
