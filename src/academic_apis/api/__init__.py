@@ -60,6 +60,7 @@ async def set_cookie(response: Response,  token: Annotated[str, Body()]) -> dict
         samesite="lax",  # Default behavior for same-origin or top-level navigation
         httponly=False,  # Set to True if you don't need frontend JS to read it directly
         secure=False,  # Set to True if using HTTPS
+        expires=8640000, # Lifetime in seconds (100 days)
     )
     return {"message": "Cookie set successfully"}
 
@@ -72,6 +73,7 @@ async def set_cookie(response: Response,  token: Annotated[str, Body()]) -> dict
         samesite="lax",  # Default behavior for same-origin or top-level navigation
         httponly=False,  # Set to True if you don't need frontend JS to read it directly
         secure=False,  # Set to True if using HTTPS
+        expires=8640000,  # Lifetime in seconds (100 days)
     )
     return {"message": "Cookie set successfully"}
 

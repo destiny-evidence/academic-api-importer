@@ -7,7 +7,12 @@ uv run fastapi dev
 # the async task limit is important, otherwise it will just continue paging without waiting for responses
 uv run taskiq worker academic_apis.broker.broker:broker --workers=3 --max-async-tasks=1   
 
-
 # hacky deploy when github strikes
 rsync -avh --progress -e ssh . se164:/data/academic-api --exclude=.venv/ --exclude=.git/ --exclude=.idea/ --exclude=data/ --exclude=.config/
+
+# Access "UI"
+ssh -N -J ts01 -L 7050:localhost:7050 se164
+
+# API: http://localhost:7050/docs
+# UI: http://localhost:7050/queries/html
 ```
