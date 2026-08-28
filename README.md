@@ -16,3 +16,34 @@ ssh -N -J ts01 -L 7050:localhost:7050 se164
 # API: http://localhost:7050/docs
 # UI: http://localhost:7050/queries/html
 ```
+
+worker service
+```
+[Unit]
+Description=academic api workers
+After=network.target
+
+[Service]
+Type=simple
+User=nacsos
+Group=nacsos
+Environment="AAI_CONF_FILE=/data/academic-api/.config/secret.env"
+Environment="OPENSSL_CONF=/dev/null"
+WorkingDirectory=/data/academic-api
+
+ExecStart=uv run taskiq worker academic_apis.broker.broker:broker --workers=3 --max-async-tasks=1
+
+#ExecStop=kill -9 $(ps aux | grep 'dramatiq' | awk '{print $2}')
+
+Restart=always
+RestartSec=30s
+#PIDFile=/data/nacsos2/dramatiq.pid
+#KillMode=process
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=10
+FinalKillSignal=SIGKILL
+
+[Install]
+WantedBy=multi-user.target
+```

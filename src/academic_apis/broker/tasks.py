@@ -4,7 +4,7 @@ from dataclasses import asdict
 from typing import Annotated, Any
 
 import sqlalchemy as sa
-from sqlmodel import Session  # noqa: F401
+from sqlmodel import Session
 from taskiq import Context, TaskiqDepends
 from taskiq.depends.progress_tracker import TaskProgress, TaskState
 
@@ -32,9 +32,9 @@ async def retrieve_query(
             sa.select(AccessToken)
             .where(
                 AccessToken.wrapper == wrapper,
-                AccessToken.active == True,
+                AccessToken.active.is_(True),
                 sa.or_(
-                    AccessToken.locked_until == None,  # noqa: E711
+                    AccessToken.locked_until.is_(None),
                     AccessToken.locked_until <= dt.datetime.now(tz=dt.UTC).timestamp(),
                 ),
             )

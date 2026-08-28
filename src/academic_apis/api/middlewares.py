@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Header, HTTPException, Request, Cookie
+from fastapi import Cookie, Header, HTTPException, Request
 from starlette import status
 
 from academic_apis.utils import settings
@@ -10,7 +10,8 @@ PUBLIC_PATHS = {"/docs", "/redoc", "/openapi.json", "/set-cookie", "/queries/que
 
 
 async def verify_auth_key_header(
-    request: Request, x_auth_key: str | None = Header(None, alias="x-auth-key"),
+    request: Request,
+    x_auth_key: str | None = Header(None, alias="x-auth-key"),
 ) -> str | None:
     if request.url.path in PUBLIC_PATHS:
         return None
@@ -24,7 +25,8 @@ async def verify_auth_key_header(
 
 
 async def verify_auth_key_cookie(
-    request: Request, aai_auth_token: Annotated[str | None, Cookie()] = None,
+    request: Request,
+    aai_auth_token: Annotated[str | None, Cookie()] = None,
 ) -> str | None:
     if request.url.path in PUBLIC_PATHS:
         return None
