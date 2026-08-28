@@ -258,6 +258,10 @@ class SQLiteBroker(AsyncBroker):
                                 ),
                                 Task.status == None,  # noqa: E711
                             ),
+                            sa.or_(
+                                Task.num_retries == None,  # noqa: E711
+                                Task.num_retries <= settings.max_retries,
+                            )
                         )
                         .order_by(sa.func.coalesce(Task.latest_try, Task.created_at))
                         .limit(1),

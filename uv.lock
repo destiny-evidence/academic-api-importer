@@ -3,10 +3,10 @@ revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version < '3.15' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.15' and sys_platform == 'win32'",
+    "python_full_version < '3.15' and sys_platform == 'emscripten'",
     "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -42,14 +42,14 @@ dev = [
 requires-dist = [
     { name = "destiny-sdk", extras = ["labs"], specifier = ">=0.16.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
-    { name = "filelock", specifier = ">=3.30.0" },
+    { name = "filelock", specifier = ">=3.32.4" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "nacsos-data", git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git?tag=v0.24.55" },
     { name = "orjson", specifier = ">=3.11.0" },
     { name = "pandas", extras = ["excel"], specifier = ">=3.0.0" },
     { name = "socksio", specifier = "==1.*" },
     { name = "sqlmodel", specifier = ">=0.0.39" },
-    { name = "taskiq", specifier = ">=0.12.4" },
+    { name = "taskiq", specifier = ">=0.12.5" },
 ]
 
 [package.metadata.requires-dev]

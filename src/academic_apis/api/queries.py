@@ -85,5 +85,9 @@ async def list_queries_html(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "queries.html",
-        {"request": request, "queries": queries},
+        {
+            "request": request,
+            "queries": queries,
+            "settings": settings,
+        },
     )

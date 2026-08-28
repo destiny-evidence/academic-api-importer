@@ -10,6 +10,7 @@ from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.db import db_session
 from academic_apis.db.schemas import Task, TaskPublic
+from academic_apis.utils import settings
 
 if TYPE_CHECKING:
     from sqlmodel import Session  # noqa: F401
@@ -86,5 +87,6 @@ async def list_tasks_html(
             "offset": offset,
             "limit": limit,
             "status": status,
+            "settings": settings,
         },
     )

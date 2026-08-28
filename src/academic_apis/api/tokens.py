@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from academic_apis.db import AccessToken, db_session
 from academic_apis.db.schemas import AccessTokenPublic
+from academic_apis.utils import settings
 
 if TYPE_CHECKING:
     from sqlmodel import Session  # noqa: F401
@@ -43,5 +44,11 @@ async def list_tokens_html(request: Request) -> HTMLResponse:
     tokens = await list_tokens()
 
     return templates.TemplateResponse(
-        request, "tokens.html", {"request": request, "tokens": tokens}
+        request,
+        "tokens.html",
+        {
+            "request": request,
+            "tokens": tokens,
+            "settings": settings,
+        },
     )

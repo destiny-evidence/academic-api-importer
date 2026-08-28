@@ -32,12 +32,10 @@ from __future__ import annotations
 import sys
 import typing
 from typing import Annotated
+from pathlib import Path
 
 import typer
 from lark import Lark, Transformer
-
-if typing.TYPE_CHECKING:
-    from pathlib import Path
 
 # --------------------------------------------------------------------------
 # Scopus field codes (per the documentation)
