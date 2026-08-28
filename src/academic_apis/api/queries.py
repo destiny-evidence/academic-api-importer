@@ -25,12 +25,12 @@ route = APIRouter()
 @route.post("/query")
 async def submit_query(
     wrapper: Wrapper,
-    query: Annotated[str, Body()],
+    query: Annotated[str, Body(media_type="text/plain")],
     py_start: int = 2010,
     py_end: int | None = None,
     py_steps: int = 2,
     use_py_filter: bool = False,
-    aai_admin_token: Annotated[str | None, Header()] = None,
+    aai_admin_token: Annotated[str | None, Cookie()] = None,
 ) -> int:
     if not aai_admin_token or aai_admin_token not in settings.admin_tokens:
         raise HTTPException(
