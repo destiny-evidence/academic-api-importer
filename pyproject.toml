@@ -11,10 +11,10 @@ authors = [
 dependencies = [
     "destiny-sdk[labs]>=0.16.0",
     "nacsos_data",
-    "taskiq>=0.12.4",
+    "taskiq>=0.12.5",
     #"taskiq-dashboard==0.4.4",
     #"taskiq-admin",
-    "filelock>=3.30.0",
+    "filelock>=3.32.4",
     "sqlmodel>=0.0.39",
     "pandas[excel]>=3.0.0",
     "fastapi[standard]>=0.141.1",

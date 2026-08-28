@@ -7,11 +7,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CONFIG_ENV_VAR = "AAI_CONF_FILE"
 DEFAULT_CONFIG_FILE = ".config/secret.env"
-
+CONFIG_FILE = os.getenv(CONFIG_ENV_VAR, DEFAULT_CONFIG_FILE)
 
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=os.getenv(CONFIG_ENV_VAR, DEFAULT_CONFIG_FILE),
+        env_file=CONFIG_FILE,
         extra="allow",
         env_nested_delimiter="__",
         env_prefix="AAI_",
@@ -46,3 +46,6 @@ class Config(BaseSettings):
 
 
 settings = Config()
+
+print(CONFIG_FILE)
+print(settings)
