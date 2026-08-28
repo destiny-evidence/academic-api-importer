@@ -52,6 +52,3 @@ class Config(BaseSettings):
 
 
 settings = Config()
-
-print(CONFIG_FILE)
-print(settings)
