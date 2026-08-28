@@ -1,0 +1,97 @@
+image: python:3.14
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  UV_LINK_MODE: copy
+  UV_PROJECT_ENVIRONMENT: ".venv"
+  UV_CACHE_DIR: .uv-cache
+  UV_NO_SOURCES: true
+
+before_script:
+  # Provides credentials to pip to access private GitLab PyPi index.
+  - echo "machine gitlab.pik-potsdam.de" > ~/.netrc
+  - echo "  login gitlab-ci-token" >> ~/.netrc
+  - echo "  password ${CI_JOB_TOKEN}" >> ~/.netrc
+
+stages:
+  - build
+  - test
+  - deploy
+
+cache:
+  - key:
+      files:
+        - uv.lock
+    paths:
+      - $UV_CACHE_DIR
+
+.uv:
+  tags:
+    - se164-docker
+  before_script:
+    - git config --global url."https://gitlab.pik-potsdam.de/".insteadOf "ssh://git@gitlab.pik-potsdam.de/"
+    - pip install uv
+    - python -V
+    - pwd
+    - ls -lisah
+    - uv sync --group dev
+  after_script:
+    - uv cache prune --ci
+
+build-job:
+  extends: .uv
+  stage: build
+  script:
+    - uv pip freeze
+
+test-ruff:
+  extends: .uv
+  stage: test
+  script:
+    - uv run ruff check
+    - uv run ruff format --check
+
+test-mypy:
+  extends: .uv
+  stage: test
+  allow_failure: true
+  script:
+    - uv run mypy
+
+deploy-to-production:
+  stage: deploy
+  tags:
+    - se164-bare
+  script:
+    - echo "Current working directory and user"
+    - pwd
+    - whoami
+    - groups
+    - echo $HOME
+    - echo "Go to deployment location"
+    - echo "Stopping core service"
+    - sudo systemctl stop academic-api.service
+    - cd /data/academic-api
+    - ls -lisah
+    - echo "Fetching updated source"
+    - git stash  # "reset" softly by stashing (in case files changed)
+    - git pull origin main
+    - echo "Creating new virtual environment"
+    - sudo -u nacsos /usr/bin/bash -c 'uv sync --reinstall --no-sources --cache-dir /data/academic-api/.cache'
+    - echo "Starting core service"
+    - sudo systemctl start academic-api.service
+  when: manual
+  only:
+    - production
+
+
+restart-workers:
+  stage: deploy
+  tags:
+    - se164-bare
+  script:
+    - echo "Restarting worker service"
+    - sudo systemctl restart academic-api-worker.service
+  when: manual
+  only:
+    - production
