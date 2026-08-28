@@ -9,6 +9,7 @@ CONFIG_ENV_VAR = "AAI_CONF_FILE"
 DEFAULT_CONFIG_FILE = ".config/secret.env"
 CONFIG_FILE = os.getenv(CONFIG_ENV_VAR, DEFAULT_CONFIG_FILE)
 
+
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=CONFIG_FILE,
@@ -33,6 +34,11 @@ class Config(BaseSettings):
     admin_tokens: set[str] = set()
 
     web_origins: list[str] = []
+
+    OPENAPI_FILE: str = "/openapi.json"  # absolute URL path to openapi.json file
+    # see https://fastapi.tiangolo.com/advanced/behind-a-proxy/
+    OPENAPI_PREFIX: str = ""
+    ROOT_PATH: str = ""
 
     def responses_dir(self, query_id: int) -> Path:
         target = self.result_dir / str(query_id) / "responses"

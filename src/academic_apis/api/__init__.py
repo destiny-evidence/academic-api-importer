@@ -36,7 +36,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa: ARG001
         await broker.shutdown()
 
 
-api = FastAPI(lifespan=lifespan)
+api = FastAPI(
+    lifespan=lifespan,
+    openapi_url=settings.OPENAPI_FILE,
+    openapi_prefix=settings.OPENAPI_PREFIX,
+    root_path=settings.ROOT_PATH,
+    separate_input_output_schemas=False,
+)
 
 if len(settings.access_tokens) > 0:
     # api.router.dependencies.append(Depends(verify_auth_key_header))
