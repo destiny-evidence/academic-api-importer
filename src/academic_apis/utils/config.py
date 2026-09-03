@@ -35,6 +35,11 @@ class Config(BaseSettings):
 
     web_origins: list[str] = []
 
+    empty_loop_sleep: int = Field(
+        default=30,
+        description="Number of seconds to sleep before trying again if there were no tasks in the queue.",
+    )
+
     OPENAPI_FILE: str = "/openapi.json"  # absolute URL path to openapi.json file
     # see https://fastapi.tiangolo.com/advanced/behind-a-proxy/
     OPENAPI_PREFIX: str = ""

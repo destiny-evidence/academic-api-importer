@@ -276,6 +276,9 @@ class SQLiteBroker(AsyncBroker):
                         # session.expunge(next_task)
                 if next_task:
                     yield next_task.message
+                else:
+                    self.logger.info(f"No task in queue, going to sleep for {settings.empty_loop_sleep} seconds.")
+                    await asyncio.sleep(settings.empty_loop_sleep)
             except ConnectionError as exc:
                 self.logger.warning(f"Connection error: {exc}")
                 continue
