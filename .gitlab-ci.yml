@@ -78,7 +78,7 @@ deploy-to-production:
     - ls -lisah
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
-    - git pull origin main
+    - git pull pik main
     - echo "Creating new virtual environment"
     - sudo -u nacsos /usr/bin/bash -c 'uv sync --frozen --reinstall --cache-dir ${DEPLOYMENT_DIR}/.cache'
     - sudo chown -R nacsos "${DEPLOYMENT_DIR}"
