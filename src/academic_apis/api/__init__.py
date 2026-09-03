@@ -88,6 +88,7 @@ async def set_admin_cookie(
     )
     return {"message": "Cookie set successfully"}
 
+
 api.mount(
     "/static",
     StaticFiles(directory=Path(__file__).parent / "static"),
