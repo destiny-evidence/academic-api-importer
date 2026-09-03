@@ -156,4 +156,6 @@ exclude-dependencies = [
     "ecdsa", # Required until https://github.com/mpdavis/python-jose/issues/390 is resolved
 ]
 package = true
-
+environments = [
+    "sys_platform == 'linux'"
+]
