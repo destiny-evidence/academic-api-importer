@@ -6,6 +6,7 @@ variables:
   UV_PROJECT_ENVIRONMENT: ".venv"
   UV_CACHE_DIR: .uv-cache
   #UV_NO_SOURCES: true
+  DEPLOYMENT_DIR: "/data/academic-api"
 
 before_script:
   # Provides credentials to pip to access private GitLab PyPi index.
@@ -72,13 +73,16 @@ deploy-to-production:
     - echo "Go to deployment location"
     - echo "Stopping core service"
     - sudo systemctl stop academic-api.service
-    - cd /data/academic-api
+    - cd "${DEPLOYMENT_DIR}"
+    - sudo chown -R gitlab-runner "${DEPLOYMENT_DIR}"
     - ls -lisah
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin main
     - echo "Creating new virtual environment"
-    - sudo -u nacsos /usr/bin/bash -c 'uv sync --frozen --reinstall --cache-dir /data/academic-api/.cache'
+    - sudo -u nacsos /usr/bin/bash -c 'uv sync --frozen --reinstall --cache-dir ${DEPLOYMENT_DIR}/.cache'
+    - sudo chown -R nacsos "${DEPLOYMENT_DIR}"
+#    - sudo chgrp -R nacsos "${DEPLOYMENT_DIR}"
     - echo "Starting core service"
     - sudo systemctl start academic-api.service
   when: manual
