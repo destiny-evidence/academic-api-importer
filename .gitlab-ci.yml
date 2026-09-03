@@ -34,7 +34,7 @@ cache:
     - python -V
     - pwd
     - ls -lisah
-    - uv sync --group dev
+    - uv sync --frozen --group dev
   after_script:
     - uv cache prune --ci
 
@@ -77,7 +77,7 @@ deploy-to-production:
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull origin main
     - echo "Creating new virtual environment"
-    - sudo -u nacsos /usr/bin/bash -c 'uv sync --reinstall --cache-dir /data/academic-api/.cache'
+    - sudo -u nacsos /usr/bin/bash -c 'uv sync --frozen --reinstall --cache-dir /data/academic-api/.cache'
     - echo "Starting core service"
     - sudo systemctl start academic-api.service
   when: manual
