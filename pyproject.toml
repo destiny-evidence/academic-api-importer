@@ -3,7 +3,7 @@ name = "academic-apis"
 version = "0.1.0"
 description = "This toolkit provides wrappers to interact with APIs of academic literature databases, such as Scopus, Web of Science, PubMed, and others."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.14,<3.15"
 authors = [
     { name = "Tim Repke", email = "tim.repke@pik-potsdam.de" }
 ]
