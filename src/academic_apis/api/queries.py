@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Annotated, cast, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import APIRouter, Body, Cookie, HTTPException
 from sqlmodel import select
@@ -14,7 +15,6 @@ from academic_apis.db import Query, db_session
 from academic_apis.utils import settings
 from academic_apis.utils.types import Wrapper
 from academic_apis.wrappers import WRAPPERS
-
 
 if TYPE_CHECKING:
     from sqlmodel import Session  # noqa: F401

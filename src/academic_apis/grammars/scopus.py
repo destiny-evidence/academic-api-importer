@@ -31,8 +31,8 @@ from __future__ import annotations
 
 import sys
 import typing
-from typing import Annotated
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from lark import Lark, Transformer

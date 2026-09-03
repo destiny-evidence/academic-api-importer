@@ -4,7 +4,6 @@ from dataclasses import asdict
 from typing import Annotated, Any
 
 import sqlalchemy as sa
-from sqlmodel import Session
 from taskiq import Context, TaskiqDepends
 from taskiq.depends.progress_tracker import TaskProgress, TaskState
 

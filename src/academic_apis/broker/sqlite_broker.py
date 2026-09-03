@@ -261,7 +261,7 @@ class SQLiteBroker(AsyncBroker):
                             sa.or_(
                                 Task.num_retries == None,  # noqa: E711
                                 Task.num_retries <= settings.max_retries,
-                            )
+                            ),
                         )
                         .order_by(sa.func.coalesce(Task.latest_try, Task.created_at))
                         .limit(1),
@@ -277,7 +277,9 @@ class SQLiteBroker(AsyncBroker):
                 if next_task:
                     yield next_task.message
                 else:
-                    self.logger.info(f"No task in queue, going to sleep for {settings.empty_loop_sleep} seconds.")
+                    self.logger.info(
+                        f"No task in queue, going to sleep for {settings.empty_loop_sleep} seconds."
+                    )
                     await asyncio.sleep(settings.empty_loop_sleep)
             except ConnectionError as exc:
                 self.logger.warning(f"Connection error: {exc}")
