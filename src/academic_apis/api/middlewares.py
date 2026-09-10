@@ -13,7 +13,9 @@ async def verify_auth_key_header(
     request: Request,
     x_auth_key: str | None = Header(None, alias="x-auth-key"),
 ) -> str | None:
-    if request.url.path in PUBLIC_PATHS:
+    root_path = request.scope.get("root_path", "")
+    path = request.url.path.removeprefix(root_path)
+    if path in PUBLIC_PATHS:
         return None
 
     if not x_auth_key or x_auth_key not in settings.access_tokens:
@@ -28,7 +30,9 @@ async def verify_auth_key_cookie(
     request: Request,
     aai_auth_token: Annotated[str | None, Cookie()] = None,
 ) -> str | None:
-    if request.url.path in PUBLIC_PATHS:
+    root_path = request.scope.get("root_path", "")
+    path = request.url.path.removeprefix(root_path)
+    if path in PUBLIC_PATHS:
         return None
 
     if not aai_auth_token or aai_auth_token not in settings.access_tokens:
