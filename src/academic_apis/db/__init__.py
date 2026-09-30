@@ -38,7 +38,7 @@ def make_engine() -> Engine:
     SQLModel.metadata.create_all(engine)
 
     @event.listens_for(engine, "connect")
-    def _set_pragmas(conn: Connection, _) -> None:
+    def _set_pragmas(conn: Connection, _record: object) -> None:
         cur = conn.cursor()
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute(f"PRAGMA busy_timeout={WRITE_LOCK_TIMEOUT * 1000}")

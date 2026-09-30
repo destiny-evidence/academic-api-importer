@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum, StrEnum
 from json import JSONEncoder
 from pathlib import Path
-from typing import cast
+from typing import Any
 from uuid import UUID
 
 from destiny_sdk.references import Reference as ODSReference
@@ -29,7 +29,7 @@ class Wrapper(str, Enum):
 
 
 class DictLikeEncoder(JSONEncoder):
-    def default(self, o: object) -> str:
+    def default(self, o: object) -> Any:  # noqa: ANN401
         if isinstance(o, datetime):
             return o.strftime("%Y-%m-%dT%H:%M:%S")
         if isinstance(o, Path):
@@ -49,7 +49,7 @@ def assert_int(obj: object | None) -> int:
     if obj is None:
         raise ValueError("Value is missing!")
     if type(obj) is int:
-        return cast("int", obj)
+        return obj
     raise ValueError(f"{type(obj)} not an integer: {obj}!")
 
 
@@ -57,7 +57,7 @@ def assert_str(obj: object | None) -> str:
     if obj is None:
         raise ValueError("Value is missing!")
     if type(obj) is str:
-        return cast("str", obj)
+        return obj
     raise ValueError(f"{type(obj)} not a string: {obj}!")
 
 

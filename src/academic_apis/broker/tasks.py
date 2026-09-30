@@ -3,7 +3,7 @@ import logging
 from dataclasses import asdict
 from typing import Annotated, Any
 
-import sqlalchemy as sa
+from sqlmodel import col, or_, select
 from taskiq import Context, TaskiqDepends
 from taskiq.depends.progress_tracker import TaskProgress, TaskState
 
@@ -26,20 +26,20 @@ async def retrieve_query(
     )
 
     API = WRAPPERS[wrapper]  # noqa: N806
-    async with db_session() as session:  # type: Session
+    async with db_session() as session:
         token = session.exec(
-            sa.select(AccessToken)
+            select(AccessToken)
             .where(
                 AccessToken.wrapper == wrapper,
-                AccessToken.active.is_(True),
-                sa.or_(
-                    AccessToken.locked_until.is_(None),
-                    AccessToken.locked_until <= dt.datetime.now(tz=dt.UTC).timestamp(),
+                col(AccessToken.active).is_(True),
+                or_(
+                    col(AccessToken.locked_until).is_(None),
+                    col(AccessToken.locked_until)
+                    <= dt.datetime.now(tz=dt.UTC).timestamp(),
                 ),
             )
-            .order_by(AccessToken.last_used)
-            .limit(1),
-        ).scalar_one()
+            .order_by(col(AccessToken.last_used))
+        ).one()
         session.expunge(token)
 
     async def _on_loop(info: OnLoopInfo) -> None:

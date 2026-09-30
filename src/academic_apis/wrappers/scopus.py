@@ -11,7 +11,7 @@ from httpx._status_codes import codes as http
 from nacsos_data.models.items import AcademicItemModel
 from nacsos_data.models.items.academic import AcademicAuthorModel, AffiliationModel
 from nacsos_data.util import as_uuid, clear_empty, get
-from sqlmodel import Session  # noqa: F401
+from sqlmodel import col
 
 from academic_apis.db import AccessToken, db_session
 from academic_apis.utils import Wrapper, as_int
@@ -87,7 +87,7 @@ class ScopusWrapper(AbstractWrapper):
 
     async def on_response(self, response: Response | None) -> None:
         if response:
-            self.api_feedback: dict[str, str | int] = {
+            self.api_feedback = {
                 "scopus_requests_limit": response.headers.get("x-ratelimit-limit"),
                 "scopus_requests_remaining": response.headers.get(
                     "x-ratelimit-remaining"
@@ -103,7 +103,7 @@ class ScopusWrapper(AbstractWrapper):
         if self.skip_token_logging:
             return
 
-        async with db_session() as session:  # type: Session
+        async with db_session() as session:
             locked_until: dt.datetime | None = None
             if (
                 as_int(self.api_feedback.get("scopus_requests_remaining"), default=0)
@@ -132,8 +132,8 @@ class ScopusWrapper(AbstractWrapper):
                     locked_until=locked_until,
                 )
                 .where(
-                    AccessToken.wrapper == self.wrapper,
-                    AccessToken.token == self.api_key,
+                    col(AccessToken.wrapper) == self.wrapper,
+                    col(AccessToken.token) == self.api_key,
                 ),
             )
             session.commit()

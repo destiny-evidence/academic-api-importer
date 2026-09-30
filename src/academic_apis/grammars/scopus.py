@@ -30,12 +30,11 @@ Usage:
 from __future__ import annotations
 
 import sys
-import typing
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from lark import Lark, Transformer
+from lark import Lark, Token, Transformer
 
 # --------------------------------------------------------------------------
 # Scopus field codes (per the documentation)
@@ -249,7 +248,7 @@ class UnknownFieldCodeError(ValueError):
     """Raised in --strict mode when a field code isn't in FIELD_CODES."""
 
 
-class QueryTransformer(Transformer):
+class QueryTransformer(Transformer[Token, object]):
     """
     Turns the Lark parse tree into a small AST made of plain Python
     objects:
@@ -286,18 +285,17 @@ class QueryTransformer(Transformer):
 
     # -- operators --------------------------------------------------------
     # Each branch of the `op` rule is transformed into a plain operator
-    # string, so `expr` above can just str() whatever it finds there.
+    # string, so `expr` above can just str() whatever it finds there. These
+    # callbacks are looked up by name (the rule's data) by Lark, they are not
+    # overrides of the base class.
 
-    @typing.override
-    def op_and_not(self, children: object | None) -> str:
+    def op_and_not(self, _children: object | None) -> str:
         return "AND NOT"
 
-    @typing.override
-    def op_and(self, children: object | None) -> str:
+    def op_and(self, _children: object | None) -> str:
         return "AND"
 
-    @typing.override
-    def op_or(self, children: object | None) -> str:
+    def op_or(self, _children: object | None) -> str:
         return "OR"
 
     def op_prox(self, children: list[object]) -> str:
@@ -388,7 +386,11 @@ def _print_operand(
         lines.append(f"{pad}{prefix}{operand}")
 
 
-def _print_body(node: list[tuple[str, object]], level: int, lines: list[str]) -> None:
+def _print_body(
+    node: list[tuple[str | None, object]] | object,
+    level: int,
+    lines: list[str],
+) -> None:
     """
     Print the contents of a FieldCall/Group/top-level expression. `node`
     is either a list of (operator, operand) pairs, or -- when the
@@ -404,7 +406,7 @@ def _print_body(node: list[tuple[str, object]], level: int, lines: list[str]) ->
 
 def render(root: list[tuple[str | None, object]] | object) -> str:
     """Render an AST root (from parse_query) to an indented string."""
-    lines = []
+    lines: list[str] = []
     _print_body(root, 0, lines)
     return "\n".join(lines)
 

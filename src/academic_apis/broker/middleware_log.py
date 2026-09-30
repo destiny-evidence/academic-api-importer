@@ -2,6 +2,7 @@ import io
 import logging
 import typing
 from contextlib import redirect_stderr, redirect_stdout
+from typing import Any
 
 from taskiq import TaskiqMessage, TaskiqMiddleware, TaskiqResult
 
@@ -29,7 +30,11 @@ class OutputCaptureMiddleware(TaskiqMiddleware):
         return message
 
     @typing.override
-    def post_execute(self, message: TaskiqMessage, result: TaskiqResult) -> None:
+    def post_execute(
+        self,
+        message: TaskiqMessage,
+        result: TaskiqResult[Any],
+    ) -> None:
         # Clean up logging handler
         logging.getLogger().removeHandler(self.log_handler)
 

@@ -11,7 +11,7 @@ from .sqlite_broker import OnDiskResultBackend, SQLiteBroker
 
 app = typer.Typer()
 
-results = OnDiskResultBackend()
+results: OnDiskResultBackend[Any] = OnDiskResultBackend()
 broker = (
     SQLiteBroker(queue_name="scopus")
     .with_middlewares(SimpleRetryMiddleware(default_retry_count=5))

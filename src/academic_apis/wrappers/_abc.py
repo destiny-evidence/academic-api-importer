@@ -53,7 +53,7 @@ class AbstractWrapper(ABC):
         self.max_retries = max_retries
         self.backoff_rate = backoff_rate
         self.ignored_exceptions = ignored_exceptions or []
-        self.api_feedback: dict[str, int] = {}
+        self.api_feedback: dict[str, Any] = {}
         self.n_results: int | None = None
         self.skip_token_logging = skip_token_logging
         self._on_loop = on_loop
@@ -74,11 +74,13 @@ class AbstractWrapper(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def fetch_raw(
+    def fetch_raw(
         self,
         query: str,
         params: dict[str, Any] | None = None,
     ) -> AsyncGenerator[dict[str, Any]]:
+        # implementations are async generator functions, so this is declared as a
+        # plain method returning an async generator (not as a coroutine)
         raise NotImplementedError
 
     @classmethod
@@ -187,15 +189,12 @@ def _assert_target(target: Path) -> None:
 async def collect_raw_jsonl(target: Path, items: AsyncIterable[dict[str, Any]]) -> None:
     _assert_target(target)
     with target.open("w", encoding="utf-8") as f:
-        f.writelines(json.dumps(item) + "\n" async for item in items)
+        async for item in items:
+            f.write(json.dumps(item) + "\n")
 
 
 async def collect_jsonl(target: Path, items: AsyncIterable[AcademicItemModel]) -> None:
     _assert_target(target)
     with target.open("w", encoding="utf-8") as f:
-        f.writelines(
-            (
-                item.model_dump_json(exclude_defaults=True) + "\n"
-                async for item in items
-            ),
-        )
+        async for item in items:
+            f.write(item.model_dump_json(exclude_defaults=True) + "\n")

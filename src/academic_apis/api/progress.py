@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -12,14 +12,13 @@ from academic_apis.db import db_session
 from academic_apis.db.schemas import Task, TaskPublic
 from academic_apis.utils import settings
 
-if TYPE_CHECKING:
-    from sqlmodel import Session  # noqa: F401
-
 logger = logging.getLogger(__name__)
 
 route = APIRouter()
 
 templates = Jinja2Templates(directory="src/academic_apis/api/templates")
+
+SUBQUERY_LENGTH = 50
 
 
 @route.get("/")
@@ -28,10 +27,10 @@ async def list_tasks(
     offset: int = 0,
     limit: int = 5,
     status: TaskState | None = None,
-) -> list[TaskPublic]:
-    async with db_session() as session:  # type: Session
+) -> Sequence[TaskPublic]:
+    async with db_session() as session:
         stmt = (
-            select(
+            select(  # type: ignore[call-overload]
                 Task.task_id,
                 Task.status,
                 Task.query_id,
@@ -43,15 +42,16 @@ async def list_tasks(
                 Task.progress,
                 Task.execution_time,
             )
-            .where(Task.query_id == query_id if query_id is not None else False)
             .order_by(func.coalesce(Task.latest_try, Task.created_at))
             .limit(limit)
             .offset(offset)
         )
+        if query_id is not None:
+            stmt = stmt.where(Task.query_id == query_id)
         if status is not None:
             stmt = stmt.where(Task.status == status)
 
-        return session.exec(stmt).all()
+        return session.exec(stmt).all()  # type: ignore[no-any-return]
 
 
 @route.get("/html", response_class=HTMLResponse)
@@ -66,7 +66,7 @@ async def list_tasks_html(
         query_id=query_id, offset=offset, limit=limit, status=status
     )
 
-    async with db_session() as session:  # type: Session
+    async with db_session() as session:
         count_stmt = (
             select(func.count())
             .select_from(Task)

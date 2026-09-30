@@ -36,7 +36,15 @@ def xml2dict(element: Element) -> dict[str, Any]:
     return base
 
 
-def select(obj: dict[str, Any], *keys: str, default: Any = None) -> Any | None:  # noqa: ANN401
+def element_text(parent: Element, path: str) -> str:
+    """Text of a required child element; raises if it is missing or empty."""
+    element = parent.find(path)
+    if element is None or not element.text:
+        raise ValueError(f"Missing or empty XML element: {path}")
+    return element.text.strip()
+
+
+def select(obj: dict[str, Any], *keys: str, default: Any = None) -> Any:  # noqa: ANN401
     for key in keys:
         obj = obj.get(key)  # type: ignore[assignment]
         if obj is None or len(obj) == 0:
@@ -47,23 +55,23 @@ def select(obj: dict[str, Any], *keys: str, default: Any = None) -> Any | None: 
 
 def get_ids(pm_info: dict[str, Any]) -> dict[str, str]:
     ids = {}
-    for aid in select(pm_info, "PubmedData", "ArticleIdList", "ArticleId", default=[]):  # type: ignore[union-attr]
-        ids[aid["@IdType"]] = aid["_text"]
+    for article_id in select(pm_info, "ArticleIdList", default={}).get("ArticleId", []):
+        ids[article_id["@IdType"]] = article_id["_text"]
     return ids
 
 
 def get_authors(citation: dict[str, Any]) -> Generator[AcademicAuthorModel]:
-    authors = select(citation, "Article", "AuthorList", default={}).get("Author", [])  # type: ignore[union-attr]
+    authors = select(citation, "Article", "AuthorList", default={}).get("Author", [])
     for author in authors:
         affiliations: list[AffiliationModel] = [
-            AffiliationModel(name=select(aff, "Affiliation", default={}).get("_text"))  # type: ignore[union-attr]
+            AffiliationModel(name=select(aff, "Affiliation", default={}).get("_text"))
             for aff in author.get("AffiliationInfo", [])
         ]
         affiliations = [aff for aff in affiliations if aff.name is not None]
 
         yield AcademicAuthorModel(
-            name=f"{select(author, 'ForeName', default={}).get('_text', '')} "  # type: ignore[union-attr]
-            f"{select(author, 'LastName', default={}).get('_text', '')}",  # type: ignore[union-attr]
+            name=f"{select(author, 'ForeName', default={}).get('_text', '')} "
+            f"{select(author, 'LastName', default={}).get('_text', '')}",
             affiliations=None if len(affiliations) == 0 else affiliations,
         )
 
@@ -118,20 +126,20 @@ class PubmedWrapper(AbstractWrapper):
                 params=params,
             )
             tree = parse_xml(search_page.text)  # noqa: S314
-            web_env = tree.find("WebEnv").text  # type: ignore[union-attr]
-            query_key = tree.find("QueryKey").text  # type: ignore[union-attr]
-
-            self.logger.warning(
-                f"Query translated to: {tree.find('QueryTranslation').text}"
-            )  # type: ignore[union-attr]
 
             errors = tree.find("ErrorList")
             if errors is not None:
                 for error in errors.iter():
                     self.logger.error(f"Error {error.tag}: {''.join(error.itertext())}")
 
-            self.n_results = int(tree.find("Count").text)  # type: ignore[union-attr,arg-type]
-            page_size = int(tree.find("RetMax").text)  # type: ignore[union-attr,arg-type]
+            web_env = element_text(tree, "WebEnv")
+            query_key = element_text(tree, "QueryKey")
+            translation = tree.find("QueryTranslation")
+            if translation is not None and translation.text:
+                self.logger.warning(f"Query translated to: {translation.text}")
+
+            self.n_results = int(element_text(tree, "Count"))
+            page_size = int(element_text(tree, "RetMax"))
 
             done = False
 
@@ -185,40 +193,39 @@ class PubmedWrapper(AbstractWrapper):
             yield xml2dict(entry)
 
     @classmethod
-    def translate_record(
+    def translate_record_nacsos(
         cls, record: dict[str, Any], project_id: str | uuid.UUID | None = None
     ) -> AcademicItemModel:
-        citation = record.get("MedlineCitation")[0]  # type: ignore[index]
-        pm_info = record.get("PubmedData")[0]  # type: ignore[index]
+        citation: dict[str, Any] = record.get("MedlineCitation", [{}])[0]
+        pm_info: dict[str, Any] = record.get("PubmedData", [{}])[0]
         pm_ids = get_ids(pm_info)
         py: str | None = select(
             citation, "Article", "ArticleDate", "Year", default={}
-        ).get("_text")  # type: ignore[union-attr]
+        ).get("_text")
         pyi: int | None = None if py is None else int(py)
 
-        if "ReferenceList" in pm_info:
-            del pm_info["ReferenceList"]
+        pm_info.pop("ReferenceList", None)
 
         return AcademicItemModel(
             item_id=uuid.uuid4(),
             project_id=as_uuid(project_id),
             doi=pm_ids.get("doi"),
-            title=select(citation, "Article", "ArticleTitle", default={}).get("_text"),  # type: ignore[union-attr]
+            title=select(citation, "Article", "ArticleTitle", default={}).get("_text"),
             pubmed_id=pm_ids.get("pubmed"),
             text=select(
                 citation, "Article", "Abstract", "AbstractText", default={}
-            ).get("_text"),  # type: ignore[union-attr]
+            ).get("_text"),
             publication_year=pyi,
             authors=clear_empty(list(get_authors(citation))),
             source=select(citation, "Article", "Journal", "Title", default={}).get(
                 "_text"
-            ),  # type: ignore[union-attr]
+            ),
             keywords=clear_empty(
                 [
                     kw.get("_text", "").strip()
                     for kw in select(citation, "KeywordList", default={}).get(
                         "Keyword", []
-                    )  # type: ignore[union-attr]
+                    )
                 ],
             ),
             meta={"pubmed-api": clear_empty(record)},
@@ -226,12 +233,6 @@ class PubmedWrapper(AbstractWrapper):
 
     @classmethod
     def translate_record_ods(cls, record: dict[str, Any]) -> ODSReference:
-        raise NotImplementedError
-
-    @classmethod
-    def translate_record_nacsos(
-        cls, record: dict[str, Any], project_id: str | uuid.UUID | None = None
-    ) -> AcademicItemModel:
         raise NotImplementedError
 
     @classmethod
