@@ -19,6 +19,7 @@ class Config(BaseSettings):
         case_sensitive=False,
     )
     data_root: Path = Path("data/")
+    static_files: Path | None = None  # Path("fronend/dist/")
 
     db_file: Path = Field(default_factory=lambda data: data["data_root"] / "oracle.db")
     db_lock: Path = Field(
@@ -30,8 +31,17 @@ class Config(BaseSettings):
 
     loglevel: int = logging.DEBUG
     max_retries: int = 5
-    access_tokens: set[str] = set()
-    admin_tokens: set[str] = set()
+    secret_key: str = Field(
+        default="password_secret", description="Secret used for creating JWT"
+    )
+    jwt_algorithm: str = Field(
+        default="HS256", description="Algorithm used for creating JWT"
+    )
+    cookie_name: str = Field(default="aai_user_token", description="Name of the cookie")
+    cookie_lifetime: int = Field(
+        default=60 * 24,
+        description="Lifetime of user login tokens in minutes.",
+    )
 
     web_origins: list[str] = []
 

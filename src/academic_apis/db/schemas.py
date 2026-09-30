@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import JSON, Column, DateTime, text
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, UniqueConstraint
 from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.utils.types import Wrapper
@@ -22,6 +22,7 @@ class Query(SQLModel, table=True):
             nullable=False,
         ),
     )
+    is_public: bool = False
     first_result: datetime | None = Field(default=None, nullable=True)
     latest_result: datetime | None = Field(default=None, nullable=True)
 
@@ -30,13 +31,13 @@ class AccessTokenPublic(SQLModel):
     token_id: int | None = Field(default=None, primary_key=True)
     wrapper: Wrapper
     proxy: str | None = None
-    active: bool = True
+    is_active: bool = True
     comment: str | None = None
     last_used: datetime | None = Field(default=None, nullable=True)
     locked_until: datetime | None = Field(
         default=None,
         nullable=True,
-    )  # when we get API feedback, put here when used up capacity is reset
+    )  # if available, contains API feedback for when budget is reset
     last_feedback: dict[str, Any] | None = Field(
         default_factory=dict,
         sa_column=Column("last_feedback", JSON, nullable=True),
@@ -79,3 +80,37 @@ class Task(TaskPublic, table=True):
         default_factory=dict,
         sa_column=Column("labels", JSON, nullable=True),
     )
+
+
+class UserPublic(SQLModel):
+    user_id: str = Field(default_factory=lambda: uuid.uuid4().hex, primary_key=True)
+    email: str
+    full_name: str
+    institution: str
+    is_active: bool = False
+    permission_admin: bool = False
+    permission_submit_query: bool = False
+
+
+class UserCreate(UserPublic):
+    password_plain: str
+
+
+class User(UserPublic, table=True):
+    __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("email", name="users_constraint_unique_email"),)
+    password_hashed: str
+
+
+class UserTokenPermission(SQLModel, table=True):
+    __tablename__ = "m2m_user_token"
+    user_id: str = Field(foreign_key="users.user_id", primary_key=True)
+    token_id: str = Field(foreign_key="access_token.token_id", primary_key=True)
+    is_owner: bool = False
+
+
+class UserQueryPermission(SQLModel, table=True):
+    __tablename__ = "m2m_user_query"
+    user_id: str = Field(foreign_key="users.user_id", primary_key=True)
+    query_id: str = Field(foreign_key="query.query_id", primary_key=True)
+    is_owner: bool = False

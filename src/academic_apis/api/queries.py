@@ -2,17 +2,15 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 
-from fastapi import APIRouter, Body, Cookie, HTTPException
-from sqlmodel import select
+from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlmodel import col, select
 from starlette import status
-from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.templating import Jinja2Templates
 
-from academic_apis.db import Query, db_session
-from academic_apis.utils import settings
+from academic_apis.api.utils.auth import get_current_user
+from academic_apis.db import Query, User, db_session
+from academic_apis.db.schemas import UserQueryPermission
 from academic_apis.utils.types import Wrapper
 from academic_apis.wrappers import WRAPPERS
 
@@ -24,20 +22,31 @@ logger = logging.getLogger(__name__)
 route = APIRouter()
 
 
-@route.post("/query")
+@route.post("/test")
+async def test_query(
+    wrapper: Wrapper,
+    query: Annotated[str, Body(media_type="text/plain")],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict[str, Any]:
+    raise NotImplementedError(
+        "Once implemented, this will take an available token and fetch the first page of this query"
+    )
+
+
+@route.post("/")
 async def submit_query(
     wrapper: Wrapper,
     query: Annotated[str, Body(media_type="text/plain")],
+    current_user: Annotated[User, Depends(get_current_user)],
     py_start: int = 2010,
     py_end: int | None = None,
     py_steps: int = 2,
     use_py_filter: bool = False,
-    aai_admin_token: Annotated[str | None, Cookie()] = None,
 ) -> int:
-    if not aai_admin_token or aai_admin_token not in settings.admin_tokens:
+    if not current_user.permission_submit_query or not current_user.permission_admin:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized: Invalid or missing auth cookie",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have the permission to submit queries.",
         )
 
     from academic_apis.broker.tasks import retrieve_query
@@ -69,25 +78,15 @@ async def submit_query(
     return query_id
 
 
-templates = Jinja2Templates(directory="src/academic_apis/api/templates")
-
-
 @route.get("/")
-async def list_queries() -> Sequence[Query]:
+async def list_queries(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Sequence[Query]:
     async with db_session() as session:  # type: Session
-        return session.exec(select(Query)).all()
+        stmt = select(Query).order_by(col(Query.created_at).desc())
+        if not current_user.permission_admin:
+            stmt = stmt.join(UserQueryPermission).where(
+                UserQueryPermission.user_id == current_user.user_id
+            )
 
-
-@route.get("/html", response_class=HTMLResponse)
-async def list_queries_html(request: Request) -> HTMLResponse:
-    queries = await list_queries()
-
-    return templates.TemplateResponse(
-        request,
-        "queries.html",
-        {
-            "request": request,
-            "queries": queries,
-            "settings": settings,
-        },
-    )
+        return session.exec(stmt).all()

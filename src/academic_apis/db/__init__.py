@@ -13,7 +13,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from academic_apis.utils.config import settings
 from academic_apis.utils.types import DictLikeEncoder, Mode
 
-from .schemas import AccessToken, Query, Task, Wrapper
+from .schemas import AccessToken, Query, Task, User, UserCreate, UserPublic, Wrapper
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -64,4 +64,14 @@ async def db_session(mode: Mode = Mode.READ) -> AsyncGenerator[Session]:
         await _write_lock.release(force=True)
 
 
-__all__ = ["AccessToken", "Mode", "Query", "Task", "Wrapper", "db_session"]
+__all__ = [
+    "AccessToken",
+    "Mode",
+    "Query",
+    "Task",
+    "User",
+    "UserCreate",
+    "UserPublic",
+    "Wrapper",
+    "db_session",
+]

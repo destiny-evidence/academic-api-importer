@@ -31,7 +31,7 @@ async def retrieve_query(
             select(AccessToken)
             .where(
                 AccessToken.wrapper == wrapper,
-                col(AccessToken.active).is_(True),
+                col(AccessToken.is_active).is_(True),
                 or_(
                     col(AccessToken.locked_until).is_(None),
                     col(AccessToken.locked_until)
