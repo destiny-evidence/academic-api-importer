@@ -70,7 +70,6 @@ async def add_token(
             detail="Field 'comment' must be set to add a new API token",
         )
 
-
     async with db_session(mode=Mode.WRITE) as session:
         new_token = AccessToken(
             wrapper=token.wrapper,
