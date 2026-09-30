@@ -10,6 +10,7 @@ from academic_apis.api.users import get_current_admin, get_current_user
 from academic_apis.db import AccessToken, Mode, db_session
 from academic_apis.db.schemas import AccessTokenPublic, User, UserTokenPermission
 
+
 logger = logging.getLogger(__name__)
 
 route = APIRouter()
@@ -68,6 +69,7 @@ async def add_token(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Field 'comment' must be set to add a new API token",
         )
+
 
     async with db_session(mode=Mode.WRITE) as session:
         new_token = AccessToken(
