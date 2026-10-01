@@ -4,7 +4,7 @@ from typing import Any
 import typer
 from taskiq import SimpleRetryMiddleware, TaskiqEvents
 
-from academic_apis.utils import init_logging
+from academic_apis.utils import init_logging, settings
 
 from .middleware_log import OutputCaptureMiddleware
 from .sqlite_broker import OnDiskResultBackend, SQLiteBroker
@@ -13,7 +13,12 @@ app = typer.Typer()
 
 results: OnDiskResultBackend[Any] = OnDiskResultBackend()
 broker = (
-    SQLiteBroker(queue_name="scopus")
+    SQLiteBroker(
+        queue_name="scopus",
+        listen_loop_timeout=1,
+        wait_loop_timeout=1,
+        empty_loop_sleep=settings.empty_loop_sleep,
+    )
     .with_middlewares(SimpleRetryMiddleware(default_retry_count=5))
     .with_result_backend(results)
     .with_middlewares(OutputCaptureMiddleware())

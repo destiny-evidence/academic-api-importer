@@ -201,6 +201,7 @@ class SQLiteBroker(AsyncBroker):
         logger: logging.Logger | None = None,
         wait_loop_timeout: float = 1,
         listen_loop_timeout: float = 1,
+        empty_loop_sleep: float = 1,
     ) -> None:
         """
         Constructs a new broker.
@@ -208,6 +209,9 @@ class SQLiteBroker(AsyncBroker):
         Inspiration: https://github.com/taskiq-python/taskiq-redis/blob/main/taskiq_redis/redis_broker.py#L104
         :param task_id_generator: custom task_id generator.
         :param result_backend: custom result backend.
+        :param empty_loop_sleep: Number of seconds to sleep when the current worker loop iteration found no tasks
+        :param listen_loop_timeout: Number of seconds to sleep between worker loop iterations
+        :param wait_loop_timeout: Number of seconds to wait between status checks on shutdown
         :param queue_name: name for a list in redis.
             Each worker opens its own connection. Therefore, this value has to be
             at least number of workers + 1
@@ -221,6 +225,7 @@ class SQLiteBroker(AsyncBroker):
         self.logger = logger or broker_logger
         self.wait_loop_timeout: float | int = wait_loop_timeout
         self.listen_loop_timeout: float | int = listen_loop_timeout
+        self.empty_loop_sleep: float | int = empty_loop_sleep
 
     async def kick(self, message: BrokerMessage) -> None:
         async with db_session(Mode.WRITE) as session:
@@ -272,13 +277,13 @@ class SQLiteBroker(AsyncBroker):
                         self.logger.debug(f"Next task by broker: {next_task}")
                         session.refresh(next_task)
                         # session.expunge(next_task)
-                if next_task:
+                if next_task and next_task.message:
                     yield next_task.message
                 else:
                     self.logger.info(
-                        f"No task in queue, going to sleep for {settings.empty_loop_sleep} seconds."
+                        f"No task in queue, going to sleep for {self.empty_loop_sleep} seconds."
                     )
-                    await asyncio.sleep(settings.empty_loop_sleep)
+                    await asyncio.sleep(self.empty_loop_sleep)
             except ConnectionError as exc:
                 self.logger.warning(f"Connection error: {exc}")
                 continue

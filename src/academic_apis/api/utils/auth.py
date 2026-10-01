@@ -116,4 +116,4 @@ async def get_current_admin(
 
 if __name__ == "__main__":
     pw = input("Password to hash: ")
-    print(hash_password(pw))
+    print(hash_password(pw))  # noqa: T201

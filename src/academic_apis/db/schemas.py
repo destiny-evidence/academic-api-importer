@@ -9,11 +9,19 @@ from taskiq.depends.progress_tracker import TaskState
 from academic_apis.utils.types import Wrapper
 
 
-class Query(SQLModel, table=True):
-    query_id: int | None = Field(default=None, primary_key=True)
-    user_id: int | None = Field(default=None)
+class QueryInfo(SQLModel):
     query: str
     wrapper: Wrapper
+    params: dict[str, Any] | None = Field(
+        default_factory=dict,
+        sa_column=Column("params", JSON, nullable=True),
+    )
+
+
+class Query(QueryInfo, table=True):
+    query_id: int | None = Field(default=None, primary_key=True)
+    user_id: int | None = Field(default=None)
+
     created_at: datetime = Field(
         default_factory=datetime.now,
         sa_column=Column(
@@ -28,7 +36,7 @@ class Query(SQLModel, table=True):
 
 
 class AccessTokenPublic(SQLModel):
-    token_id: int | None = Field(default=None, primary_key=True)
+    token_id: str = Field(default_factory=lambda: uuid.uuid6().hex, primary_key=True)
     wrapper: Wrapper
     proxy: str | None = None
     is_active: bool = True
@@ -50,7 +58,7 @@ class AccessToken(AccessTokenPublic, table=True):
 
 
 class TaskPublic(SQLModel):
-    task_id: str = Field(default_factory=lambda: uuid.uuid4().hex, primary_key=True)
+    task_id: str = Field(default_factory=lambda: uuid.uuid6().hex, primary_key=True)
     query_id: int
     subquery: str
     num_retries: int = 0
@@ -83,7 +91,7 @@ class Task(TaskPublic, table=True):
 
 
 class UserPublic(SQLModel):
-    user_id: str = Field(default_factory=lambda: uuid.uuid4().hex, primary_key=True)
+    user_id: str = Field(default_factory=lambda: uuid.uuid6().hex, primary_key=True)
     email: str
     full_name: str
     institution: str

@@ -17,6 +17,7 @@ route = APIRouter()
 
 SUBQUERY_LENGTH = 50
 
+
 @route.get("/")
 async def list_tasks(
     current_user: Annotated[User, Depends(get_current_user)],

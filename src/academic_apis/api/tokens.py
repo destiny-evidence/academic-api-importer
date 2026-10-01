@@ -10,7 +10,6 @@ from academic_apis.api.users import get_current_admin, get_current_user
 from academic_apis.db import AccessToken, Mode, db_session
 from academic_apis.db.schemas import AccessTokenPublic, User, UserTokenPermission
 
-
 logger = logging.getLogger(__name__)
 
 route = APIRouter()
@@ -45,8 +44,8 @@ async def list_tokens(
 
 @route.post("/submit")
 async def add_token(
-    token: AccessToken,
     current_user: Annotated[User, Depends(get_current_user)],
+    token: AccessToken,
 ) -> str:
     """
     Add new API token to database.
@@ -98,8 +97,8 @@ async def add_token(
 
 @route.post("/update")
 async def update_token(
-    token: AccessToken,
     current_user: Annotated[User, Depends(get_current_user)],
+    token: AccessToken,
 ) -> str:
     """
     Update existing API token in database.
@@ -167,8 +166,8 @@ async def update_token(
 
 @route.delete("/delete")
 async def delete_token(
-    token_id: str,
     current_admin: Annotated[User, Depends(get_current_admin)],
+    token_id: str,
 ) -> str:
     """
     Delete existing API token from database.
@@ -205,8 +204,8 @@ async def delete_token(
 
 @route.post("/permission")
 async def edit_permission(
-    permissions: list[UserTokenPermission],
     current_admin: Annotated[User, Depends(get_current_admin)],
+    permissions: list[UserTokenPermission],
 ) -> str:
     """
     Create existing permissions for users to use tokens.
@@ -263,8 +262,8 @@ async def edit_permission(
 
 @route.delete("/permission")
 async def delete_permission(
-    permissions: list[UserTokenPermission],
     current_admin: Annotated[User, Depends(get_current_admin)],
+    permissions: list[UserTokenPermission],
 ) -> str:
     """
     Delete existing permissions for users to use tokens.

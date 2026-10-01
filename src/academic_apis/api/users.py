@@ -95,11 +95,8 @@ async def list_users(
 
 @route.post("/", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 async def create_user(
+    _current_user: Annotated[User, Depends(get_current_admin)],
     user_create: UserCreate,
-    current_user: Annotated[  # noqa: ARG001
-        User,
-        Depends(get_current_admin),
-    ],
 ) -> UserPublic:
     async with db_session(mode=Mode.WRITE) as session:
         existing = session.exec(
@@ -132,9 +129,9 @@ async def create_user(
 
 @route.put("/{user_id}", response_model=UserPublic)
 async def update_user(
+    current_user: Annotated[User, Depends(get_current_user)],
     user_id: str,
     user_update: UserUpdate,
-    current_user: Annotated[User, Depends(get_current_user)],
 ) -> UserPublic:
     if user_id != current_user.user_id and not current_user.permission_admin:
         raise HTTPException(

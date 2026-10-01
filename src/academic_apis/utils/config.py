@@ -49,6 +49,14 @@ class Config(BaseSettings):
         default=30,
         description="Number of seconds to sleep before trying again if there were no tasks in the queue.",
     )
+    wait_loop_timeout: int = Field(
+        default=10,
+        description="Number of seconds to sleep when the current worker loop iteration found no tasks.",
+    )
+    listen_loop_timeout: int = Field(
+        default=5,
+        description="Number of seconds to sleep between worker loop iterations.",
+    )
 
     OPENAPI_FILE: str = "/openapi.json"  # absolute URL path to openapi.json file
     # see https://fastapi.tiangolo.com/advanced/behind-a-proxy/

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlmodel import col, select
@@ -10,8 +10,8 @@ from starlette import status
 
 from academic_apis.api.utils.auth import get_current_user
 from academic_apis.db import Query, User, db_session
-from academic_apis.db.schemas import UserQueryPermission
-from academic_apis.utils.types import Wrapper
+from academic_apis.db.schemas import QueryInfo, UserQueryPermission
+from academic_apis.db.tokens import get_available_token_for_user
 from academic_apis.wrappers import WRAPPERS
 
 if TYPE_CHECKING:
@@ -24,20 +24,35 @@ route = APIRouter()
 
 @route.post("/test")
 async def test_query(
-    wrapper: Wrapper,
-    query: Annotated[str, Body(media_type="text/plain")],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> dict[str, Any]:
-    raise NotImplementedError(
-        "Once implemented, this will take an available token and fetch the first page of this query"
+    query: Annotated[QueryInfo, Body()],
+) -> int:
+    API = WRAPPERS[query.wrapper]  # noqa: N806
+    token = await get_available_token_for_user(
+        user_id=current_user.user_id, wrapper=query.wrapper
     )
+
+    api = API(
+        logger=logger,
+        api_key=token.token,
+        proxy=token.proxy,
+        skip_token_logging=False,
+    )
+    n_results = await api.fetch_n_results(query=query.query, params=query.params)
+
+    if n_results is None:
+        raise HTTPException(
+            status_code=status.HTTP_204_NO_CONTENT,
+            detail=f"Did not receive a count from the {query.wrapper} API.",
+        )
+
+    return n_results
 
 
 @route.post("/")
 async def submit_query(
-    wrapper: Wrapper,
-    query: Annotated[str, Body(media_type="text/plain")],
     current_user: Annotated[User, Depends(get_current_user)],
+    query: Annotated[QueryInfo, Body()],
     py_start: int = 2010,
     py_end: int | None = None,
     py_steps: int = 2,
@@ -51,12 +66,12 @@ async def submit_query(
 
     from academic_apis.broker.tasks import retrieve_query
 
-    API = WRAPPERS[wrapper]  # noqa: N806
+    API = WRAPPERS[query.wrapper]  # noqa: N806
 
     async with db_session() as session:  # type: Session
         query_orm = Query(
-            query=query,
-            wrapper=wrapper,
+            query=query.query,
+            wrapper=query.wrapper,
         )
         session.add(query_orm)
         session.flush()
@@ -66,14 +81,16 @@ async def submit_query(
         session.commit()
 
     for subquery in API.generate_subqueries(
-        query,
+        query.query,
         py_start=py_start,
         py_end=py_end,
         py_steps=py_steps,
         use_py_filter=use_py_filter,
     ):
         logger.debug(f"Subquery: {subquery}")
-        await retrieve_query.kiq(query=subquery, wrapper=wrapper, query_id=query_id)  # type: ignore[call-overload]
+        await retrieve_query.kiq(
+            query=subquery, wrapper=query.wrapper, query_id=query_id
+        )  # type: ignore[call-overload]
 
     return query_id
 
