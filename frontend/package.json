@@ -11,15 +11,18 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "vue-tsc --build"
+    "typecheck": "vue-tsc --build",
+    "api": "npx @hey-api/openapi-ts"
   },
   "dependencies": {
-    "@picocss/pico": "^2.1.1",
     "pinia": "^4.0.3",
     "vue": "^3.5.43",
-    "vue-router": "^5.3.1"
+    "vue-router": "^5.3.1",
+    "bootstrap": "^5.3.8",
+    "bootstrap-vue-next": "^1.2.2"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.99.0",
     "@eslint/js": "^10.0.1",
     "@tsconfig/node24": "^24.0.5",
     "@types/node": "^26.6.3",
@@ -30,10 +33,10 @@
     "eslint": "^10.11.0",
     "eslint-plugin-vue": "^10.11.1",
     "globals": "^17.13.0",
+    "npm-check-updates": "^23.1.0",
     "prettier": "^3.9.9",
     "typescript": "5.9",
     "vite": "^8.3.2",
-    "vue-tsc": "^3.3.11",
-    "npm-check-updates": "^23.1.0"
+    "vue-tsc": "^3.3.11"
   }
 }

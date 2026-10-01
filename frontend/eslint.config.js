@@ -11,7 +11,7 @@ export default defineConfigWithVueTs(
   },
   {
     name: 'app/files-to-ignore',
-    ignores: ['**/dist/**', '**/coverage/**'],
+    ignores: ['**/dist/**', '**/coverage/**', '**/src/plugins/api/spec/**'],
   },
   js.configs.recommended,
   pluginVue.configs['flat/recommended'],

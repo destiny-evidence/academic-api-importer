@@ -30,34 +30,51 @@ async function submit() {
 </script>
 
 <template>
-  <article class="login">
-    <h1>Log in</h1>
-    <p>Sign in with your account email and password.</p>
-    <form @submit.prevent="submit">
-      <label>
-        Email
-        <input v-model="email" type="email" autocomplete="email" spellcheck="false" required />
-      </label>
-      <label>
-        Password
-        <input v-model="password" type="password" autocomplete="current-password" required />
-      </label>
-      <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <button type="submit" :disabled="submitting || !email.trim() || !password">
-        {{ submitting ? 'Signing in…' : 'Sign in' }}
-      </button>
-    </form>
-  </article>
+  <div class="login card shadow-sm">
+    <div class="card-body">
+      <h1 class="h4">Log in</h1>
+      <p class="text-body-secondary">Sign in with your account email and password.</p>
+      <form @submit.prevent="submit">
+        <div class="mb-3">
+          <label for="email" class="form-label">Email</label>
+          <input
+            id="email"
+            v-model="email"
+            class="form-control"
+            type="email"
+            autocomplete="email"
+            spellcheck="false"
+            required
+          />
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input
+            id="password"
+            v-model="password"
+            class="form-control"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <p v-if="error" class="text-danger" role="alert">{{ error }}</p>
+        <button
+          type="submit"
+          class="btn btn-primary w-100"
+          :disabled="submitting || !email.trim() || !password"
+        >
+          {{ submitting ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-/* Pico renders <article> as a card; only the width/centering is app-specific. */
+/* Only the width/centering of the login card is app-specific. */
 .login {
   max-width: 24rem;
   margin: 4rem auto;
-}
-
-.error {
-  color: var(--pico-form-element-invalid-border-color);
 }
 </style>

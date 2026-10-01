@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
+import ToastsViewer from '@/components/ToastsViewer.vue'
 import { useSessionStore } from '@/stores/session'
 
 const route = useRoute()
@@ -11,27 +13,41 @@ async function logout() {
   await session.logout()
   router.push({ name: 'login' })
 }
+
+const requestInProgress = computed(() => session.isBusy)
 </script>
 
 <template>
-  <header v-if="route.name !== 'login'">
-    <nav class="container">
-      <ul>
-        <li><strong>Academic API Importer</strong></li>
-        <li><RouterLink :to="{ name: 'queries' }">Queries</RouterLink></li>
-        <li><RouterLink :to="{ name: 'tasks' }">Tasks</RouterLink></li>
-        <li><RouterLink :to="{ name: 'tokens' }">Tokens</RouterLink></li>
-      </ul>
-      <ul>
-        <li>
-          <button type="button" class="secondary outline" @click="logout">Log out</button>
-        </li>
-      </ul>
-    </nav>
-  </header>
-  <main class="container">
+  <nav v-if="route.name !== 'login'" class="navbar navbar-expand-sm bg-body-tertiary border-bottom">
+    <div class="container">
+      <RouterLink class="navbar-brand" :to="{ name: 'queries' }">
+        Academic API Importer
+        <!-- The spinner always occupies its box; `invisible` (visibility: hidden)
+             acts as the equally sized placeholder so the brand never shifts, and
+             hides the status from assistive tech while idle. -->
+        <span
+          class="spinner-border spinner-border-sm ms-2 align-middle"
+          :class="{ invisible: !requestInProgress }"
+          role="status"
+        >
+          <span class="visually-hidden">Requests in progress…</span>
+        </span>
+      </RouterLink>
+      <div class="navbar-nav me-auto">
+        <RouterLink class="nav-link" :to="{ name: 'queries' }">Queries</RouterLink>
+        <RouterLink class="nav-link" :to="{ name: 'tasks' }">Tasks</RouterLink>
+        <RouterLink class="nav-link" :to="{ name: 'tokens' }">Tokens</RouterLink>
+      </div>
+
+      <button type="button" class="btn btn-outline-secondary btn-sm" @click="logout">
+        Log out
+      </button>
+    </div>
+  </nav>
+  <main class="container py-4">
     <RouterView />
   </main>
+  <ToastsViewer />
 </template>
 
 <style scoped>
