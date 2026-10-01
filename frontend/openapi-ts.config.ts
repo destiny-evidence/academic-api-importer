@@ -3,15 +3,19 @@ import { defineConfig } from '@hey-api/openapi-ts'
 export default defineConfig({
   input: 'http://127.0.0.1:8000/openapi.json',
   output: 'src/plugins/api/spec',
-  transforms: {
-    enums: {
-      case: 'PascalCase',
-      enabled: true,
-      mode: 'root',
-    },
-    // propertiesRequiredByDefault
-    responses: {
-      case: 'preserve',
+  parser: {
+    transforms: {
+      enums: {
+        case: 'PascalCase',
+        enabled: true,
+        mode: 'root',
+      },
+      // propertiesRequiredByDefault
+      readWrite: {
+        responses: {
+          case: 'preserve',
+        },
+      },
     },
   },
   plugins: [
@@ -21,13 +25,11 @@ export default defineConfig({
       bundle: true,
       baseUrl: false,
       throwOnError: true,
-      paramStructure: 'flat',
     },
     {
       name: '@hey-api/sdk',
       operations: { strategy: 'byTags' },
-      throwOnError: true,
-      paramStructure: 'flat',
+      paramsStructure: 'flat',
       responseStyle: 'fields',
       transformer: false,
       validator: {
