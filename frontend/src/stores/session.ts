@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { Users } from '@/plugins/api/spec';
+import { Users, type UserPublic } from '@/plugins/api/spec';
 import { rejectMessage } from '@/plugins/api';
 
 const STORAGE_KEY = 'aai-session';
@@ -43,13 +43,14 @@ export const LevelStyle: Record<ToastType, { bg: string; col: string }> = {
   ERROR: { bg: 'bg-danger', col: 'text-white' },
 };
 
-/** The access token persisted in localStorage, if any. */
-function loadStoredToken(): string | null {
+/** The session persisted in localStorage, if any. */
+function loadStoredSession(): { token: string | null; user: UserPublic | null } {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw).token ?? null) : null;
+    const stored = raw ? JSON.parse(raw) : null;
+    return { token: stored?.token ?? null, user: stored?.user ?? null };
   } catch {
-    return null;
+    return { token: null, user: null };
   }
 }
 
@@ -61,24 +62,33 @@ function loadStoredToken(): string | null {
  * `aai_user_token` cookie itself. That cookie is HttpOnly, so it cannot be read
  * from JavaScript; the session is tracked from the returned access token and sent
  * to the API as a bearer token (the cookie also travels with credentialed
- * same-origin requests).
+ * same-origin requests). The logged-in user's profile is fetched from
+ * `/users/me` right after login and stored next to the token.
  */
 export const useSessionStore = defineStore('session', {
-  state: () => ({
-    token: loadStoredToken(),
-    /** Requests sent by the API client that have not settled yet. */
-    pendingRequests: 0,
-    /** Requests that failed, oldest first. */
-    errors: [] as ApiError[],
-    toasts: {} as Record<number, Toast>,
-    runningToastCount: 0 as number, // used to generate unique "IDs" for toasts
-  }),
+  state: () => {
+    const stored = loadStoredSession();
+    return {
+      token: stored.token,
+      /** Profile of the logged-in user, fetched from `/users/me` during login. */
+      user: stored.user,
+      /** Requests sent by the API client that have not settled yet. */
+      pendingRequests: 0,
+      /** Requests that failed, oldest first. */
+      errors: [] as ApiError[],
+      toasts: {} as Record<number, Toast>,
+      runningToastCount: 0 as number, // used to generate unique "IDs" for toasts
+    };
+  },
   getters: {
     isAuthenticated: (state) => Boolean(state.token),
     isBusy: (state) => state.pendingRequests > 0,
   },
   actions: {
-    /** Authenticate with email and password; persists the returned access token. */
+    /**
+     * Authenticate with email and password; persists the returned access token
+     * and the user profile fetched with it.
+     */
     async login(email: string, password: string) {
       // The error is kept in the result instead of thrown so that its `detail` can
       // be reported; the client plugin still records the failure in `errors`.
@@ -94,6 +104,19 @@ export const useSessionStore = defineStore('session', {
       if (!data) throw new Error(rejectMessage(error) || 'Login failed');
 
       this.persist(data.access_token);
+
+      // Fetch the profile with the fresh token (the auth plugin attaches it).
+      // A session without user information is not usable, so a failure here
+      // drops the session just like a failed login would.
+      const { data: user, error: userError } = await Users.getMyInfoUsersMeGet(undefined, {
+        credentials: 'include',
+        throwOnError: false,
+      });
+      if (!user) {
+        this.invalidate();
+        throw new Error(rejectMessage(userError) || 'Could not fetch user information');
+      }
+      this.setUser(user);
     },
     /** Ask the backend to clear the auth cookie, then drop the local session. */
     async logout() {
@@ -109,7 +132,17 @@ export const useSessionStore = defineStore('session', {
     },
     persist(token: string) {
       this.token = token;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token }));
+      this.user = null;
+      this.persistSession();
+    },
+    /** Remembers the logged-in user's profile, fetched from `/users/me`. */
+    setUser(user: UserPublic) {
+      this.user = user;
+      this.persistSession();
+    },
+    /** Writes the current token and user to localStorage. */
+    persistSession() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: this.token, user: this.user }));
     },
     clear() {
       this.invalidate();
@@ -122,6 +155,7 @@ export const useSessionStore = defineStore('session', {
      */
     invalidate() {
       this.token = null;
+      this.user = null;
       localStorage.removeItem(STORAGE_KEY);
     },
     /** Notes that a request was handed to the API client; pair with `endRequest`. */

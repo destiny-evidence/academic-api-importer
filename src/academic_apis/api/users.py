@@ -96,12 +96,16 @@ async def logout(
     logger.info(f"User {current_user.user_id} logged out")
 
 
+@route.get("/me", response_model=UserPublic)
+async def get_my_info(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserPublic:
+    return current_user
+
+
 @route.get("/", response_model=list[UserPublic])
 async def list_users(
-    current_user: Annotated[  # noqa: ARG001
-        User,
-        Depends(get_current_admin),
-    ],
+    _current_user: Annotated[User, Depends(get_current_admin)],
 ) -> list[UserPublic]:
     async with db_session() as session:
         users = session.exec(

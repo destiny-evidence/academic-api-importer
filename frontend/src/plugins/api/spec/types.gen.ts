@@ -841,6 +841,37 @@ export type LogoutUsersLogoutPostResponses = {
 
 export type LogoutUsersLogoutPostResponse = LogoutUsersLogoutPostResponses[keyof LogoutUsersLogoutPostResponses];
 
+export type GetMyInfoUsersMeGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/users/me';
+};
+
+export type GetMyInfoUsersMeGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetMyInfoUsersMeGetError = GetMyInfoUsersMeGetErrors[keyof GetMyInfoUsersMeGetErrors];
+
+export type GetMyInfoUsersMeGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UserPublic;
+};
+
+export type GetMyInfoUsersMeGetResponse = GetMyInfoUsersMeGetResponses[keyof GetMyInfoUsersMeGetResponses];
+
 export type ListUsersUsersGetData = {
     body?: never;
     headers?: {

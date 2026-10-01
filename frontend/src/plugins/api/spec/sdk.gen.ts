@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionTokensPermissionDeleteErrors, DeletePermissionTokensPermissionDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionTokensPermissionPostErrors, EditPermissionTokensPermissionPostResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersUserIdPutErrors, UpdateUserUsersUserIdPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionTokensPermissionDeleteErrors, DeletePermissionTokensPermissionDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionTokensPermissionPostErrors, EditPermissionTokensPermissionPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersUserIdPutErrors, UpdateUserUsersUserIdPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -300,6 +300,20 @@ export class Users {
         const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }] }]);
         return (options?.client ?? client).post<LogoutUsersLogoutPostResponses, LogoutUsersLogoutPostErrors, ThrowOnError>({
             url: '/users/logout',
+            ...options,
+            ...params
+        });
+    }
+    
+    /**
+     * Get My Info
+     */
+    public static getMyInfoUsersMeGet<ThrowOnError extends boolean = true>(parameters?: {
+        authorization?: string | null;
+    }, options?: Options<never, ThrowOnError>): RequestResult<GetMyInfoUsersMeGetResponses, GetMyInfoUsersMeGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }] }]);
+        return (options?.client ?? client).get<GetMyInfoUsersMeGetResponses, GetMyInfoUsersMeGetErrors, ThrowOnError>({
+            url: '/users/me',
             ...options,
             ...params
         });
