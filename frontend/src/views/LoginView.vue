@@ -1,30 +1,30 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
-import { useSessionStore } from '@/stores/session'
+import { useSessionStore } from '@/stores/session';
 
-const route = useRoute()
-const router = useRouter()
-const session = useSessionStore()
+const route = useRoute();
+const router = useRouter();
+const session = useSessionStore();
 
-const email = ref('')
-const password = ref('')
-const error = ref('')
-const submitting = ref(false)
+const email = ref('');
+const password = ref('');
+const error = ref('');
+const submitting = ref(false);
 
 async function submit() {
-  error.value = ''
-  submitting.value = true
+  error.value = '';
+  submitting.value = true;
   try {
-    await session.login(email.value.trim(), password.value)
+    await session.login(email.value.trim(), password.value);
     router.replace(
       typeof route.query.redirect === 'string' ? route.query.redirect : { name: 'queries' },
-    )
+    );
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Login failed'
+    error.value = err instanceof Error ? err.message : 'Login failed';
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 </script>
@@ -44,8 +44,7 @@ async function submit() {
             type="email"
             autocomplete="email"
             spellcheck="false"
-            required
-          />
+            required />
         </div>
         <div class="mb-3">
           <label for="password" class="form-label">Password</label>
@@ -55,15 +54,13 @@ async function submit() {
             class="form-control"
             type="password"
             autocomplete="current-password"
-            required
-          />
+            required />
         </div>
         <p v-if="error" class="text-danger" role="alert">{{ error }}</p>
         <button
           type="submit"
           class="btn btn-primary w-100"
-          :disabled="submitting || !email.trim() || !password"
-        >
+          :disabled="submitting || !email.trim() || !password">
           {{ submitting ? 'Signing in…' : 'Sign in' }}
         </button>
       </form>

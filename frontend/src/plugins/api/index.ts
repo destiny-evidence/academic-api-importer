@@ -1,4 +1,5 @@
-import { type ToastType, lazySessionStore } from '@/stores/session'
+import { type ToastType, lazySessionStore, LevelStyle } from '@/stores/session';
+import { escapeHtml } from '@/utils';
 
 /**
  * Success handlers and error handlers for the promises returned by the
@@ -19,59 +20,39 @@ import { type ToastType, lazySessionStore } from '@/stores/session'
 
 /** What a successful request resolves with (`responseStyle: 'fields'`). */
 export interface ApiSuccess {
-  data: unknown
-  request: Request
-  response: Response
+  data: unknown;
+  request: Request;
+  response: Response;
 }
 
-const session = lazySessionStore()
-
-/** Bootstrap colour classes per toast level, as `ToastsViewer` renders them. */
-const levelStyle: Record<ToastType, { bg: string; col: string }> = {
-  SUCCESS: { bg: 'bg-success', col: 'text-white' },
-  INFO: { bg: 'bg-info', col: 'text-dark' },
-  WARN: { bg: 'bg-warning', col: 'text-dark' },
-  ERROR: { bg: 'bg-danger', col: 'text-white' },
-}
-
-/** Escapes a plain-text message for the `v-html` binding in `ToastsViewer`. */
-function escapeHtml(text: string): string {
-  const entities: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  }
-  return text.replace(/[&<>"']/g, (char) => entities[char]!)
-}
+const session = lazySessionStore();
 
 /** Publishes a toast through the session store, where `ToastsViewer` picks it up. */
-function postToast(level: ToastType, message: string) {
+export function postToast(level: ToastType, message: string) {
   session().toast({
     level,
     message,
     htmlMessage: escapeHtml(message),
-    ...levelStyle[level],
-  })
+    ...LevelStyle[level],
+  });
 }
 
 /** Human-readable text of a rejected request's error payload. */
-function rejectMessage(reason: unknown): string {
-  if (typeof reason === 'string') return reason
-  if (reason instanceof Error) return reason.message
+export function rejectMessage(reason: unknown): string {
+  if (typeof reason === 'string') return reason;
+  if (reason instanceof Error) return reason.message;
   if (reason && typeof reason === 'object') {
-    const { detail } = reason as { detail?: unknown }
-    if (typeof detail === 'string') return detail
+    const { detail } = reason as { detail?: unknown };
+    if (typeof detail === 'string') return detail;
     if (Array.isArray(detail)) {
       // Validation errors arrive as a list of problems, e.g. [{loc, msg, type}]
       const problems = detail
         .map((problem) => (problem as { msg?: unknown })?.msg)
-        .filter((msg): msg is string => typeof msg === 'string')
-      if (problems.length) return problems.join('; ')
+        .filter((msg): msg is string => typeof msg === 'string');
+      if (problems.length) return problems.join('; ');
     }
   }
-  return 'Request failed'
+  return 'Request failed';
 }
 
 /** Does nothing; handy as `.catch(ignore)` when failures need no reporting. */
@@ -79,7 +60,7 @@ export function ignore() {}
 
 /** Logs a rejected request to the console. */
 export function logReject(reason: unknown) {
-  console.error(reason)
+  console.error(reason);
 }
 
 /**
@@ -88,7 +69,7 @@ export function logReject(reason: unknown) {
  * unhandled error.
  */
 export function toastReject(reason: unknown) {
-  postToast('ERROR', rejectMessage(reason))
+  postToast('ERROR', rejectMessage(reason));
 }
 
 /**
@@ -97,9 +78,9 @@ export function toastReject(reason: unknown) {
  * can be installed via `.then(toastSuccess)`.
  */
 export function toastSuccess<T extends ApiSuccess>(result: T): T {
-  const { status, statusText } = result.response
-  postToast('SUCCESS', `${status} ${statusText}`.trim())
-  return result
+  const { status, statusText } = result.response;
+  postToast('SUCCESS', `${status} ${statusText}`.trim());
+  return result;
 }
 
 /**
@@ -108,7 +89,7 @@ export function toastSuccess<T extends ApiSuccess>(result: T): T {
  */
 export function toastSuccessWith(message: string): <T extends ApiSuccess>(result: T) => T {
   return <T extends ApiSuccess>(result: T): T => {
-    postToast('SUCCESS', message)
-    return result
-  }
+    postToast('SUCCESS', message);
+    return result;
+  };
 }

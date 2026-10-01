@@ -1,7 +1,7 @@
-import type { ApiError } from '@/stores/session'
+import type { ApiError } from '@/stores/session';
 
-import { type ApiClientPlugin } from './plugin'
-import { lazySessionStore } from '@/stores/session'
+import { type ApiClientPlugin } from './plugin';
+import { lazySessionStore } from '@/stores/session';
 
 /**
  * Counts requests in flight in the session store and collects failed ones.
@@ -14,34 +14,34 @@ import { lazySessionStore } from '@/stores/session'
  * hand-written `fetch()` call is invisible to this plugin.
  */
 export function createRequestCounterPlugin(): ApiClientPlugin {
-  const session = lazySessionStore()
+  const session = lazySessionStore();
 
   // The client runs response interceptors before it looks at the status code, so a
   // failing request passes through the response *and* the error interceptor.
   // Remembering counted requests keeps the counter balanced.
-  const inFlight = new WeakSet<Request>()
+  const inFlight = new WeakSet<Request>();
 
   const settle = (request: Request | undefined) => {
-    if (request && inFlight.delete(request)) session().endRequest()
-  }
+    if (request && inFlight.delete(request)) session().endRequest();
+  };
 
   return {
     install(client) {
       client.interceptors.request.use((request) => {
         if (!inFlight.has(request)) {
-          inFlight.add(request)
-          session().beginRequest()
+          inFlight.add(request);
+          session().beginRequest();
         }
-        return request
-      })
+        return request;
+      });
 
       client.interceptors.response.use((response, request) => {
-        settle(request)
-        return response
-      })
+        settle(request);
+        return response;
+      });
 
       client.interceptors.error.use((error, response, request) => {
-        settle(request)
+        settle(request);
         const failure: ApiError = {
           at: new Date().toISOString(),
           // The client throws the parsed response body for error responses, and the
@@ -51,10 +51,10 @@ export function createRequestCounterPlugin(): ApiClientPlugin {
           status: response?.status ?? 0,
           statusText: response?.statusText ?? '',
           url: response?.url || request?.url || '',
-        }
-        session().recordError(failure)
-        return error
-      })
+        };
+        session().recordError(failure);
+        return error;
+      });
     },
-  }
+  };
 }

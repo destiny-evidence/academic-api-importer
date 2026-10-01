@@ -1,9 +1,10 @@
-import { defineStore } from 'pinia'
+import { defineStore } from 'pinia';
 
-import { Users } from '@/plugins/api/spec'
+import { Users } from '@/plugins/api/spec';
+import { rejectMessage } from '@/plugins/api';
 
-const STORAGE_KEY = 'aai-session'
-const TOAST_HANGTIME = 8 * 1000 // time in ms before notification is removed automatically
+const STORAGE_KEY = 'aai-session';
+const TOAST_HANGTIME = 8 * 1000; // time in ms before notification is removed automatically
 
 /**
  * An API request that failed, either with an error response or without reaching
@@ -11,52 +12,45 @@ const TOAST_HANGTIME = 8 * 1000 // time in ms before notification is removed aut
  */
 export interface ApiError {
   /** When the failure was observed, as an ISO timestamp. */
-  at: string
-  method: string
-  url: string
+  at: string;
+  method: string;
+  url: string;
   /** HTTP status, or `0` when no response was received (e.g. network error). */
-  status: number
-  statusText: string
+  status: number;
+  statusText: string;
   /**
    * The parsed response body, usually FastAPI's error payload such as
    * `{detail: '...'}`, or the thrown error for network failures.
    */
-  body: unknown
+  body: unknown;
 }
 
 export interface Toast {
-  key: number
-  level: ToastType
-  message: string
-  htmlMessage: string
-  bg: string
-  col: string
+  key: number;
+  level: ToastType;
+  message: string;
+  htmlMessage: string;
+  bg: string;
+  col: string;
 }
 
-export type ToastType = 'SUCCESS' | 'INFO' | 'ERROR' | 'WARN'
+export type ToastType = 'SUCCESS' | 'INFO' | 'ERROR' | 'WARN';
+/** Bootstrap colour classes per toast level, as `ToastsViewer` renders them. */
+export const LevelStyle: Record<ToastType, { bg: string; col: string }> = {
+  SUCCESS: { bg: 'bg-success', col: 'text-white' },
+  INFO: { bg: 'bg-info', col: 'text-dark' },
+  WARN: { bg: 'bg-warning', col: 'text-dark' },
+  ERROR: { bg: 'bg-danger', col: 'text-white' },
+};
 
 /** The access token persisted in localStorage, if any. */
 function loadStoredToken(): string | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw).token ?? null) : null
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw).token ?? null) : null;
   } catch {
-    return null
+    return null;
   }
-}
-
-/**
- * Human-readable message of an API error payload, e.g. FastAPI's
- * `{detail: 'Inactive user'}`. Returns an empty string when there is nothing to
- * show, such as a validation error or a network failure.
- */
-function errorDetail(error: unknown): string {
-  if (typeof error === 'string') return error
-  if (error && typeof error === 'object' && 'detail' in error) {
-    const { detail } = error as { detail?: unknown }
-    if (typeof detail === 'string') return detail
-  }
-  return ''
 }
 
 /**
@@ -88,76 +82,84 @@ export const useSessionStore = defineStore('session', {
     async login(email: string, password: string) {
       // The error is kept in the result instead of thrown so that its `detail` can
       // be reported; the client plugin still records the failure in `errors`.
-      const { data, error } = await Users.loginUsersLoginPost({
-        body: { email, password },
-        credentials: 'include',
-        throwOnError: false,
-      })
-      if (!data) throw new Error(errorDetail(error) || 'Login failed')
+      const { data, error } = await Users.loginUsersLoginPost(
+        {
+          loginRequest: { email, password },
+        },
+        {
+          credentials: 'include',
+          throwOnError: false,
+        },
+      );
+      if (!data) throw new Error(rejectMessage(error) || 'Login failed');
 
-      this.persist(data.access_token)
+      this.persist(data.access_token);
     },
     /** Ask the backend to clear the auth cookie, then drop the local session. */
     async logout() {
       try {
-        await Users.logoutUsersLogoutPost({ credentials: 'include', throwOnError: false })
+        await Users.logoutUsersLogoutPost(
+          { authorization: this.token },
+          { credentials: 'include', throwOnError: false },
+        );
       } finally {
         // Clear local state even if the request failed (e.g. cookie expired).
-        this.clear()
+        this.clear();
       }
     },
     persist(token: string) {
-      this.token = token
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token }))
+      this.token = token;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token }));
     },
     clear() {
-      this.invalidate()
+      this.invalidate();
       // Recorded failures belong to the session that just ended.
-      this.clearErrors()
+      this.clearErrors();
     },
     /**
      * Drops a session the API refused to authenticate, keeping recorded failures
      * so the UI can still explain why the user was signed out.
      */
     invalidate() {
-      this.token = null
-      localStorage.removeItem(STORAGE_KEY)
+      this.token = null;
+      localStorage.removeItem(STORAGE_KEY);
     },
     /** Notes that a request was handed to the API client; pair with `endRequest`. */
     beginRequest() {
-      this.pendingRequests += 1
+      this.pendingRequests += 1;
     },
     /** Notes that a request settled, never dropping below zero. */
     endRequest() {
-      this.pendingRequests = Math.max(0, this.pendingRequests - 1)
+      this.pendingRequests = Math.max(0, this.pendingRequests - 1);
     },
     /** Keeps a failed response around, e.g. to report it to the user. */
     recordError(error: ApiError) {
-      this.errors.push(error)
+      this.errors.push(error);
     },
     clearErrors() {
-      this.errors = []
+      this.errors = [];
     },
     toast(toast: Omit<Toast, 'key'>): number {
-      const toastId = this.runningToastCount
+      const toastId = this.runningToastCount;
       // increment counter to keep track of unique "IDs" for toasts
-      this.runningToastCount += 1
+      this.runningToastCount += 1;
       // add toast to store; the key is assigned here so callers can omit it
-      this.toasts[toastId] = { ...toast, key: toastId }
+      this.toasts[toastId] = { ...toast, key: toastId };
       // set up timer to automatically remove toast after hangtime
-      setTimeout(() => this.removeToast(toastId), TOAST_HANGTIME)
-      return this.runningToastCount
+      setTimeout(() => this.removeToast(toastId), TOAST_HANGTIME);
+      return this.runningToastCount;
     },
     removeToast(key: number) {
-      delete this.toasts[key]
+      delete this.toasts[key];
     },
   },
-})
+});
+
 /**
  * Resolves the session store on first use, so plugins can be installed
  * independently of when Pinia becomes active.
  */
 export function lazySessionStore(): () => ReturnType<typeof useSessionStore> {
-  let store: ReturnType<typeof useSessionStore> | undefined
-  return () => (store ??= useSessionStore())
+  let store: ReturnType<typeof useSessionStore> | undefined;
+  return () => (store ??= useSessionStore());
 }

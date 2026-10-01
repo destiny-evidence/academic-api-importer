@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useSessionStore } from '@/stores/session'
+import { useSessionStore } from '@/stores/session';
 
-const session = useSessionStore()
+const session = useSessionStore();
 </script>
 
 <template>
@@ -9,8 +9,7 @@ const session = useSessionStore()
     role="alert"
     class="toast-container position-absolute top-0 end-0 p-3 pt-5 mh-100 overflow-auto"
     aria-live="assertive"
-    aria-atomic="true"
-  >
+    aria-atomic="true">
     <div
       v-for="toast in session.toasts"
       :key="toast.key"
@@ -18,16 +17,14 @@ const session = useSessionStore()
       class="toast align-items-center border-0 show mb-2"
       :class="[toast.bg, toast.col]"
       aria-live="assertive"
-      aria-atomic="true"
-    >
+      aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body text-start" v-html="toast.htmlMessage" />
         <button
           type="button"
           class="btn-close btn-close-white me-2 m-auto"
           aria-label="Close"
-          @click="session.removeToast(toast.key)"
-        />
+          @click="session.removeToast(toast.key)" />
       </div>
     </div>
   </div>

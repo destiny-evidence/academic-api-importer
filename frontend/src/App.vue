@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { computed } from 'vue';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 
-import ToastsViewer from '@/components/ToastsViewer.vue'
-import { useSessionStore } from '@/stores/session'
+import ToastsViewer from '@/components/ToastsViewer.vue';
+import { useSessionStore } from '@/stores/session';
 
-const route = useRoute()
-const router = useRouter()
-const session = useSessionStore()
+const route = useRoute();
+const router = useRouter();
+const session = useSessionStore();
 
 async function logout() {
-  await session.logout()
-  router.push({ name: 'login' })
+  await session.logout();
+  router.push({ name: 'login' });
 }
 
-const requestInProgress = computed(() => session.isBusy)
+const requestInProgress = computed(() => session.isBusy);
 </script>
 
 <template>
@@ -28,8 +28,7 @@ const requestInProgress = computed(() => session.isBusy)
         <span
           class="spinner-border spinner-border-sm ms-2 align-middle"
           :class="{ invisible: !requestInProgress }"
-          role="status"
-        >
+          role="status">
           <span class="visually-hidden">Requests in progress…</span>
         </span>
       </RouterLink>
