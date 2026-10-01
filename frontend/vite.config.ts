@@ -24,7 +24,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/users': { target: apiTarget, changeOrigin: true },
+      '/users': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
       '/queries': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
       '/tasks': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
       '/tokens': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },

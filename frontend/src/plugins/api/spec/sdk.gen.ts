@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionTokensPermissionDeleteErrors, DeletePermissionTokensPermissionDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionTokensPermissionPostErrors, EditPermissionTokensPermissionPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersUserIdPutErrors, UpdateUserUsersUserIdPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionTokensPermissionDeleteErrors, DeletePermissionTokensPermissionDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionTokensPermissionPostErrors, EditPermissionTokensPermissionPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -356,18 +356,13 @@ export class Users {
     /**
      * Update User
      */
-    public static updateUserUsersUserIdPut<ThrowOnError extends boolean = true>(parameters: {
+    public static updateUserUsersPut<ThrowOnError extends boolean = true>(parameters: {
         authorization?: string | null;
-        user_id: string;
         userUpdate: UserUpdate;
-    }, options?: Options<never, ThrowOnError>): RequestResult<UpdateUserUsersUserIdPutResponses, UpdateUserUsersUserIdPutErrors, ThrowOnError> {
-        const params = buildClientParams([parameters], [{ args: [
-                    { in: 'headers', key: 'authorization' },
-                    { in: 'path', key: 'user_id' },
-                    { key: 'userUpdate', map: 'body' }
-                ] }]);
-        return (options?.client ?? client).put<UpdateUserUsersUserIdPutResponses, UpdateUserUsersUserIdPutErrors, ThrowOnError>({
-            url: '/users/{user_id}',
+    }, options?: Options<never, ThrowOnError>): RequestResult<UpdateUserUsersPutResponses, UpdateUserUsersPutErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { key: 'userUpdate', map: 'body' }] }]);
+        return (options?.client ?? client).put<UpdateUserUsersPutResponses, UpdateUserUsersPutErrors, ThrowOnError>({
+            url: '/users/',
             ...options,
             ...params,
             headers: {

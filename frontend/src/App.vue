@@ -36,8 +36,12 @@ const requestInProgress = computed(() => session.isBusy);
         <RouterLink class="nav-link" :to="{ name: 'queries' }">Queries</RouterLink>
         <RouterLink class="nav-link" :to="{ name: 'tasks' }">Tasks</RouterLink>
         <RouterLink class="nav-link" :to="{ name: 'tokens' }">Tokens</RouterLink>
+        <RouterLink v-if="session.user?.permission_admin" class="nav-link" :to="{ name: 'users' }"
+          >Users</RouterLink
+        >
       </div>
 
+      <div class="navbar-text me-2">{{ session.user?.full_name }}</div>
       <button type="button" class="btn btn-outline-secondary btn-sm" @click="logout">
         Log out
       </button>

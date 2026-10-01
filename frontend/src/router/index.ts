@@ -5,6 +5,7 @@ import QueriesView from '@/views/QueriesView.vue';
 import TasksView from '@/views/TasksView.vue';
 import TokensView from '@/views/TokensView.vue';
 import { useSessionStore } from '@/stores/session';
+import UsersView from '@/views/UsersView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -22,6 +23,11 @@ const router = createRouter({
       path: '/tasks',
       name: 'tasks',
       component: TasksView,
+    },
+    {
+      path: '/users',
+      name: 'users',
+      component: UsersView,
     },
     {
       // The optional `query_id` lets the queries table ask for the tokens of one

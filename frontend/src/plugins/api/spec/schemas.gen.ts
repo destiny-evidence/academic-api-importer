@@ -546,6 +546,10 @@ export const UserTokenPermissionSchema = {
 
 export const UserUpdateSchema = {
     properties: {
+        user_id: {
+            type: 'string',
+            title: 'User Id'
+        },
         email: {
             anyOf: [
                 {
@@ -626,6 +630,9 @@ export const UserUpdateSchema = {
         }
     },
     type: 'object',
+    required: [
+        'user_id'
+    ],
     title: 'UserUpdate'
 } as const;
 

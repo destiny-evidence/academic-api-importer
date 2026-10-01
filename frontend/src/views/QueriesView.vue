@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { BTable } from 'bootstrap-vue-next/components';
-import type { BTableSortBy, TableField } from 'bootstrap-vue-next/types';
+import type { TableField } from 'bootstrap-vue-next/types';
 
 import ModalDialog from '@/components/ModalDialog.vue';
 import { toastReject } from '@/plugins/api';

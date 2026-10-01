@@ -337,6 +337,10 @@ export type UserTokenPermission = {
  */
 export type UserUpdate = {
     /**
+     * User Id
+     */
+    user_id: string;
+    /**
      * Email
      */
     email?: string | null;
@@ -936,7 +940,7 @@ export type CreateUserUsersPostResponses = {
 
 export type CreateUserUsersPostResponse = CreateUserUsersPostResponses[keyof CreateUserUsersPostResponses];
 
-export type UpdateUserUsersUserIdPutData = {
+export type UpdateUserUsersPutData = {
     body: UserUpdate;
     headers?: {
         /**
@@ -944,30 +948,25 @@ export type UpdateUserUsersUserIdPutData = {
          */
         authorization?: string | null;
     };
-    path: {
-        /**
-         * User Id
-         */
-        user_id: string;
-    };
+    path?: never;
     query?: never;
-    url: '/users/{user_id}';
+    url: '/users/';
 };
 
-export type UpdateUserUsersUserIdPutErrors = {
+export type UpdateUserUsersPutErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateUserUsersUserIdPutError = UpdateUserUsersUserIdPutErrors[keyof UpdateUserUsersUserIdPutErrors];
+export type UpdateUserUsersPutError = UpdateUserUsersPutErrors[keyof UpdateUserUsersPutErrors];
 
-export type UpdateUserUsersUserIdPutResponses = {
+export type UpdateUserUsersPutResponses = {
     /**
      * Successful Response
      */
     200: UserPublic;
 };
 
-export type UpdateUserUsersUserIdPutResponse = UpdateUserUsersUserIdPutResponses[keyof UpdateUserUsersUserIdPutResponses];
+export type UpdateUserUsersPutResponse = UpdateUserUsersPutResponses[keyof UpdateUserUsersPutResponses];
