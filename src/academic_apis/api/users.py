@@ -79,6 +79,23 @@ async def login(login_data: LoginRequest, response: Response) -> Token:
     return Token(access_token=token)
 
 
+@route.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    response: Response,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    # Attributes must match those used when setting the cookie, or the
+    # browser will not remove it.
+    response.delete_cookie(
+        key=settings.cookie_name,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=False,  # Set to True if using HTTPS
+    )
+    logger.info(f"User {current_user.user_id} logged out")
+
+
 @route.get("/", response_model=list[UserPublic])
 async def list_users(
     current_user: Annotated[  # noqa: ARG001
