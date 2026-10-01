@@ -1,4 +1,7 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
+// bootstrap-vue-next builds on Bootstrap but adds its own pieces, e.g. the sort
+// icons and busy styling the tables rely on.
+import 'bootstrap-vue-next/dist/bootstrap-vue-next.css';
 
 import { createPinia } from 'pinia';
 import { createApp } from 'vue';
