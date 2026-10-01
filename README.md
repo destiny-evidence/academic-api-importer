@@ -1,3 +1,18 @@
+## Testing
+```bash
+# install the pre-commit hook (runs ruff, mypy and frontend checks on commit)
+uv run pre-commit install
+
+# run all pre-commit checks against every file
+uv run pre-commit run --all-files
+
+# ...or run one language group at a time (pre-commit takes a single hook-id per run,
+# so group with a loop; hooks: ruff-check ruff-format mypy | frontend-lint frontend-format frontend-typecheck)
+for h in ruff-check ruff-format mypy; do uv run pre-commit run "$h" --all-files || break; done
+for h in frontend-lint frontend-format frontend-typecheck; do uv run pre-commit run "$h" --all-files || break; done
+```
+
+
 ```bash
 # start api/webui server
 # this is also the taskiq scheduler

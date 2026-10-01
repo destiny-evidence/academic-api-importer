@@ -153,3 +153,11 @@ export const useSessionStore = defineStore('session', {
     },
   },
 })
+/**
+ * Resolves the session store on first use, so plugins can be installed
+ * independently of when Pinia becomes active.
+ */
+export function lazySessionStore(): () => ReturnType<typeof useSessionStore> {
+  let store: ReturnType<typeof useSessionStore> | undefined
+  return () => (store ??= useSessionStore())
+}

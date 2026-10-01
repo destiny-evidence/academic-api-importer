@@ -3,9 +3,8 @@ import datetime as dt
 from sqlmodel import col, or_, select
 
 from academic_apis.db import AccessToken, db_session
+from academic_apis.db.schemas import Query, UserTokenPermission
 from academic_apis.utils.types import Wrapper
-
-from academic_apis.db.schemas import UserTokenPermission, Query
 
 
 async def get_available_token(query_id: int, wrapper: Wrapper) -> AccessToken:
@@ -14,9 +13,9 @@ async def get_available_token(query_id: int, wrapper: Wrapper) -> AccessToken:
             select(AccessToken)
             .join(
                 UserTokenPermission,
-                onclause=UserTokenPermission.token_id == AccessToken.token_id,
+                onclause=col(UserTokenPermission.token_id) == AccessToken.token_id,
             )
-            .join(Query, onclause=Query.user_id == UserTokenPermission.user_id)
+            .join(Query, onclause=col(Query.user_id) == UserTokenPermission.user_id)
             .where(
                 AccessToken.wrapper == wrapper,
                 Query.query_id == query_id,
@@ -39,7 +38,7 @@ async def get_available_token_for_user(user_id: str, wrapper: Wrapper) -> Access
             select(AccessToken)
             .join(
                 UserTokenPermission,
-                onclause=UserTokenPermission.token_id == AccessToken.token_id,
+                onclause=col(UserTokenPermission.token_id) == AccessToken.token_id,
             )
             .where(
                 AccessToken.wrapper == wrapper,

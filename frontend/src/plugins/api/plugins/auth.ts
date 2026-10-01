@@ -1,4 +1,6 @@
-import { type ApiClientPlugin, lazySessionStore } from './plugin'
+import { type ApiClientPlugin } from './plugin'
+
+import { lazySessionStore } from '@/stores/session'
 
 /** Logging in proves nothing but the given credentials, so no session travels. */
 const LOGIN_PATH = '/users/login'

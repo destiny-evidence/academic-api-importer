@@ -1,6 +1,7 @@
 import type { ApiError } from '@/stores/session'
 
-import { type ApiClientPlugin, lazySessionStore } from './plugin'
+import { type ApiClientPlugin } from './plugin'
+import { lazySessionStore } from '@/stores/session'
 
 /**
  * Counts requests in flight in the session store and collects failed ones.

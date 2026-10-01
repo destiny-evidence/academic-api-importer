@@ -3,9 +3,11 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
-import { createAuthPlugin } from '@/plugins/api/auth'
-import { installApiClientPlugins } from '@/plugins/api/plugin'
-import { createRequestCounterPlugin } from '@/plugins/api/request-counter'
+import {
+  createRequestCounterPlugin,
+  createAuthPlugin,
+  installApiClientPlugins,
+} from '@/plugins/api/plugins'
 import { client } from '@/plugins/api/spec'
 
 import App from './App.vue'

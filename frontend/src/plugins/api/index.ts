@@ -1,6 +1,4 @@
-import type { ToastType } from '@/stores/session'
-
-import { lazySessionStore } from './plugin'
+import { type ToastType, lazySessionStore } from '@/stores/session'
 
 /**
  * Success handlers and error handlers for the promises returned by the
