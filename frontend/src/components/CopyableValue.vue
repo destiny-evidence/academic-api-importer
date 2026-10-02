@@ -26,9 +26,9 @@ async function copyToClipboard() {
     <pre>{{ props.value }}</pre>
     <button
       class="copy-btn"
-      @click="copyToClipboard"
       :title="copied ? 'Copied!' : 'Copy to clipboard'"
-      :aria-label="copied ? 'Copied' : 'Copy to clipboard'">
+      :aria-label="copied ? 'Copied' : 'Copy to clipboard'"
+      @click="copyToClipboard">
       <!-- Success Check Icon -->
       <BIconCheck v-if="copied" class="icon success" />
       <!-- Copy Icon -->

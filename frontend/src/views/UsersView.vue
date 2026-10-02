@@ -82,8 +82,10 @@ function openTokenPermissions(userId: string) {
 type AccessTokenPermission = {
   token: AccessTokenPublic;
   permission?: UserTokenPermission;
-}
-const permissionLookup = computed(() => Object.fromEntries(tokenPermissions.value.map((permission) => [permission.token_id, permission])))
+};
+const permissionLookup = computed(() =>
+  Object.fromEntries(tokenPermissions.value.map((permission) => [permission.token_id, permission])),
+);
 const tokensByWrapper = computed(() => {
   const groups = new Map<Wrapper, AccessTokenPermission[]>();
   tokens.value.forEach((token) => {
@@ -109,19 +111,27 @@ function updateTokenAccess(tokenId: string, access: boolean, owner: boolean = fa
   if (!tokenPermissionUser.value) return;
   if (access)
     Tokens.editPermissionsTokensPermissionsPost({
-      body: [{
-        token_id: tokenId,
-        user_id: tokenPermissionUser.value,
-        is_owner: owner,
-      }]
-    }).then(toastSuccessWith('Updated permissions')).catch(toastReject);
+      body: [
+        {
+          token_id: tokenId,
+          user_id: tokenPermissionUser.value,
+          is_owner: owner,
+        },
+      ],
+    })
+      .then(toastSuccessWith('Updated permissions'))
+      .catch(toastReject);
   else {
     Tokens.deletePermissionsTokensPermissionsDelete({
-      body: {
-        token_id: tokenId,
-        user_id: tokenPermissionUser.value,
-      }
-    }).then(toastSuccessWith('Deleted permissions')).catch(toastReject);
+      body: [
+        {
+          token_id: tokenId,
+          user_id: tokenPermissionUser.value,
+        },
+      ],
+    })
+      .then(toastSuccessWith('Deleted permissions'))
+      .catch(toastReject);
   }
 }
 
@@ -158,12 +168,15 @@ function save(user: UserUpdate) {
     <div v-for="user in users" :key="user.user_id" class="card mb-3">
       <div class="card-body">
         <div class="d-flex flex-wrap align-items-center gap-2">
-          {{ user.full_name }} (<code>{{ user.user_id }}</code>)
+          {{ user.full_name }} (<code>{{ user.user_id }}</code
+          >)
           <BFormCheckbox v-model="user.is_active" switch>Active</BFormCheckbox>
           <BFormCheckbox v-model="user.permission_submit_query" switch>
             Query permission
           </BFormCheckbox>
-          <BFormCheckbox v-model="user.permission_admin" switch class="me-auto"> Admin permission</BFormCheckbox>
+          <BFormCheckbox v-model="user.permission_admin" switch class="me-auto">
+            Admin permission</BFormCheckbox
+          >
 
           <BButton
             size="sm"
@@ -232,41 +245,45 @@ function save(user: UserUpdate) {
       <div class="table-responsive">
         <table class="table table-sm align-middle">
           <thead>
-          <tr>
-            <th scope="col">Token</th>
-            <th scope="col">Description</th>
-            <th scope="col">Token active</th>
-            <th scope="col">Allowed</th>
-            <th scope="col">Owner</th>
-          </tr>
+            <tr>
+              <th scope="col">Token</th>
+              <th scope="col">Description</th>
+              <th scope="col">Token active</th>
+              <th scope="col">Allowed</th>
+              <th scope="col">Owner</th>
+            </tr>
           </thead>
           <tbody>
-          <tr v-for="token in group.tokens" :key="token.token.token_id">
-            <td>
-              <code class="token-id">{{ token.token.token_id }}</code>
-            </td>
-            <td>{{ token.token.comment ?? '—' }}</td>
-            <td>
+            <tr v-for="token in group.tokens" :key="token.token.token_id">
+              <td>
+                <code class="token-id">{{ token.token.token_id }}</code>
+              </td>
+              <td>{{ token.token.comment ?? '—' }}</td>
+              <td>
                 <span
                   class="badge"
                   :class="token.token.is_active ? 'text-bg-success' : 'text-bg-secondary'">
                   {{ token.token.is_active ? 'Active' : 'Inactive' }}
                 </span>
-            </td>
-            <td>
-              <BFormCheckbox
-                :model-value="Boolean(token.permission)"
-                switch
-                @update:model-value="(allowed) => updateTokenAccess(token.token.token_id!, Boolean(allowed))" />
-            </td>
-            <td>
-              <BFormCheckbox
-                :model-value="Boolean(token.permission?.is_owner)"
-                :disabled="Boolean(!token.permission)"
-                switch
-                @update:model-value="(owner) => updateTokenAccess(token.token.token_id!, true, Boolean(owner))" />
-            </td>
-          </tr>
+              </td>
+              <td>
+                <BFormCheckbox
+                  :model-value="Boolean(token.permission)"
+                  switch
+                  @update:model-value="
+                    (allowed) => updateTokenAccess(token.token.token_id!, Boolean(allowed))
+                  " />
+              </td>
+              <td>
+                <BFormCheckbox
+                  :model-value="Boolean(token.permission?.is_owner)"
+                  :disabled="Boolean(!token.permission)"
+                  switch
+                  @update:model-value="
+                    (owner) => updateTokenAccess(token.token.token_id!, true, Boolean(owner))
+                  " />
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
