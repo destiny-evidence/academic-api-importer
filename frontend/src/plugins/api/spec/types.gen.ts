@@ -539,7 +539,12 @@ export type ListTokensTokensListGetData = {
         authorization?: string | null;
     };
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * User Id
+         */
+        user_id?: string | null;
+    };
     url: '/tokens/list';
 };
 
@@ -667,7 +672,7 @@ export type DeleteTokenTokensDeleteDeleteResponses = {
 
 export type DeleteTokenTokensDeleteDeleteResponse = DeleteTokenTokensDeleteDeleteResponses[keyof DeleteTokenTokensDeleteDeleteResponses];
 
-export type DeletePermissionTokensPermissionDeleteData = {
+export type DeletePermissionsTokensPermissionsDeleteData = {
     /**
      * Permissions
      */
@@ -680,30 +685,30 @@ export type DeletePermissionTokensPermissionDeleteData = {
     };
     path?: never;
     query?: never;
-    url: '/tokens/permission';
+    url: '/tokens/permissions';
 };
 
-export type DeletePermissionTokensPermissionDeleteErrors = {
+export type DeletePermissionsTokensPermissionsDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeletePermissionTokensPermissionDeleteError = DeletePermissionTokensPermissionDeleteErrors[keyof DeletePermissionTokensPermissionDeleteErrors];
+export type DeletePermissionsTokensPermissionsDeleteError = DeletePermissionsTokensPermissionsDeleteErrors[keyof DeletePermissionsTokensPermissionsDeleteErrors];
 
-export type DeletePermissionTokensPermissionDeleteResponses = {
+export type DeletePermissionsTokensPermissionsDeleteResponses = {
     /**
-     * Response Delete Permission Tokens Permission Delete
+     * Response Delete Permissions Tokens Permissions Delete
      *
      * Successful Response
      */
-    200: string;
+    200: number;
 };
 
-export type DeletePermissionTokensPermissionDeleteResponse = DeletePermissionTokensPermissionDeleteResponses[keyof DeletePermissionTokensPermissionDeleteResponses];
+export type DeletePermissionsTokensPermissionsDeleteResponse = DeletePermissionsTokensPermissionsDeleteResponses[keyof DeletePermissionsTokensPermissionsDeleteResponses];
 
-export type EditPermissionTokensPermissionPostData = {
+export type EditPermissionsTokensPermissionsPostData = {
     /**
      * Permissions
      */
@@ -716,28 +721,62 @@ export type EditPermissionTokensPermissionPostData = {
     };
     path?: never;
     query?: never;
-    url: '/tokens/permission';
+    url: '/tokens/permissions';
 };
 
-export type EditPermissionTokensPermissionPostErrors = {
+export type EditPermissionsTokensPermissionsPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type EditPermissionTokensPermissionPostError = EditPermissionTokensPermissionPostErrors[keyof EditPermissionTokensPermissionPostErrors];
+export type EditPermissionsTokensPermissionsPostError = EditPermissionsTokensPermissionsPostErrors[keyof EditPermissionsTokensPermissionsPostErrors];
 
-export type EditPermissionTokensPermissionPostResponses = {
+export type EditPermissionsTokensPermissionsPostResponses = {
     /**
-     * Response Edit Permission Tokens Permission Post
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ListPermissionsTokensPermissionGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * User Id
+         */
+        user_id?: string | null;
+    };
+    url: '/tokens/permission';
+};
+
+export type ListPermissionsTokensPermissionGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPermissionsTokensPermissionGetError = ListPermissionsTokensPermissionGetErrors[keyof ListPermissionsTokensPermissionGetErrors];
+
+export type ListPermissionsTokensPermissionGetResponses = {
+    /**
+     * Response List Permissions Tokens Permission Get
      *
      * Successful Response
      */
-    200: string;
+    200: Array<UserTokenPermission>;
 };
 
-export type EditPermissionTokensPermissionPostResponse = EditPermissionTokensPermissionPostResponses[keyof EditPermissionTokensPermissionPostResponses];
+export type ListPermissionsTokensPermissionGetResponse = ListPermissionsTokensPermissionGetResponses[keyof ListPermissionsTokensPermissionGetResponses];
 
 export type ListTasksTasksGetData = {
     body?: never;

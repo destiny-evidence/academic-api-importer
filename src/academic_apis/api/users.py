@@ -37,6 +37,7 @@ class Token(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    user_id: str
     email: EmailStr | None = None
     full_name: str | None = None
     institution: str | None = None
@@ -148,20 +149,22 @@ async def create_user(
     return user_public
 
 
-@route.put("/{user_id}", response_model=UserPublic)
+@route.put("/", response_model=UserPublic)
 async def update_user(
     current_user: Annotated[User, Depends(get_current_user)],
-    user_id: str,
     user_update: UserUpdate,
 ) -> UserPublic:
-    if user_id != current_user.user_id and not current_user.permission_admin:
+    if (
+        user_update.user_id != current_user.user_id
+        and not current_user.permission_admin
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions: you may only update your own user",
         )
 
     async with db_session(mode=Mode.WRITE) as session:
-        user = session.get(User, user_id)
+        user = session.get(User, user_update.user_id)
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

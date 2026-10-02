@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import select
+from sqlmodel import select, delete, tuple_
 from starlette import status
 
 from academic_apis.api.users import get_current_admin, get_current_user
@@ -29,14 +29,30 @@ def _parse_token_id(token_id: str) -> int:
 @route.get("/list")
 async def list_tokens(
     current_user: Annotated[User, Depends(get_current_user)],
+    user_id: str | None = None,
 ) -> Sequence[AccessTokenPublic]:
+    """
+    Return the tokens the current user has access to.
+    If the `current_user` is an admin, this lists all tokens.
+    If `user_id` is set (and `current_user` is an admin), returns permissions for that user
+
+    :param current_user:
+    :param user_id: optional if the admin wants to see permissions of a specific user
+    :return:
+    """
     async with db_session() as session:
         stmt = select(AccessToken)
 
-        if not current_user.permission_admin:
+        user_id_filter: str | None = None
+        if current_user.permission_admin and user_id is not None:
+            user_id_filter = user_id
+        elif not current_user.permission_admin:
+            user_id_filter = current_user.user_id
+
+        if user_id_filter is not None:
             stmt = stmt.join(UserTokenPermission).where(
                 AccessToken.is_active == True,
-                UserTokenPermission.user_id == current_user.user_id,
+                UserTokenPermission.user_id == user_id_filter,
             )
 
         return session.exec(stmt).all()
@@ -202,11 +218,11 @@ async def delete_token(
     return str(key)
 
 
-@route.post("/permission")
-async def edit_permission(
-    current_admin: Annotated[User, Depends(get_current_admin)],
+@route.post("/permissions")
+async def edit_permissions(
+    _current_admin: Annotated[User, Depends(get_current_admin)],
     permissions: list[UserTokenPermission],
-) -> str:
+) -> None:
     """
     Create existing permissions for users to use tokens.
 
@@ -215,56 +231,19 @@ async def edit_permission(
     Updates update the existing permission if `is_owner` value changed.
 
     :param permissions: List of permissions to create or update
-    :param current_admin:
-    :return: number of created or upated permissions
+    :param _current_admin:
     """
-    changed = 0
     async with db_session(mode=Mode.WRITE) as session:
-        for permission in permissions:
-            if session.get(User, permission.user_id) is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"No user found with user_id='{permission.user_id}'",
-                )
-            key = _parse_token_id(permission.token_id)
-            if session.get(AccessToken, key) is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"No API token found with token_id='{permission.token_id}'",
-                )
-
-            stored = session.exec(
-                select(UserTokenPermission).where(
-                    UserTokenPermission.user_id == permission.user_id,
-                    UserTokenPermission.token_id == str(key),
-                ),
-            ).first()
-            if stored is None:
-                session.add(
-                    UserTokenPermission(
-                        user_id=permission.user_id,
-                        token_id=str(key),
-                        is_owner=permission.is_owner,
-                    ),
-                )
-                changed += 1
-            elif stored.is_owner != permission.is_owner:
-                stored.is_owner = permission.is_owner
-                session.add(stored)
-                changed += 1
+        for perm in permissions:
+            session.merge(perm)
         session.commit()
 
-    logger.info(
-        f"Created/updated {changed} token permission(s) (by {current_admin.user_id})"
-    )
-    return str(changed)
 
-
-@route.delete("/permission")
-async def delete_permission(
-    current_admin: Annotated[User, Depends(get_current_admin)],
+@route.delete("/permissions")
+async def delete_permissions(
+    _current_admin: Annotated[User, Depends(get_current_admin)],
     permissions: list[UserTokenPermission],
-) -> str:
+) -> int:
     """
     Delete existing permissions for users to use tokens.
 
@@ -272,22 +251,53 @@ async def delete_permission(
     If (some) permissions don't exist, no error is thrown.
 
     :param permissions: List of permissions to delete
-    :param current_admin:
-    :return: number of deleted permissions
+    :param _current_admin:
+    :returns: number of affected rows
     """
-    deleted = 0
     async with db_session(mode=Mode.WRITE) as session:
-        for permission in permissions:
-            stored = session.exec(
-                select(UserTokenPermission).where(
-                    UserTokenPermission.user_id == permission.user_id,
-                    UserTokenPermission.token_id == permission.token_id,
-                ),
-            ).first()
-            if stored is not None:
-                session.delete(stored)
-                deleted += 1
+        stmt = delete(UserTokenPermission).where(
+            tuple_(UserTokenPermission.user_id, UserTokenPermission.token_id).in_(
+                [
+                    (permission.user_id, permission.token_id)
+                    for permission in permissions
+                ]
+            )
+        )
+        result=session.exec(stmt)
         session.commit()
+        return result.rowcount
 
-    logger.info(f"Deleted {deleted} token permission(s) (by {current_admin.user_id})")
-    return str(deleted)
+
+@route.get("/permission")
+async def list_permissions(
+    current_user: Annotated[User, Depends(get_current_user)],
+    user_id: str | None = None,
+) -> Sequence[UserTokenPermission]:
+    """
+    Return the token permissions the current user has.
+    If `user_id` is set (and `current_user` is an admin), returns permissions for that `user_id`
+
+    :param current_user:
+    :param user_id: optional if the admin wants to see permissions of a specific user
+    :return:
+    """
+    async with db_session() as session:
+        if user_id is None:
+            user_id = current_user.user_id
+        elif not current_user.permission_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admins are allowed to see other's permissions.",
+            )
+        if user_id is None:
+            # Should never happen, but who knows...
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No `user_id` specified.",
+            )
+
+        stmt = select(UserTokenPermission).where(
+            UserTokenPermission.user_id == user_id
+        )
+
+        return session.exec(stmt).all()

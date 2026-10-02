@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionTokensPermissionDeleteErrors, DeletePermissionTokensPermissionDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionTokensPermissionPostErrors, EditPermissionTokensPermissionPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -88,11 +88,20 @@ export class Queries {
 export class Tokens {
     /**
      * List Tokens
+     *
+     * Return the tokens the current user has access to.
+     * If the `current_user` is an admin, this lists all tokens.
+     * If `user_id` is set (and `current_user` is an admin), returns permissions for that user
+     *
+     * :param current_user:
+     * :param user_id: optional if the admin wants to see permissions of a specific user
+     * :return:
      */
     public static listTokensTokensListGet<ThrowOnError extends boolean = true>(parameters?: {
         authorization?: string | null;
+        user_id?: string | null;
     }, options?: Options<never, ThrowOnError>): RequestResult<ListTokensTokensListGetResponses, ListTokensTokensListGetErrors, ThrowOnError> {
-        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }] }]);
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'user_id' }] }]);
         return (options?.client ?? client).get<ListTokensTokensListGetResponses, ListTokensTokensListGetErrors, ThrowOnError>({
             url: '/tokens/list',
             ...options,
@@ -186,7 +195,7 @@ export class Tokens {
     }
     
     /**
-     * Delete Permission
+     * Delete Permissions
      *
      * Delete existing permissions for users to use tokens.
      *
@@ -194,16 +203,16 @@ export class Tokens {
      * If (some) permissions don't exist, no error is thrown.
      *
      * :param permissions: List of permissions to delete
-     * :param current_admin:
-     * :return: number of deleted permissions
+     * :param _current_admin:
+     * :returns: number of affected rows
      */
-    public static deletePermissionTokensPermissionDelete<ThrowOnError extends boolean = true>(parameters: {
+    public static deletePermissionsTokensPermissionsDelete<ThrowOnError extends boolean = true>(parameters: {
         authorization?: string | null;
         body: Array<UserTokenPermission>;
-    }, options?: Options<never, ThrowOnError>): RequestResult<DeletePermissionTokensPermissionDeleteResponses, DeletePermissionTokensPermissionDeleteErrors, ThrowOnError> {
+    }, options?: Options<never, ThrowOnError>): RequestResult<DeletePermissionsTokensPermissionsDeleteResponses, DeletePermissionsTokensPermissionsDeleteErrors, ThrowOnError> {
         const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { key: 'body', map: 'body' }] }]);
-        return (options?.client ?? client).delete<DeletePermissionTokensPermissionDeleteResponses, DeletePermissionTokensPermissionDeleteErrors, ThrowOnError>({
-            url: '/tokens/permission',
+        return (options?.client ?? client).delete<DeletePermissionsTokensPermissionsDeleteResponses, DeletePermissionsTokensPermissionsDeleteErrors, ThrowOnError>({
+            url: '/tokens/permissions',
             ...options,
             ...params,
             headers: {
@@ -215,7 +224,7 @@ export class Tokens {
     }
     
     /**
-     * Edit Permission
+     * Edit Permissions
      *
      * Create existing permissions for users to use tokens.
      *
@@ -224,16 +233,15 @@ export class Tokens {
      * Updates update the existing permission if `is_owner` value changed.
      *
      * :param permissions: List of permissions to create or update
-     * :param current_admin:
-     * :return: number of created or upated permissions
+     * :param _current_admin:
      */
-    public static editPermissionTokensPermissionPost<ThrowOnError extends boolean = true>(parameters: {
+    public static editPermissionsTokensPermissionsPost<ThrowOnError extends boolean = true>(parameters: {
         authorization?: string | null;
         body: Array<UserTokenPermission>;
-    }, options?: Options<never, ThrowOnError>): RequestResult<EditPermissionTokensPermissionPostResponses, EditPermissionTokensPermissionPostErrors, ThrowOnError> {
+    }, options?: Options<never, ThrowOnError>): RequestResult<EditPermissionsTokensPermissionsPostResponses, EditPermissionsTokensPermissionsPostErrors, ThrowOnError> {
         const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { key: 'body', map: 'body' }] }]);
-        return (options?.client ?? client).post<EditPermissionTokensPermissionPostResponses, EditPermissionTokensPermissionPostErrors, ThrowOnError>({
-            url: '/tokens/permission',
+        return (options?.client ?? client).post<EditPermissionsTokensPermissionsPostResponses, EditPermissionsTokensPermissionsPostErrors, ThrowOnError>({
+            url: '/tokens/permissions',
             ...options,
             ...params,
             headers: {
@@ -241,6 +249,28 @@ export class Tokens {
                 ...options?.headers,
                 ...params.headers
             }
+        });
+    }
+    
+    /**
+     * List Permissions
+     *
+     * Return the token permissions the current user has.
+     * If `user_id` is set (and `current_user` is an admin), returns permissions for that `user_id`
+     *
+     * :param current_user:
+     * :param user_id: optional if the admin wants to see permissions of a specific user
+     * :return:
+     */
+    public static listPermissionsTokensPermissionGet<ThrowOnError extends boolean = true>(parameters?: {
+        authorization?: string | null;
+        user_id?: string | null;
+    }, options?: Options<never, ThrowOnError>): RequestResult<ListPermissionsTokensPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'user_id' }] }]);
+        return (options?.client ?? client).get<ListPermissionsTokensPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ThrowOnError>({
+            url: '/tokens/permission',
+            ...options,
+            ...params
         });
     }
 }
