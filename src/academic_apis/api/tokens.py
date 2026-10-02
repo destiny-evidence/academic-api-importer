@@ -15,17 +15,6 @@ logger = logging.getLogger(__name__)
 route = APIRouter()
 
 
-def _parse_token_id(token_id: str) -> int:
-    """Convert token ID string to integer, raising a 400 error on malformed values."""
-    try:
-        return int(token_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid token ID: '{token_id}' is not an integer",
-        ) from exc
-
-
 @route.get("/list")
 async def list_tokens(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -193,11 +182,10 @@ async def delete_token(
     :param token_id:
     :param current_admin:
     :return: ID of deleted token
-    :raises: NotFoundError if no matching token exitsts or other error
+    :raises: NotFoundError if no matching token exists or other error
     """
-    key = _parse_token_id(token_id)
     async with db_session(mode=Mode.WRITE) as session:
-        stored = session.get(AccessToken, key)
+        stored = session.get(AccessToken, token_id)
         if stored is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -206,7 +194,7 @@ async def delete_token(
         # Remove all user permissions associated with this token
         permissions = session.exec(
             select(UserTokenPermission).where(
-                UserTokenPermission.token_id == str(key),
+                UserTokenPermission.token_id == token_id,
             ),
         ).all()
         for permission in permissions:
@@ -215,7 +203,7 @@ async def delete_token(
         session.commit()
 
     logger.info(f"Deleted token {token_id} (by {current_admin.user_id})")
-    return str(key)
+    return token_id
 
 
 @route.post("/permissions")

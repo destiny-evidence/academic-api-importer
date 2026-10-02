@@ -85,6 +85,12 @@ test-ruff:
     - uv run ruff check
     - uv run ruff format --check
 
+test-pytest:
+  extends: .uv
+  stage: test
+  script:
+    - uv run pytest
+
 test-mypy:
   extends: .uv
   stage: test

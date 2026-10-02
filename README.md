@@ -1,5 +1,8 @@
 ## Testing
 ```bash
+# unit/integration tests (they use a throwaway sqlite database, never data/oracle.db)
+uv run pytest
+
 # install the pre-commit hook (runs ruff, mypy and frontend checks on commit)
 uv run pre-commit install
 

@@ -34,6 +34,7 @@ dev = [
     "academic-apis",
     "mypy~=2.3",
     "pre-commit~=4.2",
+    "pytest~=9.0",
     "ruff~=0.16",
 ]
 
@@ -47,6 +48,9 @@ entrypoint = "academic_apis.api:api"
 requires = ["uv_build~=0.12"]
 build-backend = "uv_build"
 
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 fix = false
@@ -103,6 +107,19 @@ lint.select = ["ALL"]
 lint.mccabe.max-complexity = 18
 lint.pep8-naming.classmethod-decorators = ["classmethod"]
 lint.pylint.max-branches = 20
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "ARG002", # fixtures are requested to create data, not to be used in the test body
+    "FBT003", # positional booleans in the test helpers read better than keywords
+    "PLR2004", # expected status codes and messages are spelled out literally
+    "S101", # assert is how tests assert
+    "S105", # fake API keys and passwords make up the test data
+    "S106",
+    "S107",
+    "D103",   # test function names describe the expectation
+    "DOC201", # what a test asserts is in its name and body, not in a Returns clause
+]
 
 [tool.ruff.lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel", "sqlmodel.SQLModel"]
