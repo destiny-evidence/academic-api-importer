@@ -28,6 +28,7 @@ export default defineConfig({
       '/queries': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
       '/tasks': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
       '/tokens': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
+      '/profile': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
     },
   },
 });

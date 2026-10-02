@@ -6,6 +6,7 @@ import TasksView from '@/views/TasksView.vue';
 import TokensView from '@/views/TokensView.vue';
 import { useSessionStore } from '@/stores/session';
 import UsersView from '@/views/UsersView.vue';
+import ProfileView from '@/views/ProfileView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -41,6 +42,11 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
       meta: { requiresAuth: false },
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: ProfileView,
     },
     {
       path: '/:pathMatch(.*)*',
