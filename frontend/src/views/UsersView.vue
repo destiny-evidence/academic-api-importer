@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 
 import { BButton, BFormCheckbox, BFormInput } from 'bootstrap-vue-next/components';
 import { BIconFloppy, BIconKey, BIconBookmark } from 'bootstrap-icons-vue';
-import { toastReject, toastSuccess, toastSuccessWith } from '@/plugins/api';
+import { toastReject, toastSuccess } from '@/plugins/api';
 import {
   type AccessTokenPublic,
   Tokens,
@@ -12,6 +12,7 @@ import {
   type UserUpdate,
   type Wrapper,
 } from '@/plugins/api/spec';
+import { updateTokenAccess as updateTokenAccessAPI } from '@/plugins/api/helpers';
 import { createRandomString } from '@/utils';
 import CopyableValue from '@/components/CopyableValue.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
@@ -109,30 +110,7 @@ const tokensByWrapper = computed(() => {
 
 function updateTokenAccess(tokenId: string, access: boolean, owner: boolean = false) {
   if (!tokenPermissionUser.value) return;
-  if (access)
-    Tokens.editPermissionsTokensPermissionsPost({
-      body: [
-        {
-          token_id: tokenId,
-          user_id: tokenPermissionUser.value,
-          is_owner: owner,
-        },
-      ],
-    })
-      .then(toastSuccessWith('Updated permissions'))
-      .catch(toastReject);
-  else {
-    Tokens.deletePermissionsTokensPermissionsDelete({
-      body: [
-        {
-          token_id: tokenId,
-          user_id: tokenPermissionUser.value,
-        },
-      ],
-    })
-      .then(toastSuccessWith('Deleted permissions'))
-      .catch(toastReject);
-  }
+  updateTokenAccessAPI(tokenPermissionUser.value, tokenId, access, owner);
 }
 
 /**

@@ -8,7 +8,7 @@ import type { TableField } from 'bootstrap-vue-next/types';
 import ModalDialog from '@/components/ModalDialog.vue';
 import { toastReject } from '@/plugins/api';
 import { Queries, type Query } from '@/plugins/api/spec';
-import { formatCreatedAt } from '@/utils';
+import { formatTimeStamp } from '@/utils';
 
 /** Longer queries are shortened to this many characters in the table. */
 const PREVIEW_LENGTH = 10;
@@ -38,7 +38,7 @@ const columns: TableField<Query>[] = [
     key: 'created_at',
     label: 'Created At',
     sortable: true,
-    formatter: ({ value }) => formatCreatedAt(value as Query['created_at']),
+    formatter: ({ value }) => formatTimeStamp(value as Query['created_at']),
     tdClass: 'text-muted small',
   },
 ];
