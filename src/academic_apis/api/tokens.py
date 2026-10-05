@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import select, delete, tuple_
+from sqlmodel import delete, select, tuple_
 from starlette import status
 
 from academic_apis.api.users import get_current_admin, get_current_user
@@ -251,7 +251,7 @@ async def delete_permissions(
                 ]
             )
         )
-        result=session.exec(stmt)
+        result = session.exec(stmt)
         session.commit()
         return result.rowcount
 
@@ -284,8 +284,6 @@ async def list_permissions(
                 detail="No `user_id` specified.",
             )
 
-        stmt = select(UserTokenPermission).where(
-            UserTokenPermission.user_id == user_id
-        )
+        stmt = select(UserTokenPermission).where(UserTokenPermission.user_id == user_id)
 
         return session.exec(stmt).all()

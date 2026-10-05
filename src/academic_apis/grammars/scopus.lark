@@ -1,0 +1,150 @@
+// Scopus advanced-search grammar
+// Intended use: Lark(grammar, parser="lalr")   (contextual lexer)
+
+start: query
+     | negation
+
+// Stand-alone NOT: only at top level, only before ONE field code,
+// ONE comparison or ONE parenthesised group.
+negation: _NOT q_atom
+
+// ---------------------------------------------------------------
+// Top level. Scopus precedence (tightest first): OR, AND, AND NOT
+// ---------------------------------------------------------------
+?query: q_and
+      | query _AND_NOT q_and        -> and_not
+?q_and: q_or
+      | q_and _AND q_or             -> and_
+?q_or: q_atom
+     | q_or _OR q_atom              -> or_
+?q_atom: field_call
+       | ref_call
+       | ref_sub_call
+       | pubyear_cmp
+       | refpubyear_cmp
+       | loaddate_cmp
+       | "(" query ")"              -> group
+
+// ---------------------------------------------------------------
+// Field codes
+// ---------------------------------------------------------------
+field_call:   FIELD        "(" f_expr ")"   // terms only, no nesting
+ref_sub_call: REF_SUBFIELD "(" f_expr ")"   // terms only, no nesting
+ref_call:     _REF         "(" r_expr ")"   // may contain sub-fields
+
+// Content of an ordinary field (and of a reference sub-field)
+?f_expr: f_and
+       | f_expr _AND_NOT f_and      -> and_not
+?f_and: f_or
+      | f_and _AND f_or             -> and_
+      | f_and f_or                  -> adj      // implicit AND: "prion disease"
+?f_or: f_prox
+     | f_or _OR f_prox              -> or_
+?f_prox: f_atom
+       | f_prox PROX f_atom         -> prox     // W/n, PRE/n bind tightest
+?f_atom: literal
+       | "(" f_expr ")"             -> group
+
+// Content of REF(): terms plus reference sub-fields and REFPUBYEAR
+?r_expr: r_and
+       | r_expr _AND_NOT r_and      -> and_not
+?r_and: r_or
+      | r_and _AND r_or             -> and_
+      | r_and r_or                  -> adj
+?r_or: r_prox
+     | r_or _OR r_prox              -> or_
+?r_prox: r_atom
+       | r_prox PROX r_atom         -> prox
+?r_atom: literal
+       | ref_sub_call
+       | refpubyear_cmp
+       | "(" r_expr ")"             -> group
+
+?literal: TERM
+        | ESCAPED_STRING            // loose phrase  "heart attack"
+        | CURLY_STRING              // exact phrase  {heart attack}
+
+// ---------------------------------------------------------------
+// Comparisons
+// ---------------------------------------------------------------
+pubyear_cmp:    _PUBYEAR    (BEF | AFT | IS | LT | GT | EQ) YEAR
+refpubyear_cmp: _REFPUBYEAR (IS | EQ) YEAR
+loaddate_cmp:   _LOAD_DATE  (BEF | AFT | IS) DATE
+
+YEAR: /\d{4}(?!\d)/
+DATE: /\d{4}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?!\d)/   // YYYYMMDD
+
+// ---------------------------------------------------------------
+// Keywords and operators (case-insensitive, whole words)
+// ---------------------------------------------------------------
+_AND_NOT.3: /AND\s+NOT\b/i
+_AND.2:     /AND\b/i
+_OR.2:      /OR\b/i
+_NOT.2:     /NOT\b/i
+PROX.2:     /(?:PRE|W)\/\d+\b/i
+
+BEF.2: /BEF\b/i
+AFT.2: /AFT\b/i
+IS.2:  /IS\b/i
+LT: "<"
+GT: ">"
+EQ: "="
+
+_PUBYEAR.3:    /PUBYEAR\b/i
+_REFPUBYEAR.3: /REFPUBYEAR\b/i
+_LOAD_DATE.3:  /LOAD-DATE\b/i
+
+// A field name is only a field name when "(" follows.
+// The look-ahead also removes prefix clashes (TITLE vs TITLE-ABS-KEY).
+
+_REF.3:         /REF(?=\s*\()/i
+REF_SUBFIELD.3: REF_SUBFIELD_NAME /(?=\s*\()/
+FIELD.3:        FIELD_NAME /(?=\s*\()/
+
+REF_SUBFIELD_NAME: "REFAUTH"i | "REFTITLE"i | "REFSRCTITLE"i
+                 | "REFPAGE"i | "REFPAGEFIRST"i | "REFARTNUM"i
+                 | "WEBSITE"i
+
+// Textual content (first alternative must stay on the same line as the colon)
+FIELD_NAME: "ABS"i | "ALL"i | "TITLE"i | "TITLE-ABS"i | "TITLE-ABS-KEY"i
+    | "TITLE-ABS-KEY-AUTH"i
+    // Affiliations
+    | "AFFIL"i | "AFFILCITY"i | "AFFILCOUNTRY"i | "AF-ID"i | "AFFILORG"i
+    // Authors
+    | "AUTH"i | "AUTHCOLLAB"i | "AUTHFIRST"i | "AU-ID"i | "AUTHLASTNAME"i
+    | "AUTHOR-NAME"i | "ORCID"i
+    // Biological entities
+    | "SEQBANK"i | "SEQNUMBER"i
+    // Chemical entities
+    | "CASREGNUMBER"i | "CHEM"i | "CHEMNAME"i
+    // Conferences
+    | "CONF"i | "CONFLOC"i | "CONFNAME"i | "CONFSPONSORS"i
+    // Document
+    | "OA"i | "INDEX"i | "DOCTYPE"i | "DOI"i | "EID"i | "FIRSTAUTH"i
+    | "PAGEFIRST"i | "LANGUAGE"i | "PAGELAST"i | "PAGES"i
+    // Editors
+    | "EDITOR"i | "EDFIRST"i | "EDLASTNAME"i
+    // Funding
+    | "FUND-ALL"i | "FUND-SPONSOR"i | "FUND-NO"i | "FUND-ACR"i
+    // Keywords
+    | "AUTHKEY"i | "INDEXTERMS"i | "KEY"i | "MANUFACTURER"i | "TRADENAME"i
+    // Publication
+    | "ARTNUM"i | "BOOKPUB"i | "CODEN"i | "PUBDATETXT"i | "EISSN"i
+    | "EXACTSRCTITLE"i | "ISBN"i | "ISSN"i | "ISSNP"i | "PMID"i | "ISSUE"i
+    | "VOLUME"i | "SRCID"i | "SRCTITLE"i | "SRCTYPE"i | "PUBLISHER"i
+    // Subject areas
+    | "SUBJAREA"i
+
+// ---------------------------------------------------------------
+// Search terms
+// ---------------------------------------------------------------
+// Not an operator; may contain wildcards (* ?), hyphens, dots, slashes.
+// Must NOT be directly followed by "(" -> TITLE(ABS(x)) fails to lex,
+// so illegal nesting is rejected by the grammar itself.
+TERM: /(?!(?:AND|OR|NOT)\b|(?:PRE|W)\/\d+\b)[^\s(){}"]+(?=[\s){}"]|$)/i
+
+CURLY_STRING: /\{[^{}]*\}/
+
+%import common.ESCAPED_STRING
+%import common.WS
+%ignore WS

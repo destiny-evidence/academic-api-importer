@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import APIRouter, Body, Depends, HTTPException
+from lark import LarkError
 from sqlmodel import col, select
 from starlette import status
 
@@ -12,6 +13,8 @@ from academic_apis.api.utils.auth import get_current_user
 from academic_apis.db import Query, User, db_session
 from academic_apis.db.schemas import QueryInfo, UserQueryPermission
 from academic_apis.db.tokens import get_available_token_for_user
+from academic_apis.grammars.scopus import QuerySyntaxError, query_to_indented_text
+from academic_apis.utils import Wrapper
 from academic_apis.wrappers import WRAPPERS
 
 if TYPE_CHECKING:
@@ -47,6 +50,26 @@ async def test_query(
         )
 
     return n_results
+
+
+@route.post("/render")
+async def render_query(
+    _current_user: Annotated[User, Depends(get_current_user)],
+    query: Annotated[QueryInfo, Body()],
+) -> str:
+    if query.wrapper == Wrapper.SCOPUS.value:
+        try:
+            return query_to_indented_text(query.query)
+        except (LarkError, QuerySyntaxError) as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"{e}",
+            ) from e
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Formatting not available for {query.wrapper}.",
+    )
 
 
 @route.post("/")
