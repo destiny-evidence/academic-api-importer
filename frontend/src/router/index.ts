@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import LoginView from '@/views/LoginView.vue';
-import QueriesView from '@/views/QueriesView.vue';
+import ListQueriesView from '@/views/Queries/ListQueriesView.vue';
+import FormatQueryView from '@/views/Queries/FormatQueryView.vue';
+import TestQueryView from '@/views/Queries/TestQueryView.vue';
 import TasksView from '@/views/TasksView.vue';
 import TokensView from '@/views/TokensView.vue';
 import { useSessionStore } from '@/stores/session';
@@ -18,7 +20,25 @@ const router = createRouter({
     {
       path: '/queries',
       name: 'queries',
-      component: QueriesView,
+      redirect: { name: 'query-list' },
+      children: [
+        {
+          // Default child: `/queries` shows the query list.
+          path: '',
+          name: 'query-list',
+          component: ListQueriesView,
+        },
+        {
+          path: 'format',
+          name: 'query-format',
+          component: FormatQueryView,
+        },
+        {
+          path: 'test',
+          name: 'query-test',
+          component: TestQueryView,
+        },
+      ],
     },
     {
       path: '/tasks',
