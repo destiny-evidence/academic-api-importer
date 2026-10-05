@@ -67,8 +67,7 @@ watch(
             wrapper-class="nav-item"
             :class="{ 'queries-active': queriesActive }">
             <BDropdownItem :to="{ name: 'query-list' }">List queries</BDropdownItem>
-            <BDropdownItem :to="{ name: 'query-format' }">Format query</BDropdownItem>
-            <BDropdownItem :to="{ name: 'query-test' }">Test query</BDropdownItem>
+            <BDropdownItem :to="{ name: 'query-utils' }">Query utils</BDropdownItem>
           </BDropdown>
           <RouterLink class="nav-link" :to="{ name: 'tasks' }">Tasks</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'tokens' }">Tokens</RouterLink>

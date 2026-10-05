@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { Users, type UserPublic } from '@/plugins/api/spec';
+import { Users, type QueryInfo, type UserPublic } from '@/plugins/api/spec';
 import { rejectMessage } from '@/plugins/api';
 
 const STORAGE_KEY = 'aai-session';
@@ -43,14 +43,42 @@ export const LevelStyle: Record<ToastType, { bg: string; col: string }> = {
   ERROR: { bg: 'bg-danger', col: 'text-white' },
 };
 
+/** A fresh draft query for the query utils page, used when no backup exists. */
+export function defaultQueryInfo(): QueryInfo {
+  return {
+    query: '((climate AND health) OR (adaptation OR mitigation))',
+    wrapper: 'scopus',
+  };
+}
+
+/** How long to wait after the last draft edit before writing the backup. */
+const QUERY_INFO_PERSIST_DEBOUNCE = 250;
+
+/** Pending debounced `persistSession` from `setQueryInfo`, if any. */
+let persistTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Drops a pending debounced backup write. */
+function cancelPersist() {
+  clearTimeout(persistTimer);
+  persistTimer = undefined;
+}
+
 /** The session persisted in localStorage, if any. */
-function loadStoredSession(): { token: string | null; user: UserPublic | null } {
+function loadStoredSession(): {
+  token: string | null;
+  user: UserPublic | null;
+  queryInfo: QueryInfo | null;
+} {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const stored = raw ? JSON.parse(raw) : null;
-    return { token: stored?.token ?? null, user: stored?.user ?? null };
+    return {
+      token: stored?.token ?? null,
+      user: stored?.user ?? null,
+      queryInfo: stored?.queryInfo ?? null,
+    };
   } catch {
-    return { token: null, user: null };
+    return { token: null, user: null, queryInfo: null };
   }
 }
 
@@ -63,7 +91,8 @@ function loadStoredSession(): { token: string | null; user: UserPublic | null } 
  * from JavaScript; the session is tracked from the returned access token and sent
  * to the API as a bearer token (the cookie also travels with credentialed
  * same-origin requests). The logged-in user's profile is fetched from
- * `/users/me` right after login and stored next to the token.
+ * `/users/me` right after login and stored next to the token; `restore()`
+ * re-syncs these pieces with the API when the app boots from storage.
  */
 export const useSessionStore = defineStore('session', {
   state: () => {
@@ -72,6 +101,11 @@ export const useSessionStore = defineStore('session', {
       token: stored.token,
       /** Profile of the logged-in user, fetched from `/users/me` during login. */
       user: stored.user,
+      /**
+       * Draft query of the utils page, edited through `setQueryInfo` so that it
+       * is backed up on every change and survives a closed tab.
+       */
+      queryInfo: stored.queryInfo ?? defaultQueryInfo(),
       /** Requests sent by the API client that have not settled yet. */
       pendingRequests: 0,
       /** Requests that failed, oldest first. */
@@ -118,6 +152,49 @@ export const useSessionStore = defineStore('session', {
       }
       this.setUser(user);
     },
+    /**
+     * Re-syncs the session with what the browser can still prove about it;
+     * called once at startup (from `main.ts`, after the API client plugins are
+     * installed). Login fetches token and profile together, so a session read
+     * back from storage can only be missing one of them:
+     *
+     * - Token survived, profile did not (e.g. the tab was closed during
+     *   login): the profile is fetched again, and a token the API no longer
+     *   accepts is dropped just like a failed login would.
+     * - No token, but the HttpOnly cookie may still be valid (localStorage
+     *   lost): a session cannot be rebuilt from a cookie whose value is
+     *   unreadable, so the cookie is dropped and the user fully logs out
+     *   instead of the two halves of the session drifting apart.
+     */
+    async restore() {
+      if (!this.token) {
+        // A stored profile without its token can neither be refreshed nor
+        // authenticate anything; treat it as part of the lost session.
+        if (this.user) this.invalidate();
+        await this.dropStaleCookie();
+        return;
+      }
+      if (this.user) return;
+
+      const { data: user } = await Users.getMyInfoUsersMeGet(undefined, {
+        credentials: 'include',
+        throwOnError: false,
+      });
+      if (user) this.setUser(user);
+      else this.invalidate();
+    },
+    /**
+     * Asks the API to clear its auth cookie, for a cookie that outlived the
+     * local session. The request authenticates with the cookie itself; when
+     * there is none (or it has expired), the API simply refuses it and there
+     * was no half-session to begin with.
+     */
+    async dropStaleCookie() {
+      await Users.logoutUsersLogoutPost(undefined, {
+        credentials: 'include',
+        throwOnError: false,
+      });
+    },
     /** Ask the backend to clear the auth cookie, then drop the local session. */
     async logout() {
       try {
@@ -140,9 +217,27 @@ export const useSessionStore = defineStore('session', {
       this.user = user;
       this.persistSession();
     },
-    /** Writes the current token and user to localStorage. */
+    /**
+     * Backs up the draft query (utils page), coalescing rapid edits (e.g.
+     * keystrokes) into one localStorage write; `pagehide` below flushes a
+     * pending write so closing the tab never loses the draft.
+     */
+    setQueryInfo(queryInfo: QueryInfo) {
+      this.queryInfo = queryInfo;
+      cancelPersist();
+      persistTimer = setTimeout(() => {
+        persistTimer = undefined;
+        this.persistSession();
+      }, QUERY_INFO_PERSIST_DEBOUNCE);
+    },
+    /** Writes the current token, user, and draft query to localStorage. */
     persistSession() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: this.token, user: this.user }));
+      // The synchronous write covers any pending debounced one.
+      cancelPersist();
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ token: this.token, user: this.user, queryInfo: this.queryInfo }),
+      );
     },
     clear() {
       this.invalidate();
@@ -154,8 +249,12 @@ export const useSessionStore = defineStore('session', {
      * so the UI can still explain why the user was signed out.
      */
     invalidate() {
+      // A debounced draft write must not resurrect the session just dropped.
+      cancelPersist();
       this.token = null;
       this.user = null;
+      // The draft query is part of the session's backup, so it resets with it.
+      this.queryInfo = defaultQueryInfo();
       localStorage.removeItem(STORAGE_KEY);
     },
     /** Notes that a request was handed to the API client; pair with `endRequest`. */
@@ -197,3 +296,10 @@ export function lazySessionStore(): () => ReturnType<typeof useSessionStore> {
   let store: ReturnType<typeof useSessionStore> | undefined;
   return () => (store ??= useSessionStore());
 }
+
+// Flush a debounced draft backup when the page goes away (closing the tab or
+// a bfcache navigation). If a timer is pending, a draft edit scheduled it, so
+// the store exists and Pinia is active by now.
+window.addEventListener('pagehide', () => {
+  if (persistTimer !== undefined) useSessionStore().persistSession();
+});

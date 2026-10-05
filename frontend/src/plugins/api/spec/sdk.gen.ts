@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -29,6 +29,26 @@ export class Queries {
         const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { key: 'queryInfo', map: 'body' }] }]);
         return (options?.client ?? client).post<TestQueryQueriesTestPostResponses, TestQueryQueriesTestPostErrors, ThrowOnError>({
             url: '/queries/test',
+            ...options,
+            ...params,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers,
+                ...params.headers
+            }
+        });
+    }
+    
+    /**
+     * Render Query
+     */
+    public static renderQueryQueriesRenderPost<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        queryInfo: QueryInfo;
+    }, options?: Options<never, ThrowOnError>): RequestResult<RenderQueryQueriesRenderPostResponses, RenderQueryQueriesRenderPostErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { key: 'queryInfo', map: 'body' }] }]);
+        return (options?.client ?? client).post<RenderQueryQueriesRenderPostResponses, RenderQueryQueriesRenderPostErrors, ThrowOnError>({
+            url: '/queries/render',
             ...options,
             ...params,
             headers: {
@@ -180,7 +200,7 @@ export class Tokens {
      * :param token_id:
      * :param current_admin:
      * :return: ID of deleted token
-     * :raises: NotFoundError if no matching token exitsts or other error
+     * :raises: NotFoundError if no matching token exists or other error
      */
     public static deleteTokenTokensDeleteDelete<ThrowOnError extends boolean = true>(parameters: {
         authorization?: string | null;

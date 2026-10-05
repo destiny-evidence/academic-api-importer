@@ -1,14 +1,28 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { BButton, BFormTextarea } from 'bootstrap-vue-next/components';
-import { BIconPlay } from 'bootstrap-icons-vue';
+import { computed, ref } from 'vue';
+import { BButton, BFormSelect } from 'bootstrap-vue-next/components';
+import { BIconPlay, BIconCode } from 'bootstrap-icons-vue';
 
-import { Queries, type QueryInfo } from '@/plugins/api/spec';
+import CodeTextarea from '@/components/CodeTextarea.vue';
+import { Queries, Wrapper } from '@/plugins/api/spec';
 import { rejectMessage } from '@/plugins/api';
+import { useSessionStore } from '@/stores/session';
 
-const queryInfo = ref<QueryInfo>({
-  query: '',
-  wrapper: 'scopus',
+const session = useSessionStore();
+
+/**
+ * The draft query lives in the session store; `draftQuery` and `wrapper` write
+ * it back through `setQueryInfo`, which keeps the localStorage backup current,
+ * so the text survives a closed tab.
+ */
+const draftQuery = computed({
+  get: () => session.queryInfo.query,
+  set: (query) => session.setQueryInfo({ ...session.queryInfo, query }),
+});
+const wrappers = Object.values(Wrapper);
+const wrapper = computed({
+  get: () => session.queryInfo.wrapper,
+  set: (value: Wrapper) => session.setQueryInfo({ ...session.queryInfo, wrapper: value }),
 });
 const feedback = ref<string | null>(null);
 const renderedQuery = ref<string | null>(null);
@@ -16,7 +30,7 @@ const busy = ref(false);
 
 function renderQuery() {
   busy.value = true;
-  Queries.renderQueryQueriesRenderPost({ queryInfo: queryInfo.value })
+  Queries.renderQueryQueriesRenderPost({ queryInfo: session.queryInfo })
     .then((response) => {
       feedback.value = null;
       renderedQuery.value = response.data ?? null;
@@ -35,29 +49,43 @@ function renderQuery() {
   <section>
     <h1>Test query</h1>
     <div class="mb-3">
-      <label class="form-label small text-body-secondary" for="test-query-input">Query</label>
-      <BFormTextarea
+      <div class="d-flex justify-content-between align-items-end gap-2 mb-1">
+        <label class="form-label small text-body-secondary mb-0" for="test-query-input">
+          Query
+        </label>
+        <div class="d-flex align-items-center gap-2">
+          <label class="small text-body-secondary mb-0" for="test-query-wrapper">Wrapper</label>
+          <BFormSelect
+            id="test-query-wrapper"
+            v-model="wrapper"
+            size="sm"
+            class="w-auto font-monospace">
+            <option v-for="option in wrappers" :key="option" :value="option">{{ option }}</option>
+          </BFormSelect>
+        </div>
+      </div>
+
+      <CodeTextarea
         id="test-query-input"
-        v-model="queryInfo.query"
-        rows="8"
-        max-rows="16"
+        v-model="draftQuery"
+        :rows="8"
         autofocus
         placeholder="Enter a query to send to the academic API…" />
     </div>
+    <!-- TODO link to https://www.elsevier.support/scopus/answer/how-can-i-best-use-the-advanced-search#tips -->
 
     <BButton variant="primary" :busy="busy" @click="renderQuery">
+      <BIconCode />
+      Format
+    </BButton>
+    <BButton variant="primary" :busy="busy" class="ms-2" disabled>
       <BIconPlay />
-      Run
+      Test
     </BButton>
 
     <div v-if="renderedQuery" class="mt-4">
       <h2 class="h5">Rendered query</h2>
-      <BFormTextarea
-        :model-value="renderedQuery"
-        readonly
-        rows="12"
-        max-rows="24"
-        class="font-monospace" />
+      <CodeTextarea :model-value="renderedQuery" readonly :rows="12" />
     </div>
 
     <template v-if="feedback">

@@ -447,6 +447,39 @@ export type TestQueryQueriesTestPostResponses = {
 
 export type TestQueryQueriesTestPostResponse = TestQueryQueriesTestPostResponses[keyof TestQueryQueriesTestPostResponses];
 
+export type RenderQueryQueriesRenderPostData = {
+    body: QueryInfo;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/queries/render';
+};
+
+export type RenderQueryQueriesRenderPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenderQueryQueriesRenderPostError = RenderQueryQueriesRenderPostErrors[keyof RenderQueryQueriesRenderPostErrors];
+
+export type RenderQueryQueriesRenderPostResponses = {
+    /**
+     * Response Render Query Queries Render Post
+     *
+     * Successful Response
+     */
+    200: string;
+};
+
+export type RenderQueryQueriesRenderPostResponse = RenderQueryQueriesRenderPostResponses[keyof RenderQueryQueriesRenderPostResponses];
+
 export type ListQueriesQueriesGetData = {
     body?: never;
     headers?: {

@@ -11,7 +11,9 @@ import {
   createAuthPlugin,
   installApiClientPlugins,
 } from '@/plugins/api/plugins';
+import { logReject } from '@/plugins/api';
 import { client } from '@/plugins/api/spec';
+import { useSessionStore } from '@/stores/session';
 
 import App from './App.vue';
 import router from './router';
@@ -24,5 +26,11 @@ app.use(router);
 // Authenticate API requests with the session token and count running requests in
 // the session store (both require an active Pinia).
 installApiClientPlugins(client, [createAuthPlugin(), createRequestCounterPlugin()]);
+
+// Re-sync a session read back from storage: fetch a profile it lost, or drop an
+// auth cookie that outlived its session. Must run after the plugins above. The
+// router guard only reads `token`, which the store restores synchronously from
+// localStorage, so this may settle while the app boots.
+useSessionStore().restore().catch(logReject);
 
 app.mount('#app');

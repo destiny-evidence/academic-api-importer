@@ -2,13 +2,13 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import LoginView from '@/views/LoginView.vue';
 import ListQueriesView from '@/views/Queries/ListQueriesView.vue';
-import FormatQueryView from '@/views/Queries/FormatQueryView.vue';
-import TestQueryView from '@/views/Queries/TestQueryView.vue';
+
 import TasksView from '@/views/TasksView.vue';
 import TokensView from '@/views/TokensView.vue';
 import { useSessionStore } from '@/stores/session';
 import UsersView from '@/views/UsersView.vue';
 import ProfileView from '@/views/ProfileView.vue';
+import QueryUtilsView from '@/views/Queries/QueryUtilsView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,13 +30,8 @@ const router = createRouter({
         },
         {
           path: 'format',
-          name: 'query-format',
-          component: FormatQueryView,
-        },
-        {
-          path: 'test',
-          name: 'query-test',
-          component: TestQueryView,
+          name: 'query-utils',
+          component: QueryUtilsView,
         },
       ],
     },
