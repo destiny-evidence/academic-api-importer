@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import {
+  type AccessToken,
   type AccessTokenPublic,
   Tokens,
   type UserTokenPermission,
-  type Wrapper,
+  Wrapper,
 } from '@/plugins/api/spec';
 import { computed, onMounted, ref } from 'vue';
 import { formatNumber, formatTimeStamp } from '@/utils';
 import { updateTokenStatus } from '@/plugins/api/helpers.ts';
-import { toastReject, toastSuccess } from '@/plugins/api';
+import { toastReject, toastSuccess, toastSuccessWith } from '@/plugins/api';
 import TwoStageButton from '@/components/TwoStageButton.vue';
-import { BButton, BFormCheckbox } from 'bootstrap-vue-next/components';
-import { BIconInfoCircle, BIconInfoCircleFill } from 'bootstrap-icons-vue';
+import ModalDialog from '@/components/ModalDialog.vue';
+import { BButton, BFormCheckbox, BFormInput, BFormSelect } from 'bootstrap-vue-next/components';
+import { BIconInfoCircle, BIconInfoCircleFill, BIconPlus } from 'bootstrap-icons-vue';
 import { useSessionStore } from '@/stores/session.ts';
 
 type Status = {
@@ -32,7 +34,7 @@ const tokens = ref<AccessTokenPublic[]>([]);
 const tokenPermissions = ref<UserTokenPermission[]>([]);
 const session = useSessionStore();
 
-onMounted(() => {
+function reload() {
   Tokens.listTokensTokensListGet()
     .then((response) => {
       tokens.value = response.data;
@@ -43,7 +45,9 @@ onMounted(() => {
       tokenPermissions.value = response.data;
     })
     .catch(toastReject);
-});
+}
+
+onMounted(reload);
 const permissionLookup = computed(() =>
   Object.fromEntries(tokenPermissions.value.map((permission) => [permission.token_id, permission])),
 );
@@ -142,10 +146,65 @@ function deleteToken(token: AccessTokenPublic) {
     .then(toastSuccess)
     .catch(toastReject);
 }
+
+/** Draft for the "Add API token" dialog; `wrapper` stays empty until chosen. */
+type NewToken = { wrapper: Wrapper | ''; token: string; comment: string; proxy: string };
+const newToken = ref<NewToken>({ wrapper: '', token: '', comment: '', proxy: '' });
+const addTokenOpen = ref(false);
+const savingToken = ref(false);
+
+const wrappers = Object.values(Wrapper);
+
+/* The endpoint rejects empty `token` and `comment`, so do not offer saving. */
+const canSaveToken = computed(
+  () =>
+    Boolean(newToken.value.wrapper) &&
+    Boolean(newToken.value.token.trim()) &&
+    Boolean(newToken.value.comment.trim()),
+);
+
+function openAddToken() {
+  newToken.value = { wrapper: '', token: '', comment: '', proxy: '' };
+  addTokenOpen.value = true;
+}
+
+/**
+ * Sends the draft to `/tokens/submit`, which stores the token and also grants
+ * the current user ownership (`UserTokenPermission.is_owner`); reloading both
+ * listings therefore makes the new token show up right away, already editable.
+ */
+function addToken() {
+  if (!canSaveToken.value || savingToken.value) return;
+  savingToken.value = true;
+  const { wrapper, token, comment, proxy } = newToken.value;
+  Tokens.addTokenTokensSubmitPost({
+    accessToken: {
+      wrapper: wrapper as Wrapper,
+      token: token.trim(),
+      comment: comment.trim(),
+      proxy: proxy.trim() || null,
+    } as AccessToken,
+  })
+    .then((result) => {
+      addTokenOpen.value = false;
+      reload();
+      return result;
+    })
+    .then(toastSuccessWith('Token added'))
+    .catch(toastReject)
+    .finally(() => {
+      savingToken.value = false;
+    });
+}
 </script>
 <template>
   <section>
-    <h1>Tokens</h1>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h1 class="mb-0">Tokens</h1>
+      <BButton variant="primary" title="Add a new API token" @click="openAddToken">
+        <BIconPlus /> Add token
+      </BButton>
+    </div>
     <p class="text-body-secondary">TODO: manage API tokens.</p>
     <section v-for="group in tokensByWrapper" :key="group.wrapper" class="mb-4">
       <h6 class="text-body-secondary text-uppercase small mb-2">{{ group.wrapper }}</h6>
@@ -246,6 +305,61 @@ function deleteToken(token: AccessTokenPublic) {
         </table>
       </div>
     </section>
+
+    <ModalDialog v-model="addTokenOpen" title="Add API token">
+      <form class="row g-3" @submit.prevent="addToken">
+        <div class="col-12">
+          <label class="form-label small text-body-secondary mb-1" for="new-token-wrapper">
+            Wrapper
+          </label>
+          <BFormSelect id="new-token-wrapper" v-model="newToken.wrapper" required>
+            <option value="" disabled>Select a wrapper…</option>
+            <option v-for="wrapper in wrappers" :key="wrapper" :value="wrapper">
+              {{ wrapper }}
+            </option>
+          </BFormSelect>
+        </div>
+        <div class="col-12">
+          <label class="form-label small text-body-secondary mb-1" for="new-token-secret">
+            Token
+          </label>
+          <BFormInput
+            id="new-token-secret"
+            v-model="newToken.token"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="The secret API token"
+            required />
+        </div>
+        <div class="col-12">
+          <label class="form-label small text-body-secondary mb-1" for="new-token-comment">
+            Description
+          </label>
+          <BFormInput id="new-token-comment" v-model="newToken.comment" required />
+        </div>
+        <div class="col-12">
+          <label class="form-label small text-body-secondary mb-1" for="new-token-proxy">
+            Proxy
+          </label>
+          <BFormInput
+            id="new-token-proxy"
+            v-model="newToken.proxy"
+            autocomplete="off"
+            placeholder="http://proxy.example.org:3128 (optional)" />
+        </div>
+      </form>
+      <template #footer>
+        <BButton variant="secondary" @click="addTokenOpen = false">Cancel</BButton>
+        <BButton
+          variant="success"
+          :disabled="!canSaveToken || savingToken"
+          title="Store the token and grant yourself ownership"
+          @click="addToken">
+          Save
+        </BButton>
+      </template>
+    </ModalDialog>
   </section>
 </template>
 
