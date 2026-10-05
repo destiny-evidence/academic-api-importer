@@ -5,7 +5,7 @@ import { BIconPlay, BIconCode } from 'bootstrap-icons-vue';
 
 import CodeTextarea from '@/components/CodeTextarea.vue';
 import { Queries, Wrapper } from '@/plugins/api/spec';
-import { rejectMessage } from '@/plugins/api';
+import { rejectMessage, toastReject } from '@/plugins/api';
 import { useQueryDraftStore } from '@/stores/store-query';
 
 const draft = useQueryDraftStore();
@@ -43,6 +43,17 @@ function renderQuery() {
       busy.value = false;
     });
 }
+
+function testQuery() {
+  busy.value = true;
+  Queries.testQueryQueriesTestPost({ queryInfo: draft.queryInfo }).then((response) => {
+    feedback.value = JSON.stringify(response.data, undefined, 2);
+    renderedQuery.value = null;
+  }).catch(toastReject)
+    .finally(() => {
+      busy.value = false;
+    })
+}
 </script>
 
 <template>
@@ -74,11 +85,11 @@ function renderQuery() {
     </div>
     <!-- TODO link to https://www.elsevier.support/scopus/answer/how-can-i-best-use-the-advanced-search#tips -->
 
-    <BButton variant="primary" :busy="busy" @click="renderQuery">
+    <BButton variant="primary" :aria-disabled="busy" :disabled="busy" @click="renderQuery">
       <BIconCode />
       Format
     </BButton>
-    <BButton variant="primary" :busy="busy" class="ms-2" disabled>
+    <BButton variant="primary" :aria-disabled="busy" :disabled="busy" class="ms-2" @click="testQuery">
       <BIconPlay />
       Test
     </BButton>

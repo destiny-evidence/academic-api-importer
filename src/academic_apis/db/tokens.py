@@ -22,11 +22,11 @@ async def get_available_token(query_id: int, wrapper: Wrapper) -> AccessToken:
                 col(AccessToken.is_active).is_(True),
                 or_(
                     col(AccessToken.locked_until).is_(None),
-                    col(AccessToken.locked_until)
-                    <= dt.datetime.now(tz=dt.UTC).timestamp(),
+                    col(AccessToken.locked_until) <= dt.datetime.now(tz=dt.UTC),
                 ),
             )
             .order_by(col(AccessToken.last_used))
+            .limit(1)
         ).one()
         session.expunge(token)
     return token
@@ -46,11 +46,11 @@ async def get_available_token_for_user(user_id: str, wrapper: Wrapper) -> Access
                 col(AccessToken.is_active).is_(True),
                 or_(
                     col(AccessToken.locked_until).is_(None),
-                    col(AccessToken.locked_until)
-                    <= dt.datetime.now(tz=dt.UTC).timestamp(),
+                    col(AccessToken.locked_until) <= dt.datetime.now(tz=dt.UTC),
                 ),
             )
             .order_by(col(AccessToken.last_used))
+            .limit(1)
         ).one()
         session.expunge(token)
     return token

@@ -229,6 +229,26 @@ export const TaskState = {
 export type TaskState = typeof TaskState[keyof typeof TaskState];
 
 /**
+ * TestResult
+ */
+export type TestResult = {
+    /**
+     * Body
+     */
+    body: string;
+    /**
+     * Headers
+     */
+    headers: {
+        [key: string]: unknown;
+    };
+    /**
+     * Status
+     */
+    status: number;
+};
+
+/**
  * Token
  */
 export type Token = {
@@ -438,11 +458,9 @@ export type TestQueryQueriesTestPostError = TestQueryQueriesTestPostErrors[keyof
 
 export type TestQueryQueriesTestPostResponses = {
     /**
-     * Response Test Query Queries Test Post
-     *
      * Successful Response
      */
-    200: number;
+    200: TestResult;
 };
 
 export type TestQueryQueriesTestPostResponse = TestQueryQueriesTestPostResponses[keyof TestQueryQueriesTestPostResponses];

@@ -14,7 +14,7 @@ from nacsos_data.util import as_uuid, clear_empty, get
 from sqlmodel import col
 
 from academic_apis.db import AccessToken, db_session
-from academic_apis.utils import Wrapper, as_int
+from academic_apis.utils import Wrapper, as_int, drop_whitespaces
 
 from ._abc import AbstractWrapper, OnLoopInfo
 from ._client import RequestClient
@@ -87,6 +87,7 @@ class ScopusWrapper(AbstractWrapper):
 
     async def on_response(self, response: Response | None) -> None:
         if response:
+            self.last_response = response
             self.api_feedback = {
                 "scopus_requests_limit": response.headers.get("x-ratelimit-limit"),
                 "scopus_requests_remaining": response.headers.get(
@@ -189,7 +190,7 @@ class ScopusWrapper(AbstractWrapper):
                         "X-ELS-APIKey": self.api_key,
                     },
                     data={
-                        "query": query,
+                        "query": drop_whitespaces(query),
                     },
                 )
 
@@ -287,7 +288,7 @@ class ScopusWrapper(AbstractWrapper):
             raise AssertionError(
                 f"Start year ({py_start}) should be strictly smaller than end year ({py_end})",
             )
-
+        query = drop_whitespaces(query)
         for char1 in alphabet:
             for char2 in alphabet:
                 firstauth = f"FIRSTAUTH ( {char1}{char2}* )"

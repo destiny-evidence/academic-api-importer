@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator, AsyncIterable, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from httpx import Response
 from taskiq.utils import maybe_awaitable
 
 from academic_apis.utils.types import Format, Record, Wrapper
@@ -55,6 +56,7 @@ class AbstractWrapper(ABC):
         self.ignored_exceptions = ignored_exceptions or []
         self.api_feedback: dict[str, Any] = {}
         self.n_results: int | None = None
+        self.last_response: Response | None = None
         self.skip_token_logging = skip_token_logging
         self._on_loop = on_loop
         self.logger = (
@@ -138,6 +140,15 @@ class AbstractWrapper(ABC):
         async for _record in self.fetch_raw(query=query, params=params):
             break
         return self.n_results
+
+    async def get_first_response(
+        self,
+        query: str,
+        params: dict[str, Any] | None = None,
+    ) -> Response | None:
+        async for _record in self.fetch_raw(query=query, params=params):
+            break
+        return self.last_response
 
     async def download_raw(
         self,

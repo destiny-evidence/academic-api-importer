@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated, cast
+from json import JSONDecodeError
+from typing import TYPE_CHECKING, Annotated, cast, Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException
+from httpx import Response
 from lark import LarkError
+from pydantic import BaseModel
 from sqlmodel import col, select
 from starlette import status
 
@@ -25,11 +28,17 @@ logger = logging.getLogger(__name__)
 route = APIRouter()
 
 
+class TestResult(BaseModel):
+    body: dict[str, Any]
+    headers: dict[str, Any]
+    status: int
+
+
 @route.post("/test")
 async def test_query(
     current_user: Annotated[User, Depends(get_current_user)],
     query: Annotated[QueryInfo, Body()],
-) -> int:
+) -> TestResult:
     API = WRAPPERS[query.wrapper]  # noqa: N806
     token = await get_available_token_for_user(
         user_id=current_user.user_id, wrapper=query.wrapper
@@ -41,15 +50,27 @@ async def test_query(
         proxy=token.proxy,
         skip_token_logging=False,
     )
-    n_results = await api.fetch_n_results(query=query.query, params=query.params)
+    response: Response | None = await api.get_first_response(
+        query=query.query, params=query.params
+    )
 
-    if n_results is None:
+    if response is None:
         raise HTTPException(
             status_code=status.HTTP_204_NO_CONTENT,
-            detail=f"Did not receive a count from the {query.wrapper} API.",
+            detail=f"Did not receive a response from the {query.wrapper} API.",
         )
-
-    return n_results
+    try:
+        body = response.json()
+    except Exception as e:  # noqa: BLE001
+        body = {
+            "text": response.text,
+            "error": str(e),
+        }
+    return TestResult(
+        body=body,
+        headers=response.headers,
+        status=response.status_code,
+    )
 
 
 @route.post("/render")

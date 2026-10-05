@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from typing import TYPE_CHECKING
 
@@ -70,6 +71,13 @@ def as_int(val: object | None, default: int = 0) -> int:
     if isinstance(val, str) and val.isdecimal():
         return int(val)
     return default
+
+
+REGEX_WS = re.compile(r"\s+")
+
+
+def drop_whitespaces(s: str) -> str:
+    return REGEX_WS.sub(" ", s).strip()
 
 
 __all__ = [

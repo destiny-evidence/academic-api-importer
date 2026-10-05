@@ -410,6 +410,31 @@ export const TaskStateSchema = {
     description: 'State of task execution.'
 } as const;
 
+export const TestResultSchema = {
+    properties: {
+        body: {
+            type: 'string',
+            title: 'Body'
+        },
+        headers: {
+            additionalProperties: true,
+            type: 'object',
+            title: 'Headers'
+        },
+        status: {
+            type: 'integer',
+            title: 'Status'
+        }
+    },
+    type: 'object',
+    required: [
+        'body',
+        'headers',
+        'status'
+    ],
+    title: 'TestResult'
+} as const;
+
 export const TokenSchema = {
     properties: {
         access_token: {
