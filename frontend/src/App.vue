@@ -4,18 +4,20 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { BCollapse, BDropdown, BDropdownItem } from 'bootstrap-vue-next/components';
 
 import ToastsViewer from '@/components/ToastsViewer.vue';
-import { useSessionStore } from '@/stores/session';
+import { useActivityStore } from '@/stores/store-activity';
+import { useSessionStore } from '@/stores/store-session';
 
 const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
+const activity = useActivityStore();
 
 async function logout() {
   await session.logout();
   router.push({ name: 'login' });
 }
 
-const requestInProgress = computed(() => session.isBusy);
+const requestInProgress = computed(() => activity.isBusy);
 
 // The collapsible menu (navbar-toggler below) and the Queries dropdown are
 // built from bootstrap-vue-next components because the Bootstrap JS bundle,

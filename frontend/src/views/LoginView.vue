@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { useSessionStore } from '@/stores/session';
+import { useSessionStore } from '@/stores/store-session';
 
 const route = useRoute();
 const router = useRouter();

@@ -1,4 +1,5 @@
-import { type ToastType, lazySessionStore, LevelStyle } from '@/stores/session';
+import { type ToastType, LevelStyle } from '@/stores/store-activity';
+import { activity } from '@/stores';
 import { escapeHtml } from '@/utils';
 
 /**
@@ -25,11 +26,9 @@ export interface ApiSuccess {
   response: Response;
 }
 
-const session = lazySessionStore();
-
-/** Publishes a toast through the session store, where `ToastsViewer` picks it up. */
+/** Publishes a toast through the activity store, where `ToastsViewer` picks it up. */
 export function postToast(level: ToastType, message: string) {
-  session().toast({
+  activity().toast({
     level,
     message,
     htmlMessage: escapeHtml(message),

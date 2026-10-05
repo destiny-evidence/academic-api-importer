@@ -14,7 +14,7 @@ import TwoStageButton from '@/components/TwoStageButton.vue';
 import ModalDialog from '@/components/ModalDialog.vue';
 import { BButton, BFormCheckbox, BFormInput, BFormSelect } from 'bootstrap-vue-next/components';
 import { BIconInfoCircle, BIconInfoCircleFill, BIconPlus } from 'bootstrap-icons-vue';
-import { useSessionStore } from '@/stores/session.ts';
+import { useSessionStore } from '@/stores/store-session';
 
 type Status = {
   capacity?: number;

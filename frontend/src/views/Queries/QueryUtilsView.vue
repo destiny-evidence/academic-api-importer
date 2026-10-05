@@ -6,23 +6,23 @@ import { BIconPlay, BIconCode } from 'bootstrap-icons-vue';
 import CodeTextarea from '@/components/CodeTextarea.vue';
 import { Queries, Wrapper } from '@/plugins/api/spec';
 import { rejectMessage } from '@/plugins/api';
-import { useSessionStore } from '@/stores/session';
+import { useQueryDraftStore } from '@/stores/store-query';
 
-const session = useSessionStore();
+const draft = useQueryDraftStore();
 
 /**
- * The draft query lives in the session store; `draftQuery` and `wrapper` write
- * it back through `setQueryInfo`, which keeps the localStorage backup current,
- * so the text survives a closed tab.
+ * The draft query lives in the query draft store; `draftQuery` and `wrapper`
+ * write it back through `setQueryInfo`, which keeps the localStorage backup
+ * current, so the text survives a closed tab.
  */
 const draftQuery = computed({
-  get: () => session.queryInfo.query,
-  set: (query) => session.setQueryInfo({ ...session.queryInfo, query }),
+  get: () => draft.queryInfo.query,
+  set: (query) => draft.setQueryInfo({ ...draft.queryInfo, query }),
 });
 const wrappers = Object.values(Wrapper);
 const wrapper = computed({
-  get: () => session.queryInfo.wrapper,
-  set: (value: Wrapper) => session.setQueryInfo({ ...session.queryInfo, wrapper: value }),
+  get: () => draft.queryInfo.wrapper,
+  set: (value: Wrapper) => draft.setQueryInfo({ ...draft.queryInfo, wrapper: value }),
 });
 const feedback = ref<string | null>(null);
 const renderedQuery = ref<string | null>(null);
@@ -30,7 +30,7 @@ const busy = ref(false);
 
 function renderQuery() {
   busy.value = true;
-  Queries.renderQueryQueriesRenderPost({ queryInfo: session.queryInfo })
+  Queries.renderQueryQueriesRenderPost({ queryInfo: draft.queryInfo })
     .then((response) => {
       feedback.value = null;
       renderedQuery.value = response.data ?? null;

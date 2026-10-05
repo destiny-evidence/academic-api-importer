@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useSessionStore } from '@/stores/session';
+import { useActivityStore } from '@/stores/store-activity';
 
-const session = useSessionStore();
+const activity = useActivityStore();
 </script>
 
 <template>
@@ -11,7 +11,7 @@ const session = useSessionStore();
     aria-live="assertive"
     aria-atomic="true">
     <div
-      v-for="toast in session.toasts"
+      v-for="toast in activity.toasts"
       :key="toast.key"
       role="alert"
       class="toast align-items-center border-0 show mb-2"
@@ -24,7 +24,7 @@ const session = useSessionStore();
           type="button"
           class="btn-close btn-close-white me-2 m-auto"
           aria-label="Close"
-          @click="session.removeToast(toast.key)" />
+          @click="activity.removeToast(toast.key)" />
       </div>
     </div>
   </div>

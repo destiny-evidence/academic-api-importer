@@ -13,7 +13,7 @@ import {
 } from '@/plugins/api/plugins';
 import { logReject } from '@/plugins/api';
 import { client } from '@/plugins/api/spec';
-import { useSessionStore } from '@/stores/session';
+import { useSessionStore } from '@/stores/store-session';
 
 import App from './App.vue';
 import router from './router';
@@ -24,7 +24,7 @@ app.use(createPinia());
 app.use(router);
 
 // Authenticate API requests with the session token and count running requests in
-// the session store (both require an active Pinia).
+// the activity store (both require an active Pinia).
 installApiClientPlugins(client, [createAuthPlugin(), createRequestCounterPlugin()]);
 
 // Re-sync a session read back from storage: fetch a profile it lost, or drop an

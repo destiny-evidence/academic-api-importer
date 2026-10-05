@@ -5,7 +5,7 @@ import ListQueriesView from '@/views/Queries/ListQueriesView.vue';
 
 import TasksView from '@/views/TasksView.vue';
 import TokensView from '@/views/TokensView.vue';
-import { useSessionStore } from '@/stores/session';
+import { useSessionStore } from '@/stores/store-session';
 import UsersView from '@/views/UsersView.vue';
 import ProfileView from '@/views/ProfileView.vue';
 import QueryUtilsView from '@/views/Queries/QueryUtilsView.vue';
