@@ -7,7 +7,7 @@ const session = useSessionStore();
 <template>
   <div
     role="alert"
-    class="toast-container position-absolute top-0 end-0 p-3 pt-5 mh-100 overflow-auto"
+    class="toast-container position-fixed top-0 end-0 p-3 pt-5 mh-100 overflow-auto"
     aria-live="assertive"
     aria-atomic="true">
     <div

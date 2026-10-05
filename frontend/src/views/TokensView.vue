@@ -6,9 +6,27 @@ import {
   type Wrapper,
 } from '@/plugins/api/spec';
 import { computed, onMounted, ref } from 'vue';
-import { toastReject } from '@/plugins/api';
-import TokenInfo from '@/components/TokenInfo.vue';
+import { formatNumber, formatTimeStamp } from '@/utils';
+import { updateTokenStatus } from '@/plugins/api/helpers.ts';
+import { toastReject, toastSuccess } from '@/plugins/api';
+import TwoStageButton from '@/components/TwoStageButton.vue';
+import { BButton, BFormCheckbox } from 'bootstrap-vue-next/components';
+import { BIconInfoCircle, BIconInfoCircleFill } from 'bootstrap-icons-vue';
 import { useSessionStore } from '@/stores/session.ts';
+
+type Status = {
+  capacity?: number;
+  remaining?: number;
+  remainingPercent?: number;
+  status?: string;
+  capacityReset?: string;
+};
+type TokenInfo = {
+  token: AccessTokenPublic;
+  permission?: UserTokenPermission | null;
+  status?: Status | null;
+  isEditable: boolean;
+};
 
 const tokens = ref<AccessTokenPublic[]>([]);
 const tokenPermissions = ref<UserTokenPermission[]>([]);
@@ -29,15 +47,22 @@ onMounted(() => {
 const permissionLookup = computed(() =>
   Object.fromEntries(tokenPermissions.value.map((permission) => [permission.token_id, permission])),
 );
+
 function removeToken(deleted: AccessTokenPublic) {
   tokens.value = tokens.value.filter((token) => token.token_id !== deleted.token_id);
 }
+
 const tokensByWrapper = computed(() => {
-  const groups = new Map<Wrapper, AccessTokenPublic[]>();
+  const groups = new Map<Wrapper, TokenInfo[]>();
   tokens.value.forEach((token) => {
     const group = groups.get(token.wrapper);
-    if (group) group.push(token);
-    else groups.set(token.wrapper, [token]);
+    const info: TokenInfo = {
+      token,
+      status: tokenStatus(token),
+      isEditable: hasEditPermission(token),
+    };
+    if (group) group.push(info);
+    else groups.set(token.wrapper, [info]);
   });
   return [...groups.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -45,12 +70,78 @@ const tokensByWrapper = computed(() => {
       wrapper,
       tokens: group.sort((a, b) => {
         // Tokens without a comment sort after those that have one.
-        if (!a.comment) return b.comment ? 1 : 0;
-        if (!b.comment) return -1;
-        return a.comment.localeCompare(b.comment);
+        if (!a.token.comment) return b.token.comment ? 1 : 0;
+        if (!b.token.comment) return -1;
+        return a.token.comment.localeCompare(b.token.comment);
       }),
     }));
 });
+
+/** Token IDs whose raw API feedback is expanded below their row. */
+const showMetaTokens = ref<Record<string, boolean>>({});
+
+function hasEditPermission(token: AccessTokenPublic): boolean {
+  const currentUser = session.user;
+  const permissions = permissionLookup.value;
+  return Boolean(
+    currentUser?.is_active &&
+    (currentUser?.permission_admin ||
+      (token.token_id &&
+        permissions[token.token_id] &&
+        permissions[token.token_id].user_id == currentUser?.user_id)),
+  );
+}
+
+function tokenStatus(token: AccessTokenPublic): Status {
+  if (token.wrapper === 'scopus' && token.last_feedback) {
+    return {
+      capacity: token.last_feedback.scopus_requests_limit as number | undefined,
+      remaining: token.last_feedback.scopus_requests_remaining as number | undefined,
+      remainingPercent:
+        token.last_feedback.scopus_requests_remaining && token.last_feedback.scopus_requests_limit
+          ? ((token.last_feedback.scopus_requests_remaining as number) /
+              (token.last_feedback.scopus_requests_limit as number)) *
+            100
+          : undefined,
+      status: token.last_feedback.status as string | undefined,
+      capacityReset: token.last_feedback.scopus_requests_reset
+        ? formatTimeStamp((token.last_feedback.scopus_requests_reset as number) * 1000)
+        : undefined,
+    };
+  }
+  return {};
+}
+
+/** The lock is over once `locked_until` lies in the past; while it is in the
+ *  future the token cannot be used, so highlight it. */
+function lockedUntilClass(token: AccessTokenPublic) {
+  if (!token.locked_until) return 'text-body-secondary';
+  const lockedUntil = Date.parse(token.locked_until);
+  if (Number.isNaN(lockedUntil)) return '';
+  return lockedUntil <= Date.now() ? 'text-success' : 'text-danger';
+}
+
+function updateStatus(token: AccessTokenPublic, active: boolean) {
+  if (!token.token_id) return;
+  updateTokenStatus(token.token_id, active)
+    .then(() => {
+      // Keep the listing in step with the API so the switch shows the
+      // stored state.
+      token.is_active = active;
+    })
+    .catch(toastReject);
+}
+
+function deleteToken(token: AccessTokenPublic) {
+  if (!token.token_id) return;
+  Tokens.deleteTokenTokensDeleteDelete({ token_id: token.token_id })
+    .then((result) => {
+      removeToken(token);
+      return result;
+    })
+    .then(toastSuccess)
+    .catch(toastReject);
+}
 </script>
 <template>
   <section>
@@ -58,14 +149,108 @@ const tokensByWrapper = computed(() => {
     <p class="text-body-secondary">TODO: manage API tokens.</p>
     <section v-for="group in tokensByWrapper" :key="group.wrapper" class="mb-4">
       <h6 class="text-body-secondary text-uppercase small mb-2">{{ group.wrapper }}</h6>
-      <TokenInfo
-        v-for="token in group.tokens"
-        :key="token.token_id"
-        :token="token"
-        :permissions="permissionLookup"
-        :current-user="session.user"
-        class="mb-2"
-        @deleted="removeToken" />
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Token</th>
+              <th scope="col">Description</th>
+              <th scope="col">Last used</th>
+              <th scope="col">Locked until</th>
+              <th scope="col">Active</th>
+              <th scope="col">Capacity</th>
+              <th scope="col" class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="token in group.tokens" :key="token.token.token_id">
+              <tr>
+                <td>
+                  <code>{{ token.token.token_id }}</code>
+                </td>
+                <td>{{ token.token.comment }}</td>
+                <td>{{ formatTimeStamp(token.token.last_used) }}</td>
+                <td :class="lockedUntilClass(token.token)" title="Locked until">
+                  {{ formatTimeStamp(token.token.locked_until) }}
+                </td>
+                <td>
+                  <BFormCheckbox
+                    v-if="token.isEditable"
+                    :model-value="Boolean(token.token.is_active)"
+                    switch
+                    title="Toggle the token's active state"
+                    @update:model-value="(active) => updateStatus(token.token, Boolean(active))">
+                    Active
+                  </BFormCheckbox>
+                  <template v-else>
+                    {{ token.token.is_active }}
+                  </template>
+                </td>
+                <td class="text-nowrap">
+                  <template v-if="token.status">
+                    <div>
+                      {{ formatNumber(token.status.remaining) }} /
+                      {{ formatNumber(token.status.capacity) }}
+                    </div>
+                    <div class="d-flex flex-row align-items-center">
+                      <div
+                        v-if="token.token.last_feedback"
+                        class="progress w-100"
+                        role="progressbar"
+                        aria-label="Access token capacity"
+                        :aria-valuenow="token.status.remainingPercent"
+                        aria-valuemin="0"
+                        aria-valuemax="100">
+                        <div
+                          class="progress-bar text-bg-secondary"
+                          :style="{ width: token.status.remainingPercent + '%' }">
+                          {{ formatNumber(token.status.remainingPercent) }}%
+                        </div>
+                      </div>
+                      <BButton
+                        v-if="token.token.last_feedback"
+                        size="sm"
+                        variant="link"
+                        class="p-0 ms-2 text-body-secondary"
+                        :title="
+                          showMetaTokens[token.token.token_id!]
+                            ? 'Hide raw API feedback'
+                            : 'Show raw API feedback'
+                        "
+                        @click="
+                          showMetaTokens[token.token.token_id!] =
+                            !showMetaTokens[token.token.token_id!]
+                        ">
+                        <BIconInfoCircleFill v-if="showMetaTokens[token.token.token_id!]" />
+                        <BIconInfoCircle v-else />
+                      </BButton>
+                    </div>
+                  </template>
+                </td>
+                <td class="text-end text-nowrap">
+                  <TwoStageButton
+                    v-if="token.isEditable"
+                    btn-style="btn-outline-danger"
+                    @accepted="deleteToken(token.token)">
+                    Delete
+                  </TwoStageButton>
+                </td>
+              </tr>
+              <tr v-if="token.token.token_id && showMetaTokens[token.token.token_id]">
+                <td colspan="7">
+                  <pre class="mb-0">{{ token.token.last_feedback }}</pre>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
     </section>
   </section>
 </template>
+
+<style scoped>
+.btn svg {
+  vertical-align: -0.125em;
+}
+</style>

@@ -4,8 +4,8 @@
       type="button"
       class="btn"
       :class="btnStyle"
-      @click="confirming = true"
-      :disabled="disabled || confirming">
+      :disabled="disabled || confirming"
+      @click="confirming = true">
       <slot />
     </button>
     <template v-if="confirming"
@@ -35,11 +35,11 @@ import { defineComponent } from 'vue';
 
 export default defineComponent({
   name: 'ConfirmationButton',
-  emits: ['cancelled', 'accepted'],
   props: {
     disabled: { type: Boolean, default: false, required: false },
     btnStyle: { type: String, default: 'btn-outline-primary', required: false },
   },
+  emits: ['cancelled', 'accepted'],
   data() {
     return { confirming: false };
   },
