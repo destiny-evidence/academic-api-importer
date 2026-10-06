@@ -20,7 +20,6 @@ class QueryInfo(SQLModel):
 
 class Query(QueryInfo, table=True):
     query_id: int | None = Field(default=None, primary_key=True)
-    user_id: int | None = Field(default=None)
 
     created_at: datetime = Field(
         default_factory=datetime.now,
@@ -120,5 +119,5 @@ class UserTokenPermission(SQLModel, table=True):
 class UserQueryPermission(SQLModel, table=True):
     __tablename__ = "m2m_user_query"
     user_id: str = Field(foreign_key="users.user_id", primary_key=True)
-    query_id: str = Field(foreign_key="query.query_id", primary_key=True)
+    query_id: int = Field(foreign_key="query.query_id", primary_key=True)
     is_owner: bool = False

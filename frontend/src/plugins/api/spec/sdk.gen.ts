@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UserCreate, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskSummaryTasksGetErrors, TaskSummaryTasksGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -94,6 +94,70 @@ export class Queries {
                 ] }]);
         return (options?.client ?? client).post<SubmitQueryQueriesPostResponses, SubmitQueryQueriesPostErrors, ThrowOnError>({
             url: '/queries/',
+            ...options,
+            ...params,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers,
+                ...params.headers
+            }
+        });
+    }
+    
+    /**
+     * Drop Permission
+     *
+     * Delete a user's permission to access a query.
+     *
+     * Admin users can delete permissions for any query.
+     * All other users need an owner permission (`is_owner=True`) for that query
+     * in the database to remove someone else's permission.
+     *
+     * :param current_user:
+     * :param permission: the permission to delete (identified by user_id + query_id)
+     * :return: all permissions stored for `permission.query_id` afterwards
+     * :raises: NotFoundError if no matching permission exists
+     */
+    public static dropPermissionQueriesPermissionDelete<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        userQueryPermission: UserQueryPermission;
+    }, options?: Options<never, ThrowOnError>): RequestResult<DropPermissionQueriesPermissionDeleteResponses, DropPermissionQueriesPermissionDeleteErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { key: 'userQueryPermission', map: 'body' }] }]);
+        return (options?.client ?? client).delete<DropPermissionQueriesPermissionDeleteResponses, DropPermissionQueriesPermissionDeleteErrors, ThrowOnError>({
+            url: '/queries/permission',
+            ...options,
+            ...params,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers,
+                ...params.headers
+            }
+        });
+    }
+    
+    /**
+     * Upsert Permission
+     *
+     * Create or update a user's permission to access a query.
+     *
+     * Admin users can create permissions for anyone and any query.
+     * All other users need an owner permission (`is_owner=True`) for the query
+     * themselves; only then they may grant permissions to others and change
+     * existing ones (e.g. pass on the ownership).
+     * The primary key is `(user_id, query_id)`, so an existing permission is
+     * updated instead of duplicated.
+     *
+     * :param current_user:
+     * :param permission: the permission to create or update
+     * :return: all permissions stored for `permission.query_id` afterwards
+     */
+    public static upsertPermissionQueriesPermissionPut<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        userQueryPermission: UserQueryPermission;
+    }, options?: Options<never, ThrowOnError>): RequestResult<UpsertPermissionQueriesPermissionPutResponses, UpsertPermissionQueriesPermissionPutErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { key: 'userQueryPermission', map: 'body' }] }]);
+        return (options?.client ?? client).put<UpsertPermissionQueriesPermissionPutResponses, UpsertPermissionQueriesPermissionPutErrors, ThrowOnError>({
+            url: '/queries/permission',
             ...options,
             ...params,
             headers: {
@@ -297,23 +361,14 @@ export class Tokens {
 
 export class Tasks {
     /**
-     * List Tasks
+     * Task Summary
      */
-    public static listTasksTasksGet<ThrowOnError extends boolean = true>(parameters?: {
+    public static taskSummaryTasksGet<ThrowOnError extends boolean = true>(parameters: {
         authorization?: string | null;
-        query_id?: number | null;
-        offset?: number;
-        limit?: number;
-        status?: TaskState | null;
-    }, options?: Options<never, ThrowOnError>): RequestResult<ListTasksTasksGetResponses, ListTasksTasksGetErrors, ThrowOnError> {
-        const params = buildClientParams([parameters], [{ args: [
-                    { in: 'headers', key: 'authorization' },
-                    { in: 'query', key: 'query_id' },
-                    { in: 'query', key: 'offset' },
-                    { in: 'query', key: 'limit' },
-                    { in: 'query', key: 'status' }
-                ] }]);
-        return (options?.client ?? client).get<ListTasksTasksGetResponses, ListTasksTasksGetErrors, ThrowOnError>({
+        query_id: number;
+    }, options?: Options<never, ThrowOnError>): RequestResult<TaskSummaryTasksGetResponses, TaskSummaryTasksGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'query_id' }] }]);
+        return (options?.client ?? client).get<TaskSummaryTasksGetResponses, TaskSummaryTasksGetErrors, ThrowOnError>({
             url: '/tasks/',
             ...options,
             ...params

@@ -231,17 +231,6 @@ export const QuerySchema = {
             ],
             title: 'Query Id'
         },
-        user_id: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'User Id'
-        },
         created_at: {
             type: 'string',
             format: 'date-time',
@@ -413,7 +402,8 @@ export const TaskStateSchema = {
 export const TestResultSchema = {
     properties: {
         body: {
-            type: 'string',
+            additionalProperties: true,
+            type: 'object',
             title: 'Body'
         },
         headers: {
@@ -543,6 +533,30 @@ export const UserPublicSchema = {
         'institution'
     ],
     title: 'UserPublic'
+} as const;
+
+export const UserQueryPermissionSchema = {
+    properties: {
+        user_id: {
+            type: 'string',
+            title: 'User Id'
+        },
+        query_id: {
+            type: 'integer',
+            title: 'Query Id'
+        },
+        is_owner: {
+            type: 'boolean',
+            title: 'Is Owner',
+            default: false
+        }
+    },
+    type: 'object',
+    required: [
+        'user_id',
+        'query_id'
+    ],
+    title: 'UserQueryPermission'
 } as const;
 
 export const UserTokenPermissionSchema = {

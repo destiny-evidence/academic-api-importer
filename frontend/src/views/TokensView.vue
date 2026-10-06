@@ -112,8 +112,8 @@ function tokenStatus(token: AccessTokenPublic): Status {
       remainingPercent:
         token.last_feedback.scopus_requests_remaining && token.last_feedback.scopus_requests_limit
           ? ((token.last_feedback.scopus_requests_remaining as number) /
-            (token.last_feedback.scopus_requests_limit as number)) *
-          100
+              (token.last_feedback.scopus_requests_limit as number)) *
+            100
           : undefined,
       status: token.last_feedback.status as string | undefined,
       capacityReset: token.last_feedback.scopus_requests_reset
@@ -220,109 +220,110 @@ function addToken() {
       <div class="table-responsive">
         <table class="table table-sm align-middle">
           <thead>
-          <tr>
-            <th scope="col">Token</th>
-            <th scope="col">Description</th>
-            <th scope="col">
-              Last used
-              <BIconQuestionCircle
-                v-b-tooltip="
+            <tr>
+              <th scope="col">Token</th>
+              <th scope="col">Description</th>
+              <th scope="col">
+                Last used
+                <BIconQuestionCircle
+                  v-b-tooltip="
                     'Note, that the token might have been used elsewhere and this information may be inaccurate or outdated'
                   "
-                class="ms-1 align-baseline text-body-secondary" />
-            </th>
-            <th scope="col">Locked until</th>
-            <th scope="col">Active</th>
-            <th scope="col">Capacity
-              <BIconQuestionCircle
-                v-b-tooltip="
+                  class="ms-1 align-baseline text-body-secondary" />
+              </th>
+              <th scope="col">Locked until</th>
+              <th scope="col">Active</th>
+              <th scope="col">
+                Capacity
+                <BIconQuestionCircle
+                  v-b-tooltip="
                     'Note, that the token might have been used elsewhere and this information may be inaccurate or outdated'
                   "
-                class="ms-1 align-baseline text-body-secondary" />
-            </th>
-            <th scope="col" class="text-end">Actions</th>
-          </tr>
+                  class="ms-1 align-baseline text-body-secondary" />
+              </th>
+              <th scope="col" class="text-end">Actions</th>
+            </tr>
           </thead>
           <tbody>
-          <template v-for="token in group.tokens" :key="token.token.token_id">
-            <tr>
-              <td>
-                <code>{{ token.token.token_id }}</code>
-              </td>
-              <td>{{ token.token.comment }}</td>
-              <td>{{ formatTimeStamp(token.token.last_used) }}</td>
-              <td :class="lockedUntilClass(token.token)" title="Locked until">
-                {{ formatTimeStamp(token.token.locked_until) }}
-              </td>
-              <td>
-                <BFormCheckbox
-                  v-if="token.isEditable"
-                  :model-value="Boolean(token.token.is_active)"
-                  switch
-                  title="Toggle the token's active state"
-                  @update:model-value="(active) => updateStatus(token.token, Boolean(active))">
-                  Active
-                </BFormCheckbox>
-                <template v-else>
-                  {{ token.token.is_active }}
-                </template>
-              </td>
-              <td class="text-nowrap">
-                <template v-if="token.status">
-                  <div>
-                    {{ formatNumber(token.status.remaining, 0) }} /
-                    {{ formatNumber(token.status.capacity, 0) }}
-                  </div>
-                  <div class="d-flex flex-row align-items-center">
-                    <div
-                      v-if="token.token.last_feedback"
-                      class="progress w-100"
-                      role="progressbar"
-                      aria-label="Access token capacity"
-                      :aria-valuenow="token.status.remainingPercent"
-                      aria-valuemin="0"
-                      aria-valuemax="100">
-                      <div
-                        class="progress-bar text-bg-secondary"
-                        :style="{ width: token.status.remainingPercent + '%' }">
-                        {{ formatNumber(token.status.remainingPercent) }}%
-                      </div>
+            <template v-for="token in group.tokens" :key="token.token.token_id">
+              <tr>
+                <td>
+                  <code>{{ token.token.token_id }}</code>
+                </td>
+                <td>{{ token.token.comment }}</td>
+                <td>{{ formatTimeStamp(token.token.last_used) }}</td>
+                <td :class="lockedUntilClass(token.token)" title="Locked until">
+                  {{ formatTimeStamp(token.token.locked_until) }}
+                </td>
+                <td>
+                  <BFormCheckbox
+                    v-if="token.isEditable"
+                    :model-value="Boolean(token.token.is_active)"
+                    switch
+                    title="Toggle the token's active state"
+                    @update:model-value="(active) => updateStatus(token.token, Boolean(active))">
+                    Active
+                  </BFormCheckbox>
+                  <template v-else>
+                    {{ token.token.is_active }}
+                  </template>
+                </td>
+                <td class="text-nowrap">
+                  <template v-if="token.status">
+                    <div>
+                      {{ formatNumber(token.status.remaining, 0) }} /
+                      {{ formatNumber(token.status.capacity, 0) }}
                     </div>
-                    <BButton
-                      v-if="token.token.last_feedback"
-                      size="sm"
-                      variant="link"
-                      class="p-0 ms-2 text-body-secondary"
-                      :title="
+                    <div class="d-flex flex-row align-items-center">
+                      <div
+                        v-if="token.token.last_feedback"
+                        class="progress w-100"
+                        role="progressbar"
+                        aria-label="Access token capacity"
+                        :aria-valuenow="token.status.remainingPercent"
+                        aria-valuemin="0"
+                        aria-valuemax="100">
+                        <div
+                          class="progress-bar text-bg-secondary"
+                          :style="{ width: token.status.remainingPercent + '%' }">
+                          {{ formatNumber(token.status.remainingPercent) }}%
+                        </div>
+                      </div>
+                      <BButton
+                        v-if="token.token.last_feedback"
+                        size="sm"
+                        variant="link"
+                        class="p-0 ms-2 text-body-secondary"
+                        :title="
                           showMetaTokens[token.token.token_id!]
                             ? 'Hide raw API feedback'
                             : 'Show raw API feedback'
                         "
-                      @click="
+                        @click="
                           showMetaTokens[token.token.token_id!] =
                             !showMetaTokens[token.token.token_id!]
                         ">
-                      <BIconInfoCircleFill v-if="showMetaTokens[token.token.token_id!]" />
-                      <BIconInfoCircle v-else />
-                    </BButton>
-                  </div>
-                </template>
-              </td>
-              <td class="text-end text-nowrap">
-                <TwoStageButton
-                  v-if="token.isEditable"
-                  btn-style="btn-outline-danger"
-                  @accepted="deleteToken(token.token)">
-                  Delete
-                </TwoStageButton>
-              </td>
-            </tr>
-            <tr v-if="token.token.token_id && showMetaTokens[token.token.token_id]">
-              <td colspan="7">
-                <pre class="mb-0">{{ token.token.last_feedback }}</pre>
-              </td>
-            </tr>
-          </template>
+                        <BIconInfoCircleFill v-if="showMetaTokens[token.token.token_id!]" />
+                        <BIconInfoCircle v-else />
+                      </BButton>
+                    </div>
+                  </template>
+                </td>
+                <td class="text-end text-nowrap">
+                  <TwoStageButton
+                    v-if="token.isEditable"
+                    btn-style="btn-outline-danger"
+                    @accepted="deleteToken(token.token)">
+                    Delete
+                  </TwoStageButton>
+                </td>
+              </tr>
+              <tr v-if="token.token.token_id && showMetaTokens[token.token.token_id]">
+                <td colspan="7">
+                  <pre class="mb-0">{{ token.token.last_feedback }}</pre>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>

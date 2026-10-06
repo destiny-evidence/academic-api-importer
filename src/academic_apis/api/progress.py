@@ -3,8 +3,7 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func
-from sqlmodel import select
+from sqlmodel import select, func
 from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.api.utils.auth import get_current_user
@@ -48,6 +47,29 @@ async def list_tasks(
             stmt = stmt.where(Task.query_id == query_id)
         if status is not None:
             stmt = stmt.where(Task.status == status)
+        if not current_user.permission_admin:
+            stmt = (
+                stmt.join(Query)
+                .join(UserQueryPermission)
+                .where(UserQueryPermission.user_id == current_user.user_id)
+            )
+
+        return session.exec(stmt).all()  # type: ignore[no-any-return]
+@route.get("/")
+async def task_summary(
+    current_user: Annotated[User, Depends(get_current_user)],
+    query_id: int,
+) -> Sequence[TaskPublic]:
+    async with db_session() as session:
+        stmt = (
+            select(
+                Task.status,
+                func.count(Task.task_id)
+            )
+            .where(Task.query_id == query_id)
+            .group_by(Task.status)
+        )
+
         if not current_user.permission_admin:
             stmt = (
                 stmt.join(Query)

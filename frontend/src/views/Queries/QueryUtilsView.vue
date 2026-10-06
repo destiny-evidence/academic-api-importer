@@ -46,13 +46,15 @@ function renderQuery() {
 
 function testQuery() {
   busy.value = true;
-  Queries.testQueryQueriesTestPost({ queryInfo: draft.queryInfo }).then((response) => {
-    feedback.value = JSON.stringify(response.data, undefined, 2);
-    renderedQuery.value = null;
-  }).catch(toastReject)
+  Queries.testQueryQueriesTestPost({ queryInfo: draft.queryInfo })
+    .then((response) => {
+      feedback.value = JSON.stringify(response.data, undefined, 2);
+      renderedQuery.value = null;
+    })
+    .catch(toastReject)
     .finally(() => {
       busy.value = false;
-    })
+    });
 }
 </script>
 
@@ -89,7 +91,12 @@ function testQuery() {
       <BIconCode />
       Format
     </BButton>
-    <BButton variant="primary" :aria-disabled="busy" :disabled="busy" class="ms-2" @click="testQuery">
+    <BButton
+      variant="primary"
+      :aria-disabled="busy"
+      :disabled="busy"
+      class="ms-2"
+      @click="testQuery">
       <BIconPlay />
       Test
     </BButton>

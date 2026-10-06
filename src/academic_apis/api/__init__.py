@@ -46,7 +46,7 @@ api.add_middleware(
     CORSMiddleware,
     allow_origins=settings.web_origins,  # Explicit origin required (no "*")
     allow_credentials=True,  # Required for cookies
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
