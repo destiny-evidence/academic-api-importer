@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlmodel import col, select
 from starlette import status
 
+from academic_apis.api.utils import require_query_ownership
 from academic_apis.api.utils.auth import get_current_user
 from academic_apis.db import Mode, Query, User, db_session
 from academic_apis.db.schemas import QueryInfo, UserQueryPermission
@@ -111,7 +112,7 @@ async def submit_query(
 
     API = WRAPPERS[query.wrapper]  # noqa: N806
 
-    async with db_session() as session:  # type: Session
+    async with db_session(mode=Mode.WRITE) as session:  # type: Session
         query_orm = Query(
             query=query.query,
             wrapper=query.wrapper,
@@ -159,26 +160,6 @@ async def list_queries(
         return session.exec(stmt).all()
 
 
-def _require_query_ownership(
-    session: Session,
-    current_user: User,
-    query_id: int,
-) -> None:
-    if current_user.permission_admin:
-        return
-    own_permission = session.exec(
-        select(UserQueryPermission).where(
-            UserQueryPermission.query_id == query_id,
-            UserQueryPermission.user_id == current_user.user_id,
-        ),
-    ).first()
-    if own_permission is None or not own_permission.is_owner:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions: only owners of a query can manage its permissions",
-        )
-
-
 def _permissions_for_query(
     session: Session,
     query_id: int,
@@ -221,7 +202,7 @@ async def upsert_permission(
                 detail=f"No user found with user_id={permission.user_id}",
             )
 
-        _require_query_ownership(session, current_user, permission.query_id)
+        require_query_ownership(session, current_user, permission.query_id)
 
         session.merge(permission)
         session.commit()
@@ -244,10 +225,9 @@ async def drop_permission(
     :param current_user:
     :param permission: the permission to delete (identified by user_id + query_id)
     :return: all permissions stored for `permission.query_id` afterwards
-    :raises: NotFoundError if no matching permission exists
     """
     async with db_session(mode=Mode.WRITE) as session:  # type: Session
-        _require_query_ownership(session, current_user, permission.query_id)
+        require_query_ownership(session, current_user, permission.query_id)
 
         stored = session.get(
             UserQueryPermission,
@@ -265,3 +245,20 @@ async def drop_permission(
         session.commit()
 
         return _permissions_for_query(session, permission.query_id)
+
+
+@route.get("/permission")
+async def get_permissions(
+    current_user: Annotated[User, Depends(get_current_user)],
+    query_id: int,
+) -> Sequence[UserQueryPermission]:
+    """
+    Read permissions for a query
+
+    :param current_user:
+    :param query_id:
+    :return: all permissions stored for `query_id`
+    """
+    async with db_session() as session:  # type: Session
+        require_query_ownership(session, current_user, query_id)
+        return _permissions_for_query(session=session, query_id=query_id)

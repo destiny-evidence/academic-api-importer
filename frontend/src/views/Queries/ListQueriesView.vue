@@ -2,34 +2,122 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { BTable } from 'bootstrap-vue-next/components';
+import { BButton, BFormCheckbox, BTable } from 'bootstrap-vue-next/components';
+import { BIconPersonFill, BIconInboxFill } from 'bootstrap-icons-vue';
 import type { TableField } from 'bootstrap-vue-next/types';
 
 import ModalDialog from '@/components/ModalDialog.vue';
-import { toastReject } from '@/plugins/api';
-import { Queries, type Query } from '@/plugins/api/spec';
+import { toastReject, toastSuccessWith } from '@/plugins/api';
+import {
+  Queries,
+  type Query,
+  type UserPublicBase,
+  type UserQueryPermission,
+  Users,
+} from '@/plugins/api/spec';
 import { formatTimeStamp } from '@/utils';
 
-/** Longer queries are shortened to this many characters in the table. */
+// Longer queries are shortened to this many characters in the table.
 const PREVIEW_LENGTH = 10;
 
 const router = useRouter();
 const queries = ref<Query[]>([]);
-const loading = ref(true);
-/** Full text of the query shown in the modal; `null` while the modal is closed. */
+const loadingQueries = ref(true);
+const loadingUsers = ref(false);
+// Full text of the query shown in the modal; `null` while the modal is closed.
 const fullQuery = ref<string | null>(null);
 
 // The modal tracks its open state through `v-model`; closing it clears the text
 // so `fullQuery === null` remains the one truth about whether it is closed.
-const fullQueryOpen = computed({
+const modalQueryOpen = computed({
   get: () => fullQuery.value !== null,
   set: (isOpen) => {
     if (!isOpen) fullQuery.value = null;
   },
 });
 
+const users = ref<UserPublicBase[]>([]);
+/** Query whose permissions dialog is open; `null` while the modal is closed. */
+const permissionQuery = ref<Query | null>(null);
+/**
+ * Known permissions for `permissionQuery`. No endpoint asks for them, so the
+ * dialog starts out blank; both mutation endpoints answer with the query's
+ * full permission list, so every edit rebases the switches on stored state.
+ */
+const queryPermissions = ref<UserQueryPermission[]>([]);
+
+const permissionModalOpen = computed({
+  get: () => permissionQuery.value !== null,
+  set: (isOpen) => {
+    if (!isOpen) {
+      permissionQuery.value = null;
+      queryPermissions.value = [];
+    }
+  },
+});
+
+function openPermissions(query: Query) {
+  if (query.query_id == null) return;
+  if (users.value.length === 0) loadUsers();
+  permissionQuery.value = query;
+  Queries.getPermissionsQueriesPermissionGet({ query_id: query.query_id })
+    .then(({ data }) => (queryPermissions.value = data))
+    .catch(toastReject);
+}
+
+function loadUsers() {
+  // Don't load again if we already have users loaded.
+  if (users.value.length > 0) return;
+  loadingUsers.value = true;
+  Users.listUserBasesUsersBaseGet()
+    .then(({ data }) => {
+      users.value = data ?? [];
+    })
+    .catch(toastReject)
+    .finally(() => {
+      loadingUsers.value = false;
+    });
+}
+
+function permissionFor(userId?: string): UserQueryPermission | undefined {
+  return userId ? queryPermissions.value.find((p) => p.user_id === userId) : undefined;
+}
+
+/**
+ * Sends a user's permission on the current query: upserting grants access or
+ * changes ownership, dropping revokes access. Both responses carry the query's
+ * permissions as now stored, so the switches resync after every edit.
+ */
+function updatePermission(user: UserPublicBase, access: boolean, owner = false) {
+  const queryId = permissionQuery.value?.query_id;
+  if (queryId == null || !user.user_id) return;
+  const userQueryPermission: UserQueryPermission = {
+    user_id: user.user_id,
+    query_id: queryId,
+    is_owner: owner,
+  };
+  const request = access
+    ? Queries.upsertPermissionQueriesPermissionPut(
+        { userQueryPermission },
+        { credentials: 'include' },
+      )
+    : Queries.dropPermissionQueriesPermissionDelete(
+        { userQueryPermission },
+        { credentials: 'include' },
+      );
+  request
+    .then((result) => {
+      queryPermissions.value = result.data ?? [];
+      return result;
+    })
+    .then(toastSuccessWith('Permissions updated'))
+    .catch(toastReject);
+}
+
 // Keys double as `Query` property names, so the table sorts the raw values
-// even where a slot or formatter changes how a cell is displayed.
+// even where a slot or formatter changes how a cell is displayed. The one
+// exception is `permissions`, a column without item data that only its slot
+// fills.
 const columns: TableField<Query>[] = [
   { key: 'query_id', label: 'ID', sortable: true, tdClass: 'fw-bold' },
   { key: 'query', label: 'Query', sortable: true },
@@ -41,6 +129,7 @@ const columns: TableField<Query>[] = [
     formatter: ({ value }) => formatTimeStamp(value as Query['created_at']),
     tdClass: 'text-muted small',
   },
+  { key: 'actions', label: 'Actions' },
 ];
 
 onMounted(async () => {
@@ -50,7 +139,7 @@ onMounted(async () => {
   } catch (reason) {
     toastReject(reason);
   } finally {
-    loading.value = false;
+    loadingQueries.value = false;
   }
 });
 
@@ -69,9 +158,9 @@ function rowClass(item: Query | null): string {
 }
 
 /** A row leads to the tokens a query can be run with, named by its ID. */
-function openTokens(query: Query) {
+function openTasks(query: Query) {
   if (query.query_id == null) return;
-  router.push({ name: 'tokens', params: { query_id: query.query_id } });
+  router.push({ name: 'tasks', params: { query_id: query.query_id } });
 }
 </script>
 
@@ -81,15 +170,14 @@ function openTokens(query: Query) {
     <BTable
       :items="queries"
       :fields="columns"
-      :busy="loading"
+      :busy="loadingQueries"
       :tbody-tr-class="rowClass"
       head-variant="light"
       hover
       responsive
       show-empty
       sort-icon-left
-      empty-text="No queries yet."
-      @row-clicked="openTokens($event.item)">
+      empty-text="No queries yet.">
       <template #table-busy>
         <td :colspan="columns.length" class="text-body-secondary">Loading queries…</td>
       </template>
@@ -108,20 +196,79 @@ function openTokens(query: Query) {
       <template #cell(wrapper)="{ item }">
         <code>{{ item.wrapper }}</code>
       </template>
+      <template #cell(actions)="{ item }">
+        <BButton
+          size="sm"
+          class="me-2"
+          variant="outline-secondary"
+          title="Manage user access to this query"
+          @click.stop="openPermissions(item)">
+          <BIconPersonFill />
+        </BButton>
+        <BButton
+          size="sm"
+          variant="outline-secondary"
+          title="View associated tasks"
+          @click.stop="openTasks(item)">
+          <BIconInboxFill />
+        </BButton>
+      </template>
     </BTable>
 
     <!-- Full query modal -->
-    <ModalDialog v-model="fullQueryOpen" title="Full Query" size="lg">
+    <ModalDialog v-model="modalQueryOpen" title="Full Query" size="lg">
       <pre class="full-query bg-light p-3 border rounded">{{ fullQuery }}</pre>
+    </ModalDialog>
+
+    <!-- Query permissions modal -->
+    <ModalDialog
+      v-model="permissionModalOpen"
+      :title="`User access to query #${permissionQuery?.query_id}`"
+      size="lg">
+      <p v-if="loadingUsers" class="text-body-secondary">Loading users…</p>
+      <p v-else-if="!users.length" class="text-body-secondary">No users yet.</p>
+
+      <div v-else class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th scope="col">User</th>
+              <th scope="col">Has access</th>
+              <th scope="col">Is owner</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="user in users" :key="user.user_id">
+              <td>
+                {{ user.full_name }} (<code>{{ user.user_id }}</code
+                >)
+              </td>
+              <td>
+                <BFormCheckbox
+                  :model-value="Boolean(permissionFor(user.user_id))"
+                  switch
+                  title="Revoke access by switching this off"
+                  @update:model-value="(access) => updatePermission(user, Boolean(access))" />
+              </td>
+              <td>
+                <BFormCheckbox
+                  :model-value="Boolean(permissionFor(user.user_id)?.is_owner)"
+                  :disabled="!permissionFor(user.user_id)"
+                  switch
+                  title="Ownership requires access"
+                  @update:model-value="(owner) => updatePermission(user, true, Boolean(owner))" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </ModalDialog>
   </section>
 </template>
 
 <style scoped>
-/* Rows lead to another view, so they invite a click. The rows belong to
-   BTable, so the selector has to reach into it. */
-:deep(tbody tr.is-link) {
-  cursor: pointer;
+.btn svg {
+  vertical-align: -0.125em;
 }
 
 .show-full {

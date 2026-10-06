@@ -304,6 +304,24 @@ export const QueryInfoSchema = {
     title: 'QueryInfo'
 } as const;
 
+export const QueryProgressSchema = {
+    properties: {
+        status: {
+            $ref: '#/components/schemas/TaskState'
+        },
+        count: {
+            type: 'integer',
+            title: 'Count'
+        }
+    },
+    type: 'object',
+    required: [
+        'status',
+        'count'
+    ],
+    title: 'QueryProgress'
+} as const;
+
 export const TaskPublicSchema = {
     properties: {
         task_id: {
@@ -450,10 +468,6 @@ export const UserCreateSchema = {
             type: 'string',
             title: 'User Id'
         },
-        email: {
-            type: 'string',
-            title: 'Email'
-        },
         full_name: {
             type: 'string',
             title: 'Full Name'
@@ -461,6 +475,10 @@ export const UserCreateSchema = {
         institution: {
             type: 'string',
             title: 'Institution'
+        },
+        email: {
+            type: 'string',
+            title: 'Email'
         },
         is_active: {
             type: 'boolean',
@@ -484,9 +502,9 @@ export const UserCreateSchema = {
     },
     type: 'object',
     required: [
-        'email',
         'full_name',
         'institution',
+        'email',
         'password_plain'
     ],
     title: 'UserCreate'
@@ -498,10 +516,6 @@ export const UserPublicSchema = {
             type: 'string',
             title: 'User Id'
         },
-        email: {
-            type: 'string',
-            title: 'Email'
-        },
         full_name: {
             type: 'string',
             title: 'Full Name'
@@ -509,6 +523,10 @@ export const UserPublicSchema = {
         institution: {
             type: 'string',
             title: 'Institution'
+        },
+        email: {
+            type: 'string',
+            title: 'Email'
         },
         is_active: {
             type: 'boolean',
@@ -528,11 +546,34 @@ export const UserPublicSchema = {
     },
     type: 'object',
     required: [
-        'email',
+        'full_name',
+        'institution',
+        'email'
+    ],
+    title: 'UserPublic'
+} as const;
+
+export const UserPublicBaseSchema = {
+    properties: {
+        user_id: {
+            type: 'string',
+            title: 'User Id'
+        },
+        full_name: {
+            type: 'string',
+            title: 'Full Name'
+        },
+        institution: {
+            type: 'string',
+            title: 'Institution'
+        }
+    },
+    type: 'object',
+    required: [
         'full_name',
         'institution'
     ],
-    title: 'UserPublic'
+    title: 'UserPublicBase'
 } as const;
 
 export const UserQueryPermissionSchema = {

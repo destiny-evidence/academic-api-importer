@@ -3,9 +3,11 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlmodel import select, func
+from pydantic import BaseModel
+from sqlmodel import func, select
 from taskiq.depends.progress_tracker import TaskState
 
+from academic_apis.api.utils import require_query_permission
 from academic_apis.api.utils.auth import get_current_user
 from academic_apis.db import db_session
 from academic_apis.db.schemas import Query, Task, TaskPublic, User, UserQueryPermission
@@ -55,26 +57,27 @@ async def list_tasks(
             )
 
         return session.exec(stmt).all()  # type: ignore[no-any-return]
+
+
+class QueryProgress(BaseModel):
+    status: TaskState
+    count: int
+
+
 @route.get("/")
 async def task_summary(
     current_user: Annotated[User, Depends(get_current_user)],
     query_id: int,
-) -> Sequence[TaskPublic]:
+) -> Sequence[QueryProgress]:
+
     async with db_session() as session:
+        require_query_permission(
+            session=session, current_user=current_user, query_id=query_id
+        )
         stmt = (
-            select(
-                Task.status,
-                func.count(Task.task_id)
-            )
+            select(Task.status, func.count(Task.task_id).label("count"))
             .where(Task.query_id == query_id)
             .group_by(Task.status)
         )
-
-        if not current_user.permission_admin:
-            stmt = (
-                stmt.join(Query)
-                .join(UserQueryPermission)
-                .where(UserQueryPermission.user_id == current_user.user_id)
-            )
 
         return session.exec(stmt).all()  # type: ignore[no-any-return]

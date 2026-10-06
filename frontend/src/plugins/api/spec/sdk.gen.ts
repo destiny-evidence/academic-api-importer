@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskSummaryTasksGetErrors, TaskSummaryTasksGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskSummaryTasksGetErrors, TaskSummaryTasksGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -116,7 +116,6 @@ export class Queries {
      * :param current_user:
      * :param permission: the permission to delete (identified by user_id + query_id)
      * :return: all permissions stored for `permission.query_id` afterwards
-     * :raises: NotFoundError if no matching permission exists
      */
     public static dropPermissionQueriesPermissionDelete<ThrowOnError extends boolean = true>(parameters: {
         authorization?: string | null;
@@ -132,6 +131,27 @@ export class Queries {
                 ...options?.headers,
                 ...params.headers
             }
+        });
+    }
+    
+    /**
+     * Get Permissions
+     *
+     * Read permissions for a query
+     *
+     * :param current_user:
+     * :param query_id:
+     * :return: all permissions stored for `query_id`
+     */
+    public static getPermissionsQueriesPermissionGet<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        query_id: number;
+    }, options?: Options<never, ThrowOnError>): RequestResult<GetPermissionsQueriesPermissionGetResponses, GetPermissionsQueriesPermissionGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'query_id' }] }]);
+        return (options?.client ?? client).get<GetPermissionsQueriesPermissionGetResponses, GetPermissionsQueriesPermissionGetErrors, ThrowOnError>({
+            url: '/queries/permission',
+            ...options,
+            ...params
         });
     }
     
@@ -475,6 +495,20 @@ export class Users {
                 ...options?.headers,
                 ...params.headers
             }
+        });
+    }
+    
+    /**
+     * List User Bases
+     */
+    public static listUserBasesUsersBaseGet<ThrowOnError extends boolean = true>(parameters?: {
+        authorization?: string | null;
+    }, options?: Options<never, ThrowOnError>): RequestResult<ListUserBasesUsersBaseGetResponses, ListUserBasesUsersBaseGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }] }]);
+        return (options?.client ?? client).get<ListUserBasesUsersBaseGetResponses, ListUserBasesUsersBaseGetErrors, ThrowOnError>({
+            url: '/users/base',
+            ...options,
+            ...params
         });
     }
 }

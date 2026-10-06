@@ -89,11 +89,14 @@ class Task(TaskPublic, table=True):
     )
 
 
-class UserPublic(SQLModel):
+class UserPublicBase(SQLModel):
     user_id: str = Field(default_factory=lambda: uuid.uuid6().hex, primary_key=True)
-    email: str
     full_name: str
     institution: str
+
+
+class UserPublic(UserPublicBase):
+    email: str
     is_active: bool = False
     permission_admin: bool = False
     permission_submit_query: bool = False

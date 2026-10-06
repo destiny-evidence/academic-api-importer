@@ -36,7 +36,7 @@ const router = createRouter({
       ],
     },
     {
-      path: '/tasks',
+      path: '/tasks/:query_id?',
       name: 'tasks',
       component: TasksView,
     },
@@ -46,9 +46,7 @@ const router = createRouter({
       component: UsersView,
     },
     {
-      // The optional `query_id` lets the queries table ask for the tokens of one
-      // particular query; the navbar links here without it.
-      path: '/tokens/:query_id?',
+      path: '/tokens',
       name: 'tokens',
       component: TokensView,
     },

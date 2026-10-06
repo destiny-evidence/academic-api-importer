@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import load_only
 from sqlmodel import select
 from starlette import status
 
 from academic_apis.db import Mode, User, UserCreate, UserPublic, db_session
+from academic_apis.db.schemas import UserPublicBase
 from academic_apis.utils import settings
 
 from .utils.auth import (
@@ -106,7 +109,7 @@ async def get_my_info(
 
 @route.get("/", response_model=list[UserPublic])
 async def list_users(
-    _current_user: Annotated[User, Depends(get_current_admin)],
+    _current_admin: Annotated[User, Depends(get_current_admin)],
 ) -> list[UserPublic]:
     async with db_session() as session:
         users = session.exec(
@@ -115,9 +118,27 @@ async def list_users(
     return [UserPublic.model_validate(user) for user in users]
 
 
+@route.get("/base", response_model=list[UserPublicBase])
+async def list_user_bases(
+    _current_user: Annotated[User, Depends(get_current_user)],
+) -> Sequence[UserPublicBase]:
+    async with db_session() as session:
+        return session.exec(
+            select(User)
+            .options(
+                load_only(
+                    User.user_id,
+                    User.full_name,
+                    User.institution,
+                )
+            )
+            .order_by(User.full_name),
+        ).all()
+
+
 @route.post("/", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 async def create_user(
-    _current_user: Annotated[User, Depends(get_current_admin)],
+    _current_admin: Annotated[User, Depends(get_current_admin)],
     user_create: UserCreate,
 ) -> UserPublic:
     async with db_session(mode=Mode.WRITE) as session:

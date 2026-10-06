@@ -218,7 +218,7 @@ function addToken() {
     <section v-for="group in tokensByWrapper" :key="group.wrapper" class="mb-4">
       <h6 class="text-body-secondary text-uppercase small mb-2">{{ group.wrapper }}</h6>
       <div class="table-responsive">
-        <table class="table table-sm align-middle">
+        <table class="table table-sm align-middle table-responsive">
           <thead>
             <tr>
               <th scope="col">Token</th>

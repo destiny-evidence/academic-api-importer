@@ -161,6 +161,17 @@ export type QueryInfo = {
 };
 
 /**
+ * QueryProgress
+ */
+export type QueryProgress = {
+    status: TaskState;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * TaskPublic
  */
 export type TaskPublic = {
@@ -269,10 +280,6 @@ export type UserCreate = {
      */
     user_id?: string;
     /**
-     * Email
-     */
-    email: string;
-    /**
      * Full Name
      */
     full_name: string;
@@ -280,6 +287,10 @@ export type UserCreate = {
      * Institution
      */
     institution: string;
+    /**
+     * Email
+     */
+    email: string;
     /**
      * Is Active
      */
@@ -307,10 +318,6 @@ export type UserPublic = {
      */
     user_id?: string;
     /**
-     * Email
-     */
-    email: string;
-    /**
      * Full Name
      */
     full_name: string;
@@ -318,6 +325,10 @@ export type UserPublic = {
      * Institution
      */
     institution: string;
+    /**
+     * Email
+     */
+    email: string;
     /**
      * Is Active
      */
@@ -330,6 +341,24 @@ export type UserPublic = {
      * Permission Submit Query
      */
     permission_submit_query?: boolean;
+};
+
+/**
+ * UserPublicBase
+ */
+export type UserPublicBase = {
+    /**
+     * User Id
+     */
+    user_id?: string;
+    /**
+     * Full Name
+     */
+    full_name: string;
+    /**
+     * Institution
+     */
+    institution: string;
 };
 
 /**
@@ -629,6 +658,44 @@ export type DropPermissionQueriesPermissionDeleteResponses = {
 };
 
 export type DropPermissionQueriesPermissionDeleteResponse = DropPermissionQueriesPermissionDeleteResponses[keyof DropPermissionQueriesPermissionDeleteResponses];
+
+export type GetPermissionsQueriesPermissionGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Query Id
+         */
+        query_id: number;
+    };
+    url: '/queries/permission';
+};
+
+export type GetPermissionsQueriesPermissionGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPermissionsQueriesPermissionGetError = GetPermissionsQueriesPermissionGetErrors[keyof GetPermissionsQueriesPermissionGetErrors];
+
+export type GetPermissionsQueriesPermissionGetResponses = {
+    /**
+     * Response Get Permissions Queries Permission Get
+     *
+     * Successful Response
+     */
+    200: Array<UserQueryPermission>;
+};
+
+export type GetPermissionsQueriesPermissionGetResponse = GetPermissionsQueriesPermissionGetResponses[keyof GetPermissionsQueriesPermissionGetResponses];
 
 export type UpsertPermissionQueriesPermissionPutData = {
     body: UserQueryPermission;
@@ -944,7 +1011,7 @@ export type TaskSummaryTasksGetResponses = {
      *
      * Successful Response
      */
-    200: Array<TaskPublic>;
+    200: Array<QueryProgress>;
 };
 
 export type TaskSummaryTasksGetResponse = TaskSummaryTasksGetResponses[keyof TaskSummaryTasksGetResponses];
@@ -1130,3 +1197,36 @@ export type UpdateUserUsersPutResponses = {
 };
 
 export type UpdateUserUsersPutResponse = UpdateUserUsersPutResponses[keyof UpdateUserUsersPutResponses];
+
+export type ListUserBasesUsersBaseGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/users/base';
+};
+
+export type ListUserBasesUsersBaseGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListUserBasesUsersBaseGetError = ListUserBasesUsersBaseGetErrors[keyof ListUserBasesUsersBaseGetErrors];
+
+export type ListUserBasesUsersBaseGetResponses = {
+    /**
+     * Response List User Bases Users Base Get
+     *
+     * Successful Response
+     */
+    200: Array<UserPublicBase>;
+};
+
+export type ListUserBasesUsersBaseGetResponse = ListUserBasesUsersBaseGetResponses[keyof ListUserBasesUsersBaseGetResponses];
