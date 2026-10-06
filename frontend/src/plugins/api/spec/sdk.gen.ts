@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskSummaryTasksGetErrors, TaskSummaryTasksGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteQueryQueriesDeleteErrors, DeleteQueryQueriesDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TaskSummaryTasksSummaryGetErrors, TaskSummaryTasksSummaryGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -56,6 +56,21 @@ export class Queries {
                 ...options?.headers,
                 ...params.headers
             }
+        });
+    }
+    
+    /**
+     * Delete Query
+     */
+    public static deleteQueryQueriesDelete<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        query_id: number;
+    }, options?: Options<never, ThrowOnError>): RequestResult<DeleteQueryQueriesDeleteResponses, DeleteQueryQueriesDeleteErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'query_id' }] }]);
+        return (options?.client ?? client).delete<DeleteQueryQueriesDeleteResponses, DeleteQueryQueriesDeleteErrors, ThrowOnError>({
+            url: '/queries/',
+            ...options,
+            ...params
         });
     }
     
@@ -381,15 +396,39 @@ export class Tokens {
 
 export class Tasks {
     /**
+     * List Tasks
+     */
+    public static listTasksTasksGet<ThrowOnError extends boolean = true>(parameters?: {
+        authorization?: string | null;
+        query_id?: number | null;
+        offset?: number;
+        limit?: number;
+        status?: TaskState | null;
+    }, options?: Options<never, ThrowOnError>): RequestResult<ListTasksTasksGetResponses, ListTasksTasksGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [
+                    { in: 'headers', key: 'authorization' },
+                    { in: 'query', key: 'query_id' },
+                    { in: 'query', key: 'offset' },
+                    { in: 'query', key: 'limit' },
+                    { in: 'query', key: 'status' }
+                ] }]);
+        return (options?.client ?? client).get<ListTasksTasksGetResponses, ListTasksTasksGetErrors, ThrowOnError>({
+            url: '/tasks/',
+            ...options,
+            ...params
+        });
+    }
+    
+    /**
      * Task Summary
      */
-    public static taskSummaryTasksGet<ThrowOnError extends boolean = true>(parameters: {
+    public static taskSummaryTasksSummaryGet<ThrowOnError extends boolean = true>(parameters: {
         authorization?: string | null;
         query_id: number;
-    }, options?: Options<never, ThrowOnError>): RequestResult<TaskSummaryTasksGetResponses, TaskSummaryTasksGetErrors, ThrowOnError> {
+    }, options?: Options<never, ThrowOnError>): RequestResult<TaskSummaryTasksSummaryGetResponses, TaskSummaryTasksSummaryGetErrors, ThrowOnError> {
         const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'query_id' }] }]);
-        return (options?.client ?? client).get<TaskSummaryTasksGetResponses, TaskSummaryTasksGetErrors, ThrowOnError>({
-            url: '/tasks/',
+        return (options?.client ?? client).get<TaskSummaryTasksSummaryGetResponses, TaskSummaryTasksSummaryGetErrors, ThrowOnError>({
+            url: '/tasks/summary',
             ...options,
             ...params
         });

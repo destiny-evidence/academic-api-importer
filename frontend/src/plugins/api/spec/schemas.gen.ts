@@ -307,17 +307,34 @@ export const QueryInfoSchema = {
 export const QueryProgressSchema = {
     properties: {
         status: {
-            $ref: '#/components/schemas/TaskState'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
-        count: {
+        n_tasks: {
             type: 'integer',
-            title: 'Count'
+            title: 'N Tasks'
+        },
+        n_results: {
+            type: 'integer',
+            title: 'N Results'
+        },
+        n_retrieved: {
+            type: 'integer',
+            title: 'N Retrieved'
         }
     },
     type: 'object',
     required: [
         'status',
-        'count'
+        'n_tasks',
+        'n_results',
+        'n_retrieved'
     ],
     title: 'QueryProgress'
 } as const;

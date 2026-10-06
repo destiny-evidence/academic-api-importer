@@ -164,11 +164,19 @@ export type QueryInfo = {
  * QueryProgress
  */
 export type QueryProgress = {
-    status: TaskState;
+    status: TaskState | null;
     /**
-     * Count
+     * N Tasks
      */
-    count: number;
+    n_tasks: number;
+    /**
+     * N Results
+     */
+    n_results: number;
+    /**
+     * N Retrieved
+     */
+    n_retrieved: number;
 };
 
 /**
@@ -542,6 +550,40 @@ export type RenderQueryQueriesRenderPostResponses = {
 };
 
 export type RenderQueryQueriesRenderPostResponse = RenderQueryQueriesRenderPostResponses[keyof RenderQueryQueriesRenderPostResponses];
+
+export type DeleteQueryQueriesDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Query Id
+         */
+        query_id: number;
+    };
+    url: '/queries/';
+};
+
+export type DeleteQueryQueriesDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteQueryQueriesDeleteError = DeleteQueryQueriesDeleteErrors[keyof DeleteQueryQueriesDeleteErrors];
+
+export type DeleteQueryQueriesDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type ListQueriesQueriesGetData = {
     body?: never;
@@ -978,7 +1020,57 @@ export type ListPermissionsTokensPermissionGetResponses = {
 
 export type ListPermissionsTokensPermissionGetResponse = ListPermissionsTokensPermissionGetResponses[keyof ListPermissionsTokensPermissionGetResponses];
 
-export type TaskSummaryTasksGetData = {
+export type ListTasksTasksGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Query Id
+         */
+        query_id?: number | null;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Status
+         */
+        status?: TaskState | null;
+    };
+    url: '/tasks/';
+};
+
+export type ListTasksTasksGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListTasksTasksGetError = ListTasksTasksGetErrors[keyof ListTasksTasksGetErrors];
+
+export type ListTasksTasksGetResponses = {
+    /**
+     * Response List Tasks Tasks  Get
+     *
+     * Successful Response
+     */
+    200: Array<TaskPublic>;
+};
+
+export type ListTasksTasksGetResponse = ListTasksTasksGetResponses[keyof ListTasksTasksGetResponses];
+
+export type TaskSummaryTasksSummaryGetData = {
     body?: never;
     headers?: {
         /**
@@ -993,28 +1085,28 @@ export type TaskSummaryTasksGetData = {
          */
         query_id: number;
     };
-    url: '/tasks/';
+    url: '/tasks/summary';
 };
 
-export type TaskSummaryTasksGetErrors = {
+export type TaskSummaryTasksSummaryGetErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type TaskSummaryTasksGetError = TaskSummaryTasksGetErrors[keyof TaskSummaryTasksGetErrors];
+export type TaskSummaryTasksSummaryGetError = TaskSummaryTasksSummaryGetErrors[keyof TaskSummaryTasksSummaryGetErrors];
 
-export type TaskSummaryTasksGetResponses = {
+export type TaskSummaryTasksSummaryGetResponses = {
     /**
-     * Response Task Summary Tasks  Get
+     * Response Task Summary Tasks Summary Get
      *
      * Successful Response
      */
     200: Array<QueryProgress>;
 };
 
-export type TaskSummaryTasksGetResponse = TaskSummaryTasksGetResponses[keyof TaskSummaryTasksGetResponses];
+export type TaskSummaryTasksSummaryGetResponse = TaskSummaryTasksSummaryGetResponses[keyof TaskSummaryTasksSummaryGetResponses];
 
 export type LoginUsersLoginPostData = {
     body: LoginRequest;

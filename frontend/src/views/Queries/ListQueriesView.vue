@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { BButton, BFormCheckbox, BTable } from 'bootstrap-vue-next/components';
-import { BIconPersonFill, BIconInboxFill } from 'bootstrap-icons-vue';
+import { BIconPersonFill, BIconInboxFill, BIconTrash } from 'bootstrap-icons-vue';
 import type { TableField } from 'bootstrap-vue-next/types';
 
 import ModalDialog from '@/components/ModalDialog.vue';
@@ -16,6 +16,7 @@ import {
   Users,
 } from '@/plugins/api/spec';
 import { formatTimeStamp } from '@/utils';
+import TwoStageButton from '@/components/TwoStageButton.vue';
 
 // Longer queries are shortened to this many characters in the table.
 const PREVIEW_LENGTH = 10;
@@ -98,13 +99,13 @@ function updatePermission(user: UserPublicBase, access: boolean, owner = false) 
   };
   const request = access
     ? Queries.upsertPermissionQueriesPermissionPut(
-        { userQueryPermission },
-        { credentials: 'include' },
-      )
+      { userQueryPermission },
+      { credentials: 'include' },
+    )
     : Queries.dropPermissionQueriesPermissionDelete(
-        { userQueryPermission },
-        { credentials: 'include' },
-      );
+      { userQueryPermission },
+      { credentials: 'include' },
+    );
   request
     .then((result) => {
       queryPermissions.value = result.data ?? [];
@@ -132,16 +133,17 @@ const columns: TableField<Query>[] = [
   { key: 'actions', label: 'Actions' },
 ];
 
-onMounted(async () => {
-  try {
-    const { data } = await Queries.listQueriesQueriesGet({}, { credentials: 'include' });
-    queries.value = data ?? [];
-  } catch (reason) {
-    toastReject(reason);
-  } finally {
-    loadingQueries.value = false;
-  }
-});
+function loadQueries() {
+  loadingQueries.value = true;
+  Queries.listQueriesQueriesGet({}, { credentials: 'include' })
+    .then(({ data }) => (queries.value = data ?? []))
+    .catch(toastReject)
+    .finally(() => {
+      loadingQueries.value = false;
+    });
+}
+
+onMounted(loadQueries);
 
 /** The table only shows the start of long queries; the modal shows all of them. */
 function preview(query: string): string {
@@ -162,6 +164,17 @@ function openTasks(query: Query) {
   if (query.query_id == null) return;
   router.push({ name: 'tasks', params: { query_id: query.query_id } });
 }
+
+function dropQuery(query: Query) {
+  Queries.deleteQueryQueriesDelete({ query_id: query.query_id as number })
+    .then(toastSuccessWith(`Marked query ${query.query_id} for deletion.`))
+    .catch(toastReject);
+  const index = queries.value.findIndex((q) => query.query_id == q.query_id)
+  if (index >= 0) {
+    queries.value.slice(index, 1);
+  }
+}
+
 </script>
 
 <template>
@@ -207,11 +220,20 @@ function openTasks(query: Query) {
         </BButton>
         <BButton
           size="sm"
+          class="me-2"
           variant="outline-secondary"
           title="View associated tasks"
           @click.stop="openTasks(item)">
           <BIconInboxFill />
         </BButton>
+
+        <TwoStageButton
+          class="d-inline"
+          btn-style="btn-sm btn-outline-secondary"
+          title="Delete query"
+          @accepted="dropQuery(item)">
+          <BIconTrash />
+        </TwoStageButton>
       </template>
     </BTable>
 
@@ -231,34 +253,34 @@ function openTasks(query: Query) {
       <div v-else class="table-responsive">
         <table class="table table-sm align-middle">
           <thead>
-            <tr>
-              <th scope="col">User</th>
-              <th scope="col">Has access</th>
-              <th scope="col">Is owner</th>
-            </tr>
+          <tr>
+            <th scope="col">User</th>
+            <th scope="col">Has access</th>
+            <th scope="col">Is owner</th>
+          </tr>
           </thead>
           <tbody>
-            <tr v-for="user in users" :key="user.user_id">
-              <td>
-                {{ user.full_name }} (<code>{{ user.user_id }}</code
-                >)
-              </td>
-              <td>
-                <BFormCheckbox
-                  :model-value="Boolean(permissionFor(user.user_id))"
-                  switch
-                  title="Revoke access by switching this off"
-                  @update:model-value="(access) => updatePermission(user, Boolean(access))" />
-              </td>
-              <td>
-                <BFormCheckbox
-                  :model-value="Boolean(permissionFor(user.user_id)?.is_owner)"
-                  :disabled="!permissionFor(user.user_id)"
-                  switch
-                  title="Ownership requires access"
-                  @update:model-value="(owner) => updatePermission(user, true, Boolean(owner))" />
-              </td>
-            </tr>
+          <tr v-for="user in users" :key="user.user_id">
+            <td>
+              {{ user.full_name }} (<code>{{ user.user_id }}</code
+            >)
+            </td>
+            <td>
+              <BFormCheckbox
+                :model-value="Boolean(permissionFor(user.user_id))"
+                switch
+                title="Revoke access by switching this off"
+                @update:model-value="(access) => updatePermission(user, Boolean(access))" />
+            </td>
+            <td>
+              <BFormCheckbox
+                :model-value="Boolean(permissionFor(user.user_id)?.is_owner)"
+                :disabled="!permissionFor(user.user_id)"
+                switch
+                title="Ownership requires access"
+                @update:model-value="(owner) => updatePermission(user, true, Boolean(owner))" />
+            </td>
+          </tr>
           </tbody>
         </table>
       </div>

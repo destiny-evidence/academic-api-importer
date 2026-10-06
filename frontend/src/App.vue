@@ -70,6 +70,7 @@ watch(
             :class="{ 'queries-active': queriesActive }">
             <BDropdownItem :to="{ name: 'query-list' }">List queries</BDropdownItem>
             <BDropdownItem :to="{ name: 'query-utils' }">Query utils</BDropdownItem>
+            <BDropdownItem :to="{ name: 'query-submit' }">Submit query</BDropdownItem>
           </BDropdown>
           <RouterLink class="nav-link" :to="{ name: 'tasks' }">Tasks</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'tokens' }">Tokens</RouterLink>
