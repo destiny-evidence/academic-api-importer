@@ -231,6 +231,7 @@ class ScopusWrapper(AbstractWrapper):
                 for entry in entries:
                     yield entry
 
+                # TODO: database entries are always 25 or less, was the "+=" already fixed before then?
                 n_records += len(entries)
 
                 await self.on_loop(

@@ -1,23 +1,24 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, BackgroundTasks
 from httpx import Response
 from lark import LarkError
 from pydantic import BaseModel
-from sqlmodel import col, select
+from sqlmodel import col, select, delete
 from starlette import status
 
 from academic_apis.api.utils import require_query_ownership
-from academic_apis.api.utils.auth import get_current_user
-from academic_apis.db import Mode, Query, User, db_session
+from academic_apis.api.utils.auth import get_current_user, get_current_admin
+from academic_apis.db import Mode, Query, User, db_session, Task
 from academic_apis.db.schemas import QueryInfo, UserQueryPermission
 from academic_apis.db.tokens import get_available_token_for_user
 from academic_apis.grammars.scopus import QuerySyntaxError, query_to_indented_text
-from academic_apis.utils import Wrapper
+from academic_apis.utils import Wrapper, settings
 from academic_apis.wrappers import WRAPPERS
 
 if TYPE_CHECKING:
@@ -93,10 +94,68 @@ async def render_query(
     )
 
 
+async def _delete_query(query_id: int) -> None:
+    async with db_session(mode=Mode.WRITE) as session:  # type: Session
+        # Drop Task (subqueries) from database
+        session.exec(delete(Task).where(Task.query_id == query_id))
+        session.flush()
+        # Drop Permissions from database
+        session.exec(
+            delete(UserQueryPermission).where(UserQueryPermission.query_id == query_id)
+        )
+        session.flush()
+        # Drop Query from database
+        session.exec(delete(Query).where(Query.query_id == query_id))
+
+        # Delete data from disk
+        shutil.rmtree(settings.responses_dir(query_id))
+        shutil.rmtree(settings.converted_dir(query_id))
+
+        # Commit changes
+        session.commit()
+
+
+@route.delete("/")
+async def delete_query(
+    _current_admin: Annotated[User, Depends(get_current_admin)],
+    query_id: int,
+    background_tasks: BackgroundTasks,
+) -> None:
+    background_tasks.add_task(_delete_query, query_id)
+
+
+async def _queue_subqueries(
+    query: Query,
+    py_start: int = 2010,
+    py_end: int | None = None,
+    py_steps: int = 2,
+    use_py_filter: bool = False,
+) -> None:
+
+    from academic_apis.broker.tasks import retrieve_query
+
+    logger.debug(f"Queueing subquery tasks for query_id={query.query_id}")
+
+    API = WRAPPERS[query.wrapper]  # noqa: N806
+
+    for subquery in API.generate_subqueries(
+        query.query,
+        py_start=py_start,
+        py_end=py_end,
+        py_steps=py_steps,
+        use_py_filter=use_py_filter,
+    ):
+        logger.debug(f"Subquery: {subquery[-200:]}")
+        await retrieve_query.kiq(
+            query=subquery, wrapper=query.wrapper, query_id=query.query_id
+        )  # type: ignore[call-overload]
+
+
 @route.post("/")
 async def submit_query(
     current_user: Annotated[User, Depends(get_current_user)],
     query: Annotated[QueryInfo, Body()],
+    background_tasks: BackgroundTasks,
     py_start: int = 2010,
     py_end: int | None = None,
     py_steps: int = 2,
@@ -107,10 +166,6 @@ async def submit_query(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have the permission to submit queries.",
         )
-
-    from academic_apis.broker.tasks import retrieve_query
-
-    API = WRAPPERS[query.wrapper]  # noqa: N806
 
     async with db_session(mode=Mode.WRITE) as session:  # type: Session
         query_orm = Query(
@@ -131,17 +186,14 @@ async def submit_query(
         )
         session.commit()
 
-    for subquery in API.generate_subqueries(
-        query.query,
+    background_tasks.add_task(
+        _queue_subqueries,
+        query=query_orm,
         py_start=py_start,
         py_end=py_end,
         py_steps=py_steps,
         use_py_filter=use_py_filter,
-    ):
-        logger.debug(f"Subquery: {subquery[-200:]}")
-        await retrieve_query.kiq(
-            query=subquery, wrapper=query.wrapper, query_id=query_id
-        )  # type: ignore[call-overload]
+    )
 
     return query_id
 

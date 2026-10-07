@@ -31,6 +31,9 @@ rsync -avh --progress -e ssh . se164:/data/academic-api --exclude=.venv/ --exclu
 # Access "UI"
 ssh -N -J ts01 -L 7050:localhost:7050 se164
 
+# Copy remote DB to local
+scp se164:/data/academic-api/data/oracle.db data/oracle.bak.db
+
 # API: http://localhost:7050/docs
 # UI: http://localhost:7050/queries/html
 ```

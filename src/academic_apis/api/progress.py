@@ -4,7 +4,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlmodel import func, select
+from sqlalchemy import Integer
+from sqlmodel import func, select, cast
 from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.api.utils import require_query_permission
@@ -28,6 +29,13 @@ async def list_tasks(
     status: TaskState | None = None,
 ) -> Sequence[TaskPublic]:
     async with db_session() as session:
+        require_query_permission(
+            session=session,
+            current_user=current_user,
+            query_id=query_id,
+            require_ownership=False,
+        )
+
         stmt = (
             select(  # type: ignore[call-overload]
                 Task.task_id,
@@ -60,11 +68,13 @@ async def list_tasks(
 
 
 class QueryProgress(BaseModel):
-    status: TaskState
-    count: int
+    status: TaskState | None
+    n_tasks: int
+    n_results: int
+    n_retrieved: int
 
 
-@route.get("/")
+@route.get("/summary")
 async def task_summary(
     current_user: Annotated[User, Depends(get_current_user)],
     query_id: int,
@@ -72,10 +82,26 @@ async def task_summary(
 
     async with db_session() as session:
         require_query_permission(
-            session=session, current_user=current_user, query_id=query_id
+            session=session,
+            current_user=current_user,
+            query_id=query_id,
+            require_ownership=False,
         )
         stmt = (
-            select(Task.status, func.count(Task.task_id).label("count"))
+            select(
+                Task.status,
+                func.count(Task.task_id).label("n_tasks"),
+                func.sum(
+                    func.coalesce(
+                        cast(Task.progress["n_results"].as_string(), Integer), 0
+                    )
+                ).label("n_results"),
+                func.sum(
+                    func.coalesce(
+                        cast(Task.progress["n_retrieved"].as_string(), Integer), 0
+                    )
+                ).label("n_retrieved"),
+            )
             .where(Task.query_id == query_id)
             .group_by(Task.status)
         )

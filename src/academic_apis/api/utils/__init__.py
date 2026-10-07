@@ -21,7 +21,7 @@ def require_query_ownership(
 def require_query_permission(
     session: Session,
     current_user: User,
-    query_id: int,
+    query_id: int | None,
     require_ownership: bool = False,
     admin_override: bool = True,
 ) -> None:
