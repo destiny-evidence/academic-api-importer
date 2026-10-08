@@ -10,7 +10,7 @@ from taskiq.depends.progress_tracker import TaskState
 from academic_apis.utils.types import AzureAccessLinks, Wrapper
 
 
-class AzureAccessLinksType(TypeDecorator):  # type: ignore[misc]
+class AzureAccessLinksType(TypeDecorator[AzureAccessLinks]):
     """Store AzureAccessLinks as JSON, restoring the model instance on load."""
 
     impl = JSON

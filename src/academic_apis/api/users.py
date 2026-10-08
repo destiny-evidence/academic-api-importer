@@ -6,8 +6,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import load_only
-from sqlmodel import select
+from sqlmodel import col, select
 from starlette import status
 
 from academic_apis.db import Mode, User, UserCreate, UserPublic, db_session
@@ -123,17 +122,18 @@ async def list_user_bases(
     _current_user: Annotated[User, Depends(get_current_user)],
 ) -> Sequence[UserPublicBase]:
     async with db_session() as session:
-        return session.exec(
-            select(User)
-            .options(
-                load_only(
-                    User.user_id,
-                    User.full_name,
-                    User.institution,
-                )
+        # only the few columns needed to pick a user are selected, so that
+        # sensitive ones (e.g. the password hash) are never loaded
+        return [
+            UserPublicBase(
+                user_id=user_id, full_name=full_name, institution=institution
             )
-            .order_by(User.full_name),
-        ).all()
+            for user_id, full_name, institution in session.exec(
+                select(User.user_id, User.full_name, User.institution).order_by(
+                    col(User.full_name)
+                ),
+            ).all()
+        ]
 
 
 @route.post("/", response_model=UserPublic, status_code=status.HTTP_201_CREATED)

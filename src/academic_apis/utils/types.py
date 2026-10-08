@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from destiny_sdk.references import Reference as ODSReference
+from destiny_sdk.references import ReferenceFileInput as ODSReference
 from nacsos_data.models.items import AcademicItemModel
 from pydantic import BaseModel, ConfigDict
 

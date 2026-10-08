@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import Integer
-from sqlmodel import cast, func, select
+from sqlmodel import cast, col, func, select
 from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.api.utils import require_query_permission
@@ -90,7 +90,7 @@ async def task_summary(
         stmt = (
             select(
                 Task.status,
-                func.count(Task.task_id).label("n_tasks"),
+                func.count(col(Task.task_id)).label("n_tasks"),
                 func.sum(
                     func.coalesce(
                         cast(Task.progress["n_results"].as_string(), Integer), 0
@@ -106,4 +106,12 @@ async def task_summary(
             .group_by(Task.status)
         )
 
-        return session.exec(stmt).all()  # type: ignore[no-any-return]
+        return [
+            QueryProgress(
+                status=None if status is None else TaskState(status),
+                n_tasks=n_tasks,
+                n_results=n_results,
+                n_retrieved=n_retrieved,
+            )
+            for status, n_tasks, n_results, n_retrieved in session.exec(stmt).all()
+        ]

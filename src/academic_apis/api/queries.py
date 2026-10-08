@@ -71,7 +71,7 @@ async def test_query(
         }
     return TestResult(
         body=body,
-        headers=response.headers,
+        headers=dict(response.headers),
         status=response.status_code,
     )
 
@@ -101,21 +101,23 @@ async def _delete_query(query_id: int) -> None:
         background_logger.info(
             f"Dropping tasks for query_id={query_id} from database..."
         )
-        session.exec(delete(Task).where(Task.query_id == query_id))
+        session.exec(delete(Task).where(col(Task.query_id) == query_id))
         session.flush()
 
         background_logger.info(
             f"Dropping query permissions for query_id={query_id} from database..."
         )
         session.exec(
-            delete(UserQueryPermission).where(UserQueryPermission.query_id == query_id)
+            delete(UserQueryPermission).where(
+                col(UserQueryPermission.query_id) == query_id
+            )
         )
         session.flush()
 
         background_logger.info(
             f"Dropping query with query_id={query_id} from database..."
         )
-        session.exec(delete(Query).where(Query.query_id == query_id))
+        session.exec(delete(Query).where(col(Query.query_id) == query_id))
 
         background_logger.info(f"Deleting files at {settings.responses_dir(query_id)}")
         shutil.rmtree(settings.responses_dir(query_id))

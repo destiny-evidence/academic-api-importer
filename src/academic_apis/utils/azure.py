@@ -14,6 +14,7 @@ from azure.identity.aio import DefaultAzureCredential as DefaultAzureCredentialA
 from azure.storage.blob import (
     BlobServiceClient,
     ContainerSasPermissions,
+    UserDelegationKey,
     generate_container_sas,
 )
 from azure.storage.blob.aio import BlobServiceClient as BlobServiceClientAsync
@@ -192,23 +193,25 @@ async def get_azure_links(blob_path: str) -> AzureAccessLinks:
 
     prefix = f"{settings.azure_storage_container_path}{blob_path}"
     async with async_client() as client:
-        auth_key = {}
+        account_key: str | None = None
+        user_delegation_key: UserDelegationKey | None = None
         if settings.azure_storage_use_entra:
-            auth_key["user_delegation_key"] = await client.get_user_delegation_key(
+            user_delegation_key = await client.get_user_delegation_key(
                 key_start_time=time_start,
                 key_expiry_time=time_expire,
             )
         else:
-            auth_key["account_key"] = settings.azure_storage_account_key
+            account_key = settings.azure_storage_account_key
 
         sas_token = generate_container_sas(
             account_name=settings.azure_storage_account_name,
             container_name=settings.azure_storage_container_name,
+            account_key=account_key,
+            user_delegation_key=user_delegation_key,
             permission=ContainerSasPermissions(read=True, list=True),
             start=time_start,
             expiry=time_expire,
             blob_name_starts_with=prefix,
-            **auth_key,
         )
 
         base_url = f"https://{settings.azure_storage_account_name}.blob.core.windows.net/{settings.azure_storage_container_name}"

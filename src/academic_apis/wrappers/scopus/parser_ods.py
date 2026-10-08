@@ -9,6 +9,7 @@ from destiny_sdk.core import UUID
 from destiny_sdk.enhancements import (
     AbstractContentEnhancement,
     AbstractProcessType,
+    Annotation,
     AnnotationEnhancement,
     AuthorPosition,
     Authorship,
@@ -56,6 +57,11 @@ _VENUE_TYPES = {
 
 _UNDEFINED = {"", "undefined", "null", "none"}
 
+_RAW_DATA_ERROR = (
+    "Cannot include raw data enhancements without "
+    "source_export_date and data_description"
+)
+
 
 def _text(value: Any) -> str | None:  # noqa: ANN401
     """Unwrap Scopus values ({"$": "..."} or plain), normalising empties to None."""
@@ -67,7 +73,7 @@ def _text(value: Any) -> str | None:  # noqa: ANN401
     return None if value.lower() in _UNDEFINED else value
 
 
-def _as_list(value: Any) -> list:  # noqa: ANN401
+def _as_list(value: Any) -> list[Any]:  # noqa: ANN401
     """Scopus returns a single object instead of a one-element list in places."""
     if value is None:
         return []
@@ -152,11 +158,7 @@ class ScopusParser:
         self.include_affiliations = include_affiliations
 
         if include_raw_data and not (source_export_date and data_description):
-            msg = (
-                "Cannot include raw data enhancements without "
-                "source_export_date and data_description"
-            )
-            raise RuntimeError(msg)
+            raise RuntimeError(_RAW_DATA_ERROR)
 
     # ------------------------------------------------------------------ helpers
     def _clean(self, value: Any) -> str | None:  # noqa: ANN401
@@ -406,10 +408,13 @@ class ScopusParser:
     # -------------------------------------------------------------- annotations
     def parse_annotations(self, entry: dict[str, Any]) -> EnhancementContent | None:
         """Build annotations: keywords, document/source type, funding, affiliations, OA, tags."""
-        annotations: list[BooleanAnnotation] = []
+        annotations: list[Annotation] = []
 
         def add(
-            scheme: str, label: str | None, data: dict | None = None, score=None
+            scheme: str,
+            label: str | None,
+            data: dict[str, Any] | None = None,
+            score: float | None = None,
         ) -> None:
             if label:
                 annotations.append(
@@ -484,6 +489,8 @@ class ScopusParser:
     # ---------------------------------------------------------------------- raw
     def parse_raw(self, entry: dict[str, Any]) -> EnhancementContent:
         """Store the full entry, minus excluded keys, as a raw enhancement."""
+        if self.source_export_date is None or self.data_description is None:
+            raise RuntimeError(_RAW_DATA_ERROR)
         data = {
             k: v for k, v in entry.items() if k not in self.raw_enhancement_excludes
         }
@@ -528,7 +535,8 @@ class ScopusParser:
                     source=source,
                     visibility=vis,
                     content=content,
-                    robot_version=robot_version,
+                    # `robot_version` is only accepted under its validation alias
+                    processor_version=robot_version,
                 )
                 for content, vis in self.parse_contents(entry)
             ],

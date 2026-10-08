@@ -3,7 +3,7 @@ import datetime as dt
 from sqlmodel import col, or_, select
 
 from academic_apis.db import AccessToken, db_session
-from academic_apis.db.schemas import Query, UserTokenPermission
+from academic_apis.db.schemas import UserQueryPermission, UserTokenPermission
 from academic_apis.utils.types import Wrapper
 
 
@@ -15,10 +15,15 @@ async def get_available_token(query_id: int, wrapper: Wrapper) -> AccessToken:
                 UserTokenPermission,
                 onclause=col(UserTokenPermission.token_id) == AccessToken.token_id,
             )
-            .join(Query, onclause=col(Query.user_id) == UserTokenPermission.user_id)
+            # tokens are available for a query if one of their owners may access it
+            .join(
+                UserQueryPermission,
+                onclause=col(UserQueryPermission.user_id)
+                == UserTokenPermission.user_id,
+            )
             .where(
                 AccessToken.wrapper == wrapper,
-                Query.query_id == query_id,
+                UserQueryPermission.query_id == query_id,
                 col(AccessToken.is_active).is_(True),
                 or_(
                     col(AccessToken.locked_until).is_(None),

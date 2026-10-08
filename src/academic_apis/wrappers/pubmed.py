@@ -21,7 +21,7 @@ from ._client import RequestClient
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from destiny_sdk.references import Reference as ODSReference
+    from destiny_sdk.references import ReferenceFileInput as ODSReference
 
 
 def xml2dict(element: Element) -> dict[str, Any]:
