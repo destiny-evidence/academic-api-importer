@@ -174,13 +174,28 @@ export const AzureAccessLinksSchema = {
         list_url: {
             type: 'string',
             title: 'List Url'
+        },
+        responses_url: {
+            type: 'string',
+            title: 'Responses Url'
+        },
+        log_url: {
+            type: 'string',
+            title: 'Log Url'
+        },
+        errors_url: {
+            type: 'string',
+            title: 'Errors Url'
         }
     },
     additionalProperties: true,
     type: 'object',
     required: [
         'download_url',
-        'list_url'
+        'list_url',
+        'responses_url',
+        'log_url',
+        'errors_url'
     ],
     title: 'AzureAccessLinks'
 } as const;

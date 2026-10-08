@@ -4,6 +4,7 @@ import os
 from collections.abc import AsyncIterator, Coroutine
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from glob import glob
 from typing import Any
 
 import aiofiles
@@ -80,6 +81,7 @@ async def sync_directory(
     source_dir: str,  # not using Path here, discouraged for async functions: https://docs.astral.sh/ruff/rules/blocking-path-method-in-async-function/
     target_dir: str,
 ) -> None:
+    logger.info(f"Synchronising from {source_dir} to {target_dir}")
     async with async_client() as client:
         upload_tasks = []
 
@@ -104,6 +106,82 @@ async def sync_directory(
 
         # 4. Run all file sync checks concurrently
         await asyncio.gather(*(sema_task(t) for t in upload_tasks))
+
+
+async def _read_concatenated_files(
+    file_paths: list[str], include_file_headers: bool = False
+) -> AsyncIterator[bytes]:
+    """
+    Streams the contents of `file_paths` line by line, one file after another.
+
+    Lines are buffered into chunks of up to `buffer_size` bytes, so memory usage stays
+    constant no matter how large the individual files are. Newlines are inserted where
+    one is missing between files, so that lines of neighbouring files are never joined
+    and the concatenated stream always ends with a newline.
+    """
+    buffer = bytearray()
+    ends_with_newline = True
+    for file_path in file_paths:
+        logger.info(f"Streaming {file_path}...")
+        if include_file_headers:
+            buffer += (
+                b"\n+-----------------------------------------------------+\n"
+                + file_path.encode()
+                + b"\n+-----------------------------------------------------+\n"
+            )
+        async with aiofiles.open(file_path, "rb") as f:
+            async for line in f:
+                if not ends_with_newline:
+                    buffer += b"\n"
+                buffer += line
+                ends_with_newline = line.endswith(b"\n")
+                if len(buffer) >= settings.azure_storage_buffer_size:
+                    yield bytes(buffer)
+                    buffer = bytearray()
+    if not ends_with_newline:
+        buffer += b"\n"
+    if buffer:
+        yield bytes(buffer)
+
+
+async def upload_concatenated_files(
+    source_pattern: str,
+    target_file: str,
+    overwrite: bool = False,
+    include_file_headers: bool = False,
+) -> None:
+    """
+    Uploads all files matching `pattern` below `source_dir` as one concatenated blob.
+
+    Matching files are concatenated in sorted order and streamed line by line into a
+    single target file, so memory usage stays constant even if no single file fits
+    into it. The upload is skipped if the blob already exists.
+    """
+    blob_path = f"{settings.azure_storage_container_path}{target_file}"  # `azure_storage_container_path` always ends with '/'
+    file_paths = sorted(glob(source_pattern))  # noqa: PTH207
+    logger.info(
+        f"Identified {len(file_paths):,} files to concatenate and upload to {blob_path} from {source_pattern}"
+    )
+
+    if not file_paths:
+        logger.warning(f"No files matching {source_pattern}, nothing uploaded")
+        return
+
+    async with async_client() as client:
+        blob_client = client.get_blob_client(
+            container=settings.azure_storage_container_name,
+            blob=blob_path,
+        )
+
+        try:
+            await blob_client.upload_blob(
+                _read_concatenated_files(
+                    file_paths, include_file_headers=include_file_headers
+                ),
+                overwrite=overwrite,
+            )
+        except ResourceExistsError:
+            logger.warning(f"Skipped {blob_path} (already existed)")
 
 
 async def get_azure_links(blob_path: str) -> AzureAccessLinks:
@@ -137,4 +215,7 @@ async def get_azure_links(blob_path: str) -> AzureAccessLinks:
         return AzureAccessLinks(
             download_url=f"{base_url}/{prefix}?{sas_token}",
             list_url=f"{base_url}?restype=container&comp=list&prefix={prefix}&{sas_token}",
+            responses_url=f"{base_url}/{prefix}/responses.jsonl?{sas_token}",
+            log_url=f"{base_url}/{prefix}/responses.log?{sas_token}",
+            errors_url=f"{base_url}/{prefix}/errors.log?{sas_token}",
         )

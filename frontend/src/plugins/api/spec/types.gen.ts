@@ -94,6 +94,18 @@ export type AzureAccessLinks = {
      * List Url
      */
     list_url: string;
+    /**
+     * Responses Url
+     */
+    responses_url: string;
+    /**
+     * Log Url
+     */
+    log_url: string;
+    /**
+     * Errors Url
+     */
+    errors_url: string;
     [key: string]: unknown;
 };
 
@@ -688,6 +700,40 @@ export type SubmitQueryQueriesPostResponses = {
 
 export type SubmitQueryQueriesPostResponse = SubmitQueryQueriesPostResponses[keyof SubmitQueryQueriesPostResponses];
 
+export type DeleteQueryLogsQueriesLogsDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Query Id
+         */
+        query_id: number;
+    };
+    url: '/queries/logs';
+};
+
+export type DeleteQueryLogsQueriesLogsDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteQueryLogsQueriesLogsDeleteError = DeleteQueryLogsQueriesLogsDeleteErrors[keyof DeleteQueryLogsQueriesLogsDeleteErrors];
+
+export type DeleteQueryLogsQueriesLogsDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type DropPermissionQueriesPermissionDeleteData = {
     body: UserQueryPermission;
     headers?: {
@@ -806,6 +852,10 @@ export type DownloadQueryQueriesDownloadGetData = {
          * Query Id
          */
         query_id: number;
+        /**
+         * Concatenated
+         */
+        concatenated?: boolean;
     };
     url: '/queries/download';
 };

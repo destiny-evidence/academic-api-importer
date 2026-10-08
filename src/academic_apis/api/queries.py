@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
+background_logger = logger.getChild("background")
 
 route = APIRouter()
 
@@ -97,23 +98,40 @@ async def render_query(
 
 async def _delete_query(query_id: int) -> None:
     async with db_session(mode=Mode.WRITE) as session:  # type: Session
-        # Drop Task (subqueries) from database
+        background_logger.info(
+            f"Dropping tasks for query_id={query_id} from database..."
+        )
         session.exec(delete(Task).where(Task.query_id == query_id))
         session.flush()
-        # Drop Permissions from database
+
+        background_logger.info(
+            f"Dropping query permissions for query_id={query_id} from database..."
+        )
         session.exec(
             delete(UserQueryPermission).where(UserQueryPermission.query_id == query_id)
         )
         session.flush()
-        # Drop Query from database
+
+        background_logger.info(
+            f"Dropping query with query_id={query_id} from database..."
+        )
         session.exec(delete(Query).where(Query.query_id == query_id))
 
-        # Delete data from disk
+        background_logger.info(f"Deleting files at {settings.responses_dir(query_id)}")
         shutil.rmtree(settings.responses_dir(query_id))
+        background_logger.info(f"Deleting files at {settings.converted_dir(query_id)}")
         shutil.rmtree(settings.converted_dir(query_id))
 
-        # Commit changes
+        background_logger.info("Committing database")
         session.commit()
+
+
+def _delete_query_logs(query_id: int) -> None:
+    responses_dir = settings.responses_dir(query_id)
+    for pattern in ("*.log", "*.err"):
+        logger.info(f"Going to delete query logs for pattern {responses_dir}/{pattern}")
+        for path in responses_dir.glob(pattern):
+            path.unlink(missing_ok=True)
 
 
 @route.delete("/")
@@ -123,6 +141,17 @@ async def delete_query(
     background_tasks: BackgroundTasks,
 ) -> None:
     background_tasks.add_task(_delete_query, query_id)
+
+
+@route.delete("/logs")
+async def delete_query_logs(
+    current_admin: Annotated[User, Depends(get_current_user)],
+    query_id: int,
+    background_tasks: BackgroundTasks,
+) -> None:
+    async with db_session(mode=Mode.WRITE) as session:  # type: Session
+        require_query_ownership(session, current_admin, query_id)
+    background_tasks.add_task(_delete_query_logs, query_id)
 
 
 async def _queue_subqueries(
@@ -136,10 +165,11 @@ async def _queue_subqueries(
 
     from academic_apis.broker.tasks import retrieve_query
 
-    logger.debug(f"Queueing subquery tasks for query_id={query.query_id}")
+    background_logger.info(f"Queueing subquery tasks for query_id={query.query_id}...")
 
     API = WRAPPERS[query.wrapper]  # noqa: N806
 
+    n_subqueries = 0
     for subquery in API.generate_subqueries(
         query.query,
         py_start=py_start,
@@ -148,10 +178,15 @@ async def _queue_subqueries(
         use_py_filter=use_py_filter,
         use_firstauth_filter=use_firstauth_filter,
     ):
-        logger.debug(f"Subquery: {subquery[-200:]}")
+        background_logger.debug(f"Subquery: {subquery[-200:]}")
         await retrieve_query.kiq(
             query=subquery, wrapper=query.wrapper, query_id=query.query_id
         )  # type: ignore[call-overload]
+        n_subqueries += 1
+
+    background_logger.info(
+        f"Queued {n_subqueries:,} subquery tasks for query_id={query.query_id}!"
+    )
 
 
 @route.post("/")
@@ -341,22 +376,42 @@ async def update_azure_link(
 
 @route.get("/download")
 async def download_query(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_admin: Annotated[User, Depends(get_current_admin)],
     query_id: int,
     background_tasks: BackgroundTasks,
+    concatenated: bool = False,
 ) -> AzureAccessLinks:
-    from academic_apis.utils.azure import sync_directory
+    from academic_apis.utils.azure import sync_directory, upload_concatenated_files
 
     blob_path, links = await update_azure_link(
-        current_user=current_user,
+        current_user=current_admin,
         query_id=query_id,
     )
 
-    background_tasks.add_task(
-        sync_directory,
-        source_dir=str(settings.result_dir / str(query_id)),
-        target_dir=blob_path,
-    )
+    if concatenated:
+        background_tasks.add_task(
+            upload_concatenated_files,
+            source_pattern=f"{settings.result_dir}/{query_id}/responses/*.jsonl",
+            target_file=f"{blob_path}/responses.jsonl",
+        )
+        background_tasks.add_task(
+            upload_concatenated_files,
+            source_pattern=f"{settings.result_dir}/{query_id}/responses/*.err",
+            target_file=f"{blob_path}/responses.err",
+            include_file_headers=True,
+        )
+        background_tasks.add_task(
+            upload_concatenated_files,
+            source_pattern=f"{settings.result_dir}/{query_id}/responses/*.log",
+            target_file=f"{blob_path}/responses.log",
+            include_file_headers=True,
+        )
+    else:
+        background_tasks.add_task(
+            sync_directory,
+            source_dir=str(settings.result_dir / str(query_id)),
+            target_dir=blob_path,
+        )
 
     return links
 

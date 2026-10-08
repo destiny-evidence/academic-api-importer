@@ -4,12 +4,14 @@ import { useRouter } from 'vue-router';
 
 import { BButton, BFormCheckbox, BTable } from 'bootstrap-vue-next/components';
 import {
-  BIconPersonFill,
-  BIconInboxFill,
-  BIconTrash,
-  BIconLink,
-  BIconCloudArrowUpFill,
   BIconArrowClockwise,
+  BIconCloudArrowUp,
+  BIconCloudArrowUpFill,
+  BIconInboxFill,
+  BIconLink,
+  BIconPersonFill,
+  BIconStars,
+  BIconTrash,
 } from 'bootstrap-icons-vue';
 import type { TableField } from 'bootstrap-vue-next/types';
 
@@ -24,7 +26,9 @@ import {
 } from '@/plugins/api/spec';
 import { formatTimeStamp } from '@/utils';
 import TwoStageButton from '@/components/TwoStageButton.vue';
+import { useSessionStore } from '@/stores/store-session.ts';
 
+const session = useSessionStore();
 // Longer queries are shortened to this many characters in the table.
 const PREVIEW_LENGTH = 10;
 type TableQuery = Query & { showLinks?: boolean };
@@ -182,14 +186,20 @@ function dropQuery(query: Query) {
   }
 }
 
-function syncQuery(query: Query) {
-  Queries.downloadQueryQueriesDownloadGet({ query_id: query.query_id! })
+function syncQuery(query: Query, concatenated: boolean = false) {
+  Queries.downloadQueryQueriesDownloadGet({ query_id: query.query_id!, concatenated })
     .then((response) => {
       query.azure_link = response.data;
       toastSuccessWith('Query results are now syncing with Azure, this might take a while.')(
         response,
       );
     })
+    .catch(toastReject);
+}
+
+function clearLogs(query: Query) {
+  Queries.deleteQueryLogsQueriesLogsDelete({ query_id: query.query_id! })
+    .then(toastSuccessWith('Initiated deletion of query logs.'))
     .catch(toastReject);
 }
 
@@ -242,17 +252,11 @@ function refreshAzureToken(query: Query) {
             @click.stop="refreshAzureToken(item)">
             <BIconArrowClockwise />
           </BButton>
-          <ul>
-            <li>
-              Download:
-              <a :href="item.azure_link.download_url" target="_blank"
-                >{{ item.azure_link.download_url.substring(0, 100) }}...</a
-              >
-            </li>
-            <li>
-              Listing:
-              <a :href="item.azure_link.list_url" target="_blank"
-                >{{ item.azure_link.list_url.substring(0, 100) }}...</a
+          <ul v-if="item.azure_link">
+            <li v-for="(url, key) in item.azure_link" :key="key">
+              {{ key }}:
+              <a :href="url as string" target="_blank"
+                >{{ (url as string).substring(0, 100) }}...</a
               >
             </li>
           </ul>
@@ -291,11 +295,29 @@ function refreshAzureToken(query: Query) {
         </BButton>
 
         <TwoStageButton
+          v-if="session.user?.permission_admin"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud"
           @accepted="syncQuery(item)">
+          <BIconCloudArrowUp />
+        </TwoStageButton>
+
+        <TwoStageButton
+          v-if="session.user?.permission_admin"
+          class="d-inline me-2"
+          btn-style="btn-sm btn-outline-secondary"
+          title="Sync results with cloud (concatenated)"
+          @accepted="syncQuery(item, true)">
           <BIconCloudArrowUpFill />
+        </TwoStageButton>
+
+        <TwoStageButton
+          class="d-inline me-2"
+          btn-style="btn-sm btn-outline-secondary"
+          title="Delete logs from downloading the query."
+          @accepted="clearLogs(item)">
+          <BIconStars />
         </TwoStageButton>
 
         <TwoStageButton

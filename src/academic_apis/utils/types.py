@@ -68,3 +68,6 @@ class AzureAccessLinks(BaseModel):
     model_config = ConfigDict(extra="allow")
     download_url: str
     list_url: str
+    responses_url: str
+    log_url: str
+    errors_url: str

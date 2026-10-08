@@ -87,6 +87,10 @@ class Config(BaseSettings):
         default=1440,
         description="Lifetime of azure download tokens in minutes.",
     )
+    azure_storage_buffer_size: int = Field(
+        default=4 * 1024 * 1024,
+        description="Upload buffer size.",
+    )
     azure_storage_concurrency: int = Field(
         default=10,
         description="Maximum number of parallel uploads.",
@@ -103,7 +107,7 @@ class Config(BaseSettings):
         return target
 
     def converted_dir(self, query_id: int) -> Path:
-        target = self.result_dir / str(query_id) / "responses"
+        target = self.result_dir / str(query_id) / "converted"
         target.mkdir(parents=True, exist_ok=True)
         return target
 

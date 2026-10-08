@@ -60,7 +60,7 @@
             "level": "WARNING"
         },
         "sqlalchemy.engine": {
-            "level": "INFO"
+            "level": "WARNING"
         },
         "sqlalchemy.pool": {
             "level": "WARNING"
