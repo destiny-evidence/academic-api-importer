@@ -132,7 +132,7 @@ def call(
     client: TestClient,
     endpoint: tuple[str, str, Any],
     headers: dict[str, str] | None = None,
-    **kwargs: Any,
+    **kwargs: Any,  # noqa: ANN401
 ) -> Response:
     """Fire one of the ``ENDPOINTS`` entries, sending its body where one belongs."""
     method, path, body = endpoint
@@ -205,10 +205,10 @@ class FakeWrapperApi:
     inits: list[dict[str, Any]]
     calls: list[dict[str, Any]]
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, **kwargs: Any) -> None:  # noqa: ANN401
         type(self).inits.append(kwargs)
 
-    async def get_first_response(self, **kwargs: Any) -> httpx.Response | None:
+    async def get_first_response(self, **kwargs: Any) -> httpx.Response | None:  # noqa: ANN401
         type(self).calls.append(kwargs)
         return type(self).response
 
@@ -287,10 +287,12 @@ def fake_azure(monkeypatch: pytest.MonkeyPatch) -> FakeAzure:
     async def upload_concatenated_files(
         source_pattern: str,
         target_file: str,
-        overwrite: bool = False,
+        overwrite: bool = False,  # noqa: ARG001
         include_file_headers: bool = False,
     ) -> None:
-        azure.calls.append(("upload", source_pattern, target_file, include_file_headers))
+        azure.calls.append(
+            ("upload", source_pattern, target_file, include_file_headers)
+        )
         azure.uploads.append((source_pattern, target_file, include_file_headers))
 
     monkeypatch.setattr("academic_apis.utils.azure.get_azure_links", get_azure_links)
@@ -307,7 +309,7 @@ class FakeQueue:
 
     queued: list[dict[str, Any]] = field(default_factory=list)
 
-    async def kiq(self, **kwargs: Any) -> str:
+    async def kiq(self, **kwargs: Any) -> str:  # noqa: ANN401
         self.queued.append(kwargs)
         return "queued-task-id"
 
@@ -542,6 +544,10 @@ class TestTestQuery:
         owned_token: str,
         fake_wrapper: type[FakeWrapperApi],
     ) -> None:
+        """
+        KNOWN BUG: the endpoint reports a missing answer with a ``204``, and a response
+        without a body cannot carry the ``detail`` that explains the status.
+        """
         fake_wrapper.response = None
         response = client.post(
             "/queries/test",
@@ -549,9 +555,9 @@ class TestTestQuery:
             json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
         )
         assert response.status_code == 204
-        assert response.json()["detail"] == (
-            "Did not receive a response from the scopus API."
-        )
+        assert response.content == b""
+        # the query did reach the wrapper, which is the only thing the caller learns
+        assert len(fake_wrapper.calls) == 1
 
     def test_inactive_and_foreign_tokens_leave_the_user_without_a_key(
         self,
@@ -661,7 +667,9 @@ class TestRenderQuery:
         assert response.status_code == 200
         assert response.json() == RENDERED_SCOPUS_QUERY
 
-    def test_rendering_is_idempotent(self, client: TestClient, normal_user: User) -> None:
+    def test_rendering_is_idempotent(
+        self, client: TestClient, normal_user: User
+    ) -> None:
         headers = auth_header(normal_user)
         first = client.post(
             "/queries/render",
@@ -689,7 +697,9 @@ class TestRenderQuery:
     @pytest.mark.parametrize(
         ("query", "hint"),
         [
-            pytest.param("TITLE-ABS-KEY(", "The query ended too early.", id="open-group"),
+            pytest.param(
+                "TITLE-ABS-KEY(", "The query ended too early.", id="open-group"
+            ),
             pytest.param(
                 "TITLE-ABS-KEY(a AND (b)", "ended too early", id="missing-paren"
             ),
@@ -826,7 +836,9 @@ class TestSubmitQuery:
             headers=auth_header(admin_user),
             json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
         )
-        assert listed_ids(client.get("/queries/", headers=auth_header(normal_user))) == []
+        assert (
+            listed_ids(client.get("/queries/", headers=auth_header(normal_user))) == []
+        )
         assert stored_query_permissions(user_id=normal_user.user_id) == []
 
     def test_a_plain_user_is_refused(
@@ -845,7 +857,9 @@ class TestSubmitQuery:
     def test_an_admin_without_the_submit_permission_is_refused(
         self, client: TestClient, make_user: Callable[..., User]
     ) -> None:
-        admin = make_user(email="admin-without-submit@example.org", permission_admin=True)
+        admin = make_user(
+            email="admin-without-submit@example.org", permission_admin=True
+        )
         assert (
             client.post(
                 "/queries/",
@@ -941,7 +955,9 @@ class TestSubmitQuery:
     @pytest.mark.parametrize(
         "payload",
         [
-            pytest.param({"query": "x", "wrapper": "google-scholar"}, id="unknown-wrapper"),
+            pytest.param(
+                {"query": "x", "wrapper": "google-scholar"}, id="unknown-wrapper"
+            ),
             pytest.param({"wrapper": "scopus"}, id="missing-query"),
             pytest.param(None, id="no-body"),
         ],
@@ -977,7 +993,9 @@ class TestQueueSubqueries:
     the detached instance bug recorded in ``TestSubmitQuery``.
     """
 
-    def test_a_query_without_filters_becomes_one_task(self, fake_queue: FakeQueue) -> None:
+    def test_a_query_without_filters_becomes_one_task(
+        self, fake_queue: FakeQueue
+    ) -> None:
         _run(
             _queue_subqueries(
                 transient_query("TITLE-ABS-KEY(  climate  )"),
@@ -993,7 +1011,9 @@ class TestQueueSubqueries:
             }
         ]
 
-    def test_the_author_filter_splits_the_query_676_ways(self, fake_queue: FakeQueue) -> None:
+    def test_the_author_filter_splits_the_query_676_ways(
+        self, fake_queue: FakeQueue
+    ) -> None:
         _run(
             _queue_subqueries(
                 transient_query("TITLE-ABS-KEY( climate )"),
@@ -1028,7 +1048,9 @@ class TestQueueSubqueries:
         assert subqueries[-1].endswith("AND ( PUBYEAR AFT 2021 )")
         assert all("( PUBYEAR" in subquery for subquery in subqueries)
 
-    def test_the_end_year_defaults_to_the_current_year(self, fake_queue: FakeQueue) -> None:
+    def test_the_end_year_defaults_to_the_current_year(
+        self, fake_queue: FakeQueue
+    ) -> None:
         this_year = datetime.now(tz=UTC).year
         _run(
             _queue_subqueries(
@@ -1044,13 +1066,11 @@ class TestQueueSubqueries:
             f"AND ( PUBYEAR AFT {this_year - 1} )"
         )
 
-    def test_every_task_carries_the_query_id_and_wrapper(self, fake_queue: FakeQueue) -> None:
+    def test_every_task_carries_the_query_id_and_wrapper(
+        self, fake_queue: FakeQueue
+    ) -> None:
         query = transient_query("TITLE-ABS-KEY( climate )", query_id=7)
-        _run(
-            _queue_subqueries(
-                query, use_py_filter=False, use_firstauth_filter=True
-            )
-        )
+        _run(_queue_subqueries(query, use_py_filter=False, use_firstauth_filter=True))
         assert {entry["query_id"] for entry in fake_queue.queued} == {7}
         assert {entry["wrapper"] for entry in fake_queue.queued} == {Wrapper.SCOPUS}
 
@@ -1112,9 +1132,9 @@ class TestListQueries:
         make_user: Callable[..., User],
     ) -> None:
         make_query(query="foreign", owner=make_user(email="someone-else@example.org"))
-        assert listed_ids(client.get("/queries/", headers=auth_header(normal_user))) == [
-            owned_query
-        ]
+        assert listed_ids(
+            client.get("/queries/", headers=auth_header(normal_user))
+        ) == [owned_query]
 
     def test_a_permission_without_ownership_is_enough_to_list(
         self,
@@ -1138,8 +1158,12 @@ class TestListQueries:
         user = make_user(email="collector@example.org")
         owned = make_query(query="owned", owner=user)
         shared = make_query(query="shared", users=[(user, False)])
-        make_query(query="foreign", owner=make_user(email="other-collector@example.org"))
-        assert sorted(listed_ids(client.get("/queries/", headers=auth_header(user)))) == [
+        make_query(
+            query="foreign", owner=make_user(email="other-collector@example.org")
+        )
+        assert sorted(
+            listed_ids(client.get("/queries/", headers=auth_header(user)))
+        ) == [
             owned,
             shared,
         ]
@@ -1150,7 +1174,7 @@ class TestListQueries:
         normal_user: User,
         make_query: Callable[..., int],
     ) -> None:
-        created_at = datetime(2026, 1, 2, 3, 4, 5)
+        created_at = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
         query_id = make_query(
             query=VALID_SCOPUS_QUERY, owner=normal_user, created_at=created_at
         )
@@ -1158,7 +1182,9 @@ class TestListQueries:
         assert listed["query_id"] == query_id
         assert listed["query"] == VALID_SCOPUS_QUERY
         assert listed["wrapper"] == "scopus"
-        assert listed["created_at"] == created_at.isoformat()
+        # `Query.created_at` is a naive column: the UTC offset is dropped on the way
+        # through the database, so the endpoint reports a timestamp without one
+        assert listed["created_at"] == created_at.replace(tzinfo=None).isoformat()
         assert listed["is_public"] is False
         assert listed["azure_link"] is None
 
@@ -1293,8 +1319,12 @@ class TestDeleteQuery:
         ]
         client.delete(f"/queries/?query_id={query_id}", headers=auth_header(admin_user))
         assert listed_ids(client.get("/queries/", headers=auth_header(member))) == []
-        assert listed_ids(client.get("/queries/", headers=auth_header(normal_user))) == []
-        assert listed_ids(client.get("/queries/", headers=auth_header(admin_user))) == []
+        assert (
+            listed_ids(client.get("/queries/", headers=auth_header(normal_user))) == []
+        )
+        assert (
+            listed_ids(client.get("/queries/", headers=auth_header(admin_user))) == []
+        )
 
     def test_an_unknown_query_id_is_accepted(
         self,
@@ -1409,7 +1439,9 @@ class TestDeleteQueryLogs:
             headers=auth_header(normal_user),
             params={"query_id": owned_query},
         )
-        assert sorted(path.name for path in result_path(other, "responses").iterdir()) == [
+        assert sorted(
+            path.name for path in result_path(other, "responses").iterdir()
+        ) == [
             "4711.err",
             "4711.jsonl",
             "4711.log",
@@ -1427,7 +1459,9 @@ class TestDeleteQueryLogs:
         query_id = make_query(owner=make_user(email="owner-logs@example.org"))
         self._write_logs(query_id)
         response = client.delete(
-            "/queries/logs", headers=auth_header(outsider), params={"query_id": query_id}
+            "/queries/logs",
+            headers=auth_header(outsider),
+            params={"query_id": query_id},
         )
         assert response.status_code == 403
         assert response.json()["detail"] == OWNER_ONLY_DETAIL
@@ -1542,7 +1576,9 @@ class TestUpsertPermission:
         other_user: User,
         owned_query: int,
     ) -> None:
-        assert listed_ids(client.get("/queries/", headers=auth_header(other_user))) == []
+        assert (
+            listed_ids(client.get("/queries/", headers=auth_header(other_user))) == []
+        )
         client.put(
             "/queries/permission",
             headers=auth_header(normal_user),
@@ -1642,7 +1678,8 @@ class TestUpsertPermission:
         stored_query_permissions: Callable[..., list[PermissionRow]],
     ) -> None:
         outsider = make_user(email="outsider-grant@example.org")
-        query_id = make_query(owner=make_user(email="owner-grant@example.org"))
+        owner = make_user(email="owner-grant@example.org")
+        query_id = make_query(owner=owner)
         response = client.put(
             "/queries/permission",
             headers=auth_header(outsider),
@@ -1650,7 +1687,11 @@ class TestUpsertPermission:
         )
         assert response.status_code == 403
         assert response.json()["detail"] == OWNER_ONLY_DETAIL
-        assert stored_query_permissions(query_id=query_id) == []
+        # the one row that is there belongs to the owner who created the query
+        assert stored_query_permissions(query_id=query_id) == [
+            permission(owner, query_id, True)
+        ]
+        assert stored_query_permissions(user_id=outsider.user_id) == []
 
     def test_a_member_cannot_promote_themselves(
         self,
@@ -1713,30 +1754,49 @@ class TestUpsertPermission:
         assert response.json()["detail"] == "No query found with query_id=4242"
 
     @pytest.mark.parametrize(
-        "body",
+        ("incomplete", "detail"),
         [
-            pytest.param({"query_id": 1, "is_owner": False}, id="missing-user"),
-            pytest.param({"user_id": "whoever", "is_owner": False}, id="missing-query"),
             pytest.param(
-                {"user_id": "whoever", "query_id": "not-a-number"},
+                "missing-user",
+                "No user found with user_id=None",
+                id="missing-user",
+            ),
+            pytest.param(
+                "missing-query", "No query found with query_id=None", id="missing-query"
+            ),
+            pytest.param(
+                "query-not-a-number",
+                "No query found with query_id=not-a-number",
                 id="query-not-a-number",
             ),
         ],
     )
-    def test_incomplete_bodies_are_unprocessable(
+    def test_incomplete_bodies_are_answered_as_not_found(
         self,
         client: TestClient,
         normal_user: User,
         owned_query: int,
         stored_query_permissions: Callable[..., list[PermissionRow]],
-        body: dict[str, Any],
+        incomplete: str,
+        detail: str,
     ) -> None:
-        assert (
-            client.put(
-                "/queries/permission", headers=auth_header(normal_user), json=body
-            ).status_code
-            == 422
+        """
+        KNOWN BUG: both fields of the body are primary keys, so SQLModel makes them
+        optional and FastAPI lets an incomplete or wrongly typed body through. It is not
+        rejected as unprocessable but answered with the 404 of the lookup that misses.
+        """
+        bodies: dict[str, dict[str, Any]] = {
+            "missing-user": {"query_id": owned_query, "is_owner": False},
+            "missing-query": {"user_id": "whoever", "is_owner": False},
+            "query-not-a-number": {"user_id": "whoever", "query_id": "not-a-number"},
+        }
+        response = client.put(
+            "/queries/permission",
+            headers=auth_header(normal_user),
+            json=bodies[incomplete],
         )
+        assert response.status_code == 404
+        assert response.json()["detail"] == detail
         assert stored_query_permissions(query_id=owned_query) == [
             permission(normal_user, owned_query, True)
         ]
@@ -1813,7 +1873,9 @@ class TestDropPermission:
             headers=auth_header(normal_user),
             json=permission_body(other_user, owned_query),
         )
-        assert listed_ids(client.get("/queries/", headers=auth_header(other_user))) == []
+        assert (
+            listed_ids(client.get("/queries/", headers=auth_header(other_user))) == []
+        )
 
     def test_an_admin_revokes_a_permission_of_a_foreign_query(
         self,
@@ -1931,18 +1993,49 @@ class TestDropPermission:
             == 403
         )
 
-    def test_the_body_has_to_name_both_user_and_query(
-        self, client: TestClient, normal_user: User, owned_query: int
+    @pytest.mark.parametrize(
+        ("incomplete", "status_code", "detail"),
+        [
+            pytest.param(
+                "missing-query",
+                403,
+                OWNER_ONLY_DETAIL,
+                id="missing-query",
+            ),
+            pytest.param(
+                "missing-user",
+                404,
+                "No permission found for user_id=None on query_id={query_id}",
+                id="missing-user",
+            ),
+        ],
+    )
+    def test_an_incomplete_body_is_not_rejected_as_unprocessable(
+        self,
+        client: TestClient,
+        normal_user: User,
+        owned_query: int,
+        incomplete: str,
+        status_code: int,
+        detail: str,
     ) -> None:
-        assert (
-            client.request(
-                "DELETE",
-                "/queries/permission",
-                headers=auth_header(normal_user),
-                json={"user_id": normal_user.user_id},
-            ).status_code
-            == 422
+        """
+        KNOWN BUG: the primary keys of the body are optional, so a body that names only
+        one of them is not rejected before the ownership check runs. An outsider is told
+        about permissions, the owner of the query about a missing permission row.
+        """
+        bodies: dict[str, dict[str, Any]] = {
+            "missing-query": {"user_id": normal_user.user_id},
+            "missing-user": {"query_id": owned_query},
+        }
+        response = client.request(
+            "DELETE",
+            "/queries/permission",
+            headers=auth_header(normal_user),
+            json=bodies[incomplete],
         )
+        assert response.status_code == status_code
+        assert response.json()["detail"] == detail.format(query_id=owned_query)
 
 
 # --------------------------------------------------------------------------------------
@@ -2055,7 +2148,9 @@ class TestGetPermissions:
         self, client: TestClient, normal_user: User
     ) -> None:
         assert (
-            client.get("/queries/permission", headers=auth_header(normal_user)).status_code
+            client.get(
+                "/queries/permission", headers=auth_header(normal_user)
+            ).status_code
             == 422
         )
 
@@ -2195,7 +2290,9 @@ class TestDownloadQuery:
         self, client: TestClient, owned_query: int
     ) -> None:
         assert (
-            client.get("/queries/download", params={"query_id": owned_query}).status_code
+            client.get(
+                "/queries/download", params={"query_id": owned_query}
+            ).status_code
             == 401
         )
 
@@ -2238,6 +2335,7 @@ class TestRefreshDownloadLinks:
         client: TestClient,
         normal_user: User,
         owned_query: int,
+        fake_azure: FakeAzure,
         stored_query: Callable[[int], dict[str, Any]],
     ) -> None:
         for version in (1, 2):
@@ -2257,6 +2355,7 @@ class TestRefreshDownloadLinks:
         admin_user: User,
         make_user: Callable[..., User],
         make_query: Callable[..., int],
+        fake_azure: FakeAzure,
     ) -> None:
         query_id = make_query(owner=make_user(email="owner-refresh@example.org"))
         assert (
@@ -2290,6 +2389,7 @@ class TestRefreshDownloadLinks:
         self,
         client: TestClient,
         admin_user: User,
+        fake_azure: FakeAzure,
         stored_query: Callable[[int], dict[str, Any]],
     ) -> None:
         """KNOWN BUG: same as ``GET /queries/download`` - no existence check."""

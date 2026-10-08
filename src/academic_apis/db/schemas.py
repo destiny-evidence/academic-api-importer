@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import JSON, Column, DateTime, TypeDecorator, text
 from sqlalchemy.engine import Dialect
 from sqlmodel import Field, SQLModel, UniqueConstraint
+from sqlmodel.main import SQLModelConfig as ConfigDict
 from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.utils.types import AzureAccessLinks, Wrapper
@@ -61,11 +62,12 @@ class Query(QueryInfo, table=True):
 
 
 class AccessTokenPublic(SQLModel):
+    model_config = ConfigDict(validate_default=True)
     token_id: str = Field(default_factory=lambda: uuid.uuid6().hex, primary_key=True)
     wrapper: Wrapper
     proxy: str | None = None
     is_active: bool = True
-    comment: str | None = None
+    comment: str | None = Field(default=None, nullable=False)
     last_used: datetime | None = Field(default=None, nullable=True)
     locked_until: datetime | None = Field(
         default=None,

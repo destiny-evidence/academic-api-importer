@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 import tempfile
-from collections.abc import Callable, Coroutine, Sequence
+from collections.abc import Callable, Coroutine, Iterator, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -52,6 +53,7 @@ from academic_apis.db.schemas import (  # noqa: E402
     UserQueryPermission,
     UserTokenPermission,
 )
+from academic_apis.utils import settings  # noqa: E402
 from academic_apis.utils.types import Wrapper  # noqa: E402
 
 DEFAULT_PASSWORD = "not-so-secret-password"
@@ -63,6 +65,20 @@ def clean_database() -> None:
     engine = make_engine()
     SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
+
+
+@pytest.fixture(autouse=True)
+def clean_results() -> Iterator[None]:
+    """
+    Empty the results directory for every test.
+
+    The database is recreated per test, so query IDs start at one again while the files a
+    test leaves behind in ``settings.result_dir`` would still be there for the next one -
+    and query ID collisions are the rule, not the exception.
+    """
+    shutil.rmtree(settings.result_dir, ignore_errors=True)
+    yield
+    shutil.rmtree(settings.result_dir, ignore_errors=True)
 
 
 @pytest.fixture

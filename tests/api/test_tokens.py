@@ -74,6 +74,14 @@ ALL_ENDPOINTS = pytest.mark.parametrize("endpoint", ENDPOINTS.values(), ids=ENDP
 #: ``(user_id, token_id, is_owner)``, as returned by the ``stored_permissions`` fixture.
 PermissionRow = tuple[str, str, bool]
 
+#: what ``POST /tokens/submit`` answers for every unusable required field; the endpoint
+#: checks ``token``, ``comment`` and ``wrapper`` in one condition and names none of them
+MISSING_FIELD_DETAIL = "Required field missing!"
+
+#: what ``POST /tokens/submit`` answers for every unusable required field; the endpoint
+#: checks ``token``, ``comment`` and ``wrapper`` in one condition and does not name one
+MISSING_FIELD_DETAIL = "Required field missing!"
+
 
 def auth_header(user: User) -> dict[str, str]:
     """Bearer header that logs the request in as ``user``."""
@@ -491,26 +499,19 @@ class TestSubmitToken:
         assert stored_token(token_id)["is_active"] is True
 
     @pytest.mark.parametrize(
-        ("payload", "detail"),
+        "payload",
         [
             pytest.param(
                 {"wrapper": "scopus", "token": "", "comment": "x"},
-                "Field 'token' must be set to add a new API token",
                 id="empty-token",
             ),
             pytest.param(
                 {"wrapper": "scopus", "token": "   ", "comment": "x"},
-                "Field 'token' must be set to add a new API token",
                 id="blank-token",
             ),
-            pytest.param(
-                {"wrapper": "scopus", "token": "key"},
-                "Field 'comment' must be set to add a new API token",
-                id="missing-comment",
-            ),
+            pytest.param({"wrapper": "scopus", "token": "key"}, id="missing-comment"),
             pytest.param(
                 {"wrapper": "scopus", "token": "key", "comment": "  "},
-                "Field 'comment' must be set to add a new API token",
                 id="blank-comment",
             ),
         ],
@@ -523,14 +524,19 @@ class TestSubmitToken:
         make_token: Callable[..., str],
         stored_token: Callable[[str], dict[str, Any]],
         payload: dict[str, Any],
-        detail: str,
     ) -> None:
+        """
+        An unusable ``token`` or ``comment`` is refused with 422.
+
+        The endpoint checks the required fields together and reports them together, so
+        the answer names none of them.
+        """
         other = make_token(token_id="other-token-id")
         response = client.post(
             "/tokens/submit", headers=auth_header(normal_user), json=payload
         )
         assert response.status_code == 422
-        assert response.json()["detail"] == detail
+        assert response.json()["detail"] == MISSING_FIELD_DETAIL
         # Only the two existing tokens are left, nothing was added.
         assert stored_token(owned_token) != {}
         assert stored_token(other) != {}
@@ -548,7 +554,7 @@ class TestSubmitToken:
             ),
         ],
     )
-    def test_the_wrapper_is_not_validated(
+    def test_an_invalid_wrapper_is_rejected(
         self,
         client: TestClient,
         normal_user: User,
@@ -557,29 +563,33 @@ class TestSubmitToken:
         payload: dict[str, Any],
     ) -> None:
         """
-        KNOWN BUG: an invalid ``wrapper`` breaks the insert instead of being rejected.
+        A missing or unknown ``wrapper`` is answered 422, not 500.
 
-        The docstring promises that ``wrapper`` is validated, but the request model
-        does not require it, so an unusable value reaches the ``INSERT`` and the
-        endpoint answers 500 rather than 422.
+        ``AccessToken`` is a table model, so the request body arrives unvalidated and the
+        endpoint checks ``wrapper`` itself; nothing reaches the database.
+
+        KNOWN BUG: the check is shared with the other required fields, so an unknown
+        wrapper is reported as a missing one.
         """
         response = client.post(
             "/tokens/submit", headers=auth_header(normal_user), json=payload
         )
-        assert response.status_code == 500
+        assert response.status_code == 422
+        assert response.json()["detail"] == MISSING_FIELD_DETAIL
         # Nothing was stored, so the user gained no permission beyond the fixture's.
         assert stored_permissions(user_id=normal_user.user_id) == [
             permission(normal_user, owned_token, True)
         ]
 
-    def test_a_missing_api_key_crashes_the_validation(
+    def test_a_missing_api_key_is_rejected(
         self, client: TestClient, normal_user: User
     ) -> None:
-        """KNOWN BUG: without ``token`` the endpoint itself fails (``None.strip()``)."""
+        """A missing ``token`` is rejected like a blank one instead of crashing."""
         response = client.post(
             "/tokens/submit", headers=auth_header(normal_user), json={"comment": "x"}
         )
-        assert response.status_code == 500
+        assert response.status_code == 422
+        assert response.json()["detail"] == MISSING_FIELD_DETAIL
 
 
 # --------------------------------------------------------------------------------------
@@ -872,18 +882,18 @@ class TestUpdateToken:
         assert response.status_code == 404
         assert response.json()["detail"].startswith("No API token found with token_id=")
 
-    def test_an_invalid_wrapper_corrupts_the_token(
+    def test_an_invalid_wrapper_is_rejected(
         self,
         client: TestClient,
         admin_user: User,
         make_token: Callable[..., str],
+        stored_token: Callable[[str], dict[str, Any]],
     ) -> None:
         """
-        KNOWN BUG: the ``wrapper`` is not validated, and an invalid value is
-        written to the database.
+        An invalid ``wrapper`` is rejected before the update, not written out.
 
-        The endpoint itself answers 500 (it cannot read the value back), but the
-        transaction is committed, so the token cannot be read or deleted anymore.
+        Rejecting it keeps the token readable: had the value been accepted, the
+        stored row could no longer be loaded (its enum value is unknown).
         """
         token_id = make_token()
         response = client.post(
@@ -891,10 +901,14 @@ class TestUpdateToken:
             headers=auth_header(admin_user),
             json={"token_id": token_id, "wrapper": "not-a-wrapper"},
         )
-        assert response.status_code == 500
+        assert response.status_code == 422
+        assert response.json()["detail"] == (
+            "Field 'wrapper' must be one of: scopus, wos, pubmed, dimensions, openalex"
+        )
+        assert stored_token(token_id)["wrapper"] == "scopus"
         assert (
             client.get("/tokens/list", headers=auth_header(admin_user)).status_code
-            == 500
+            == 200
         )
 
     def test_permissions_are_untouched_by_updates(

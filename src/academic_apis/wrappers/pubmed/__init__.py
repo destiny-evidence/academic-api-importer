@@ -14,7 +14,6 @@ from nacsos_data.models.items.academic import (
 )
 
 from academic_apis.utils import Wrapper, as_uuid, clear_empty
-
 from academic_apis.wrappers._abc import AbstractWrapper
 from academic_apis.wrappers._client import RequestClient
 

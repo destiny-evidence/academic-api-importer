@@ -7,7 +7,7 @@ from sqlmodel import delete, select, tuple_
 from starlette import status
 
 from academic_apis.api.users import get_current_admin, get_current_user
-from academic_apis.db import AccessToken, Mode, db_session
+from academic_apis.db import AccessToken, Mode, Wrapper, db_session
 from academic_apis.db.schemas import AccessTokenPublic, User, UserTokenPermission
 
 logger = logging.getLogger(__name__)
@@ -63,15 +63,14 @@ async def add_token(
     :param current_user:
     :return: ID of added token
     """
-    if not token.token.strip():
+    if not (
+        (token.token or "").strip()
+        and (token.comment or "").strip()
+        and token.wrapper in Wrapper
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Field 'token' must be set to add a new API token",
-        )
-    if not (token.comment or "").strip():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Field 'comment' must be set to add a new API token",
+            detail="Required field missing!",
         )
 
     async with db_session(mode=Mode.WRITE) as session:
@@ -135,6 +134,15 @@ async def update_token(
             exclude_unset=True,
             exclude={"token_id"},
         )
+
+        # ``AccessToken`` is a table model, so ``wrapper`` arrives unvalidated.
+        # Reject anything the enum does not define before it can reach the row.
+        if "wrapper" in updates and updates["wrapper"] not in Wrapper:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Field 'wrapper' must be one of: "
+                + ", ".join(wrapper.value for wrapper in Wrapper),
+            )
 
         # Non-admins may only toggle the status of tokens they own.
         if not current_user.permission_admin:
