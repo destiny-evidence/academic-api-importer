@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from pathlib import Path
 
-    from destiny_sdk.references import Reference as ODSReference
+    from destiny_sdk.references import ReferenceFileInput as ODSReference
     from nacsos_data.models.items import AcademicItemModel
 
 base_logger = logging.getLogger(__name__)
@@ -123,6 +123,7 @@ class AbstractWrapper(ABC):
         py_end: int | None = None,
         py_steps: int = 2,
         use_py_filter: bool = False,
+        use_firstauth_filter: bool = True,
     ) -> Generator[str]:
         raise NotImplementedError
 

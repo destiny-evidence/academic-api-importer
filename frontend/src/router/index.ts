@@ -9,7 +9,7 @@ import { useSessionStore } from '@/stores/store-session';
 import UsersView from '@/views/UsersView.vue';
 import ProfileView from '@/views/ProfileView.vue';
 import QueryUtilsView from '@/views/Queries/QueryUtilsView.vue';
-import QuerySubmitView from "@/views/Queries/QuerySubmitView.vue";
+import QuerySubmitView from '@/views/Queries/QuerySubmitView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

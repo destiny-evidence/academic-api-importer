@@ -24,13 +24,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa: ARG001
     init_logging()
 
     # Startup
-    if not broker.is_worker_process:
+    if broker.is_worker_process:
         await broker.startup()
 
     yield
 
     # Shutdown
-    if not broker.is_worker_process:
+    if broker.is_worker_process:
         await broker.shutdown()
 
 

@@ -18,11 +18,14 @@ dependencies = [
     "sqlmodel~=0.0.47",
     "pandas[excel]~=3.0",
     "fastapi[standard]~=0.142",
-    "orjson>=3.11.0",
+    "orjson~=3.12",
     "socksio==1.*",
     "argon2-cffi~=25.1",
     "httpx2~=2.13",# not required, avoids deprecation warning: https://github.com/epam/ai-dial-quickapps-backend/issues/566
     "PyJWT~=2.15",
+    "azure-storage-blob~=12.31",
+    "azure-identity~=1.26",
+    "aiofiles~=25.1",
 ]
 
 [tool.uv.sources]

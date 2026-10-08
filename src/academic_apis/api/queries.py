@@ -5,20 +5,21 @@ import shutil
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
-from fastapi import APIRouter, Body, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
 from httpx import Response
 from lark import LarkError
 from pydantic import BaseModel
-from sqlmodel import col, select, delete
+from sqlmodel import col, delete, select
 from starlette import status
 
 from academic_apis.api.utils import require_query_ownership
-from academic_apis.api.utils.auth import get_current_user, get_current_admin
-from academic_apis.db import Mode, Query, User, db_session, Task
+from academic_apis.api.utils.auth import get_current_admin, get_current_user
+from academic_apis.db import Mode, Query, Task, User, db_session
 from academic_apis.db.schemas import QueryInfo, UserQueryPermission
 from academic_apis.db.tokens import get_available_token_for_user
 from academic_apis.grammars.scopus import QuerySyntaxError, query_to_indented_text
 from academic_apis.utils import Wrapper, settings
+from academic_apis.utils.types import AzureAccessLinks
 from academic_apis.wrappers import WRAPPERS
 
 if TYPE_CHECKING:
@@ -130,6 +131,7 @@ async def _queue_subqueries(
     py_end: int | None = None,
     py_steps: int = 2,
     use_py_filter: bool = False,
+    use_firstauth_filter: bool = True,
 ) -> None:
 
     from academic_apis.broker.tasks import retrieve_query
@@ -144,6 +146,7 @@ async def _queue_subqueries(
         py_end=py_end,
         py_steps=py_steps,
         use_py_filter=use_py_filter,
+        use_firstauth_filter=use_firstauth_filter,
     ):
         logger.debug(f"Subquery: {subquery[-200:]}")
         await retrieve_query.kiq(
@@ -160,6 +163,7 @@ async def submit_query(
     py_end: int | None = None,
     py_steps: int = 2,
     use_py_filter: bool = False,
+    use_firstauth_filter: bool = True,
 ) -> int:
     if not current_user.permission_submit_query or not current_user.permission_admin:
         raise HTTPException(
@@ -193,6 +197,7 @@ async def submit_query(
         py_end=py_end,
         py_steps=py_steps,
         use_py_filter=use_py_filter,
+        use_firstauth_filter=use_firstauth_filter,
     )
 
     return query_id
@@ -314,3 +319,56 @@ async def get_permissions(
     async with db_session() as session:  # type: Session
         require_query_ownership(session, current_user, query_id)
         return _permissions_for_query(session=session, query_id=query_id)
+
+
+async def update_azure_link(
+    current_user: User, query_id: int
+) -> tuple[str, AzureAccessLinks]:
+    from academic_apis.utils.azure import get_azure_links
+
+    async with db_session() as session:  # type: Session
+        require_query_ownership(
+            session=session, current_user=current_user, query_id=query_id
+        )
+        blob_path = f"{settings.azure_storage_container_path}{query_id}"
+        links = await get_azure_links(blob_path)
+        query = session.get(Query, query_id)
+        if query:
+            query.azure_link = links
+            session.commit()
+        return blob_path, links
+
+
+@route.get("/download")
+async def download_query(
+    current_user: Annotated[User, Depends(get_current_user)],
+    query_id: int,
+    background_tasks: BackgroundTasks,
+) -> AzureAccessLinks:
+    from academic_apis.utils.azure import sync_directory
+
+    blob_path, links = await update_azure_link(
+        current_user=current_user,
+        query_id=query_id,
+    )
+
+    background_tasks.add_task(
+        sync_directory,
+        source_dir=str(settings.result_dir / str(query_id)),
+        target_dir=blob_path,
+    )
+
+    return links
+
+
+@route.get("/download/refresh")
+async def refresh_download_links(
+    current_user: Annotated[User, Depends(get_current_user)],
+    query_id: int,
+) -> AzureAccessLinks:
+    _, links = await update_azure_link(
+        current_user=current_user,
+        query_id=query_id,
+    )
+
+    return links

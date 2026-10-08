@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import Integer
-from sqlmodel import func, select, cast
+from sqlmodel import cast, func, select
 from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.api.utils import require_query_permission

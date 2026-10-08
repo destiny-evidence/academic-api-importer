@@ -3,80 +3,24 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from httpx import Response
 from httpx._status_codes import codes as http
-from nacsos_data.models.items import AcademicItemModel
-from nacsos_data.models.items.academic import AcademicAuthorModel, AffiliationModel
-from nacsos_data.util import as_uuid, clear_empty, get
+from nacsos_data.util import get
 from sqlmodel import col
 
 from academic_apis.db import AccessToken, db_session
 from academic_apis.utils import Wrapper, as_int, drop_whitespaces
-
-from ._abc import AbstractWrapper, OnLoopInfo
-from ._client import RequestClient
+from academic_apis.wrappers._abc import AbstractWrapper, OnLoopInfo
+from academic_apis.wrappers._client import RequestClient
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from destiny_sdk.references import Reference as ODSReference
-
-
-def get_title(obj: dict[str, Any]) -> str | None:
-    return obj.get("dc:title")
-
-
-def get_abstract(obj: dict[str, Any]) -> str | None:
-    return obj.get("dc:description")
-
-
-def get_doi(obj: dict[str, Any]) -> str | None:
-    return obj.get("prism:doi")
-
-
-def get_id(obj: dict[str, Any]) -> str | None:
-    return obj.get("eid", obj.get("dc:identifier"))
-
-
-def get_py(obj: dict[str, Any]) -> int | None:
-    py: str | None = obj.get("prism:coverDate")
-    if py and len(py) >= 4:  # noqa: PLR2004
-        return int(py[:4])
-    return None
-
-
-def get_keywords(obj: dict[str, Any]) -> list[str] | None:
-    kw = obj.get("authkeywords", "").split(" | ")
-    return clear_empty(kw)
-
-
-def translate_authors(record: dict[str, Any]) -> list[AcademicAuthorModel] | None:
-    affiliations = {
-        aff["afid"]: AffiliationModel(
-            s2_id=aff["afid"],
-            name=aff.get("affilname"),
-            country=aff.get("affiliation-country"),
-        )
-        for aff in record.get("affiliation", [])
-    }
-
-    authors: list[dict[str, Any]] | None = record.get("author")
-    if not authors or authors is None:
-        return None
-    return [
-        AcademicAuthorModel(
-            s2_id=author.get("authid"),
-            name=cast("str", author.get("authname")),
-            affiliations=clear_empty(
-                [affiliations.get(aff["$"]) for aff in author.get("afid", [])],
-            ),
-        )
-        for author in authors
-        if author.get("authname")
-    ]
+    from destiny_sdk.references import ReferenceFileInput as ODSReference
+    from nacsos_data.models.items import AcademicItemModel
 
 
 class ScopusWrapper(AbstractWrapper):
@@ -252,24 +196,17 @@ class ScopusWrapper(AbstractWrapper):
         record: dict[str, Any],
         project_id: str | uuid.UUID | None = None,
     ) -> AcademicItemModel:
-        return AcademicItemModel(
-            item_id=uuid.uuid4(),
-            project_id=as_uuid(project_id),
-            doi=get_doi(record),
-            title=get_title(record),
-            scopus_id=get_id(record),
-            text=get_abstract(record),
-            # title_slug  # not required
-            publication_year=get_py(record),
-            source=record.get("prism:publicationName"),
-            keywords=get_keywords(record),
-            authors=translate_authors(record),
-            meta={"scopus-api": clear_empty(record)},
-        )
+        from .parser_nacsos import translate_record_nacsos
+
+        return translate_record_nacsos(record=record, project_id=project_id)
 
     @classmethod
     def translate_record_ods(cls, record: dict[str, Any]) -> ODSReference:
-        raise NotImplementedError
+        from .parser_ods import ScopusParser
+
+        return ScopusParser().parse_reference(
+            entry=record, source="scopus", robot_version="1.0"
+        )
 
     @classmethod
     def generate_subqueries(
@@ -279,6 +216,7 @@ class ScopusWrapper(AbstractWrapper):
         py_end: int | None = None,
         py_steps: int = 2,
         use_py_filter: bool = False,
+        use_firstauth_filter: bool = True,
     ) -> Generator[str]:
         alphabet = "abcdefghijklmnopqrstuvwxyz"
 
@@ -290,16 +228,27 @@ class ScopusWrapper(AbstractWrapper):
                 f"Start year ({py_start}) should be strictly smaller than end year ({py_end})",
             )
         query = drop_whitespaces(query)
-        for char1 in alphabet:
-            for char2 in alphabet:
-                firstauth = f"FIRSTAUTH ( {char1}{char2}* )"
 
-                if use_py_filter:
-                    yield f"( {query} ) AND {firstauth} AND ( PUBYEAR BEF {py_start} )"
-                    last_end_py = py_start
-                    for py in range(py_start - 1, py_end - 1, py_steps):
-                        last_end_py = py + py_steps + 1
-                        yield f"( {query} ) AND {firstauth} AND ( PUBYEAR AFT {py} ) AND ( PUBYEAR BEF {last_end_py} )"
-                    yield f"( {query} ) AND {firstauth} AND ( PUBYEAR AFT {last_end_py - 1} )"
-                else:
-                    yield f"( {query} ) AND {firstauth}"
+        author_subqueries: list[str | None] = (
+            [
+                f"FIRSTAUTH ( {char1}{char2}* )"
+                for char1 in alphabet
+                for char2 in alphabet
+            ]
+            if use_firstauth_filter
+            else [None]
+        )
+        for firstauth in author_subqueries:
+            base = f"( {query} )"
+            if firstauth:
+                base += f" AND {firstauth}"
+
+            if use_py_filter:
+                yield f"{base} AND ( PUBYEAR BEF {py_start} )"
+                last_end_py = py_start
+                for py in range(py_start - 1, py_end - 1, py_steps):
+                    last_end_py = py + py_steps + 1
+                    yield f"{base} AND ( PUBYEAR AFT {py} ) AND ( PUBYEAR BEF {last_end_py} )"
+                yield f"{base} AND ( PUBYEAR AFT {last_end_py - 1} )"
+            else:
+                yield base

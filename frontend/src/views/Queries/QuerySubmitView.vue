@@ -15,6 +15,7 @@ type QuerySettings = {
   py_end: number | null;
   py_steps: number;
   use_py_filter: boolean;
+  use_firstauth_filter: boolean;
 };
 // const wrappers = Object.values(Wrapper);
 const queryInfo = ref<QueryInfo>({
@@ -27,6 +28,7 @@ const settings = ref<QuerySettings>({
   py_end: null,
   py_steps: 2,
   use_py_filter: true,
+  use_firstauth_filter: true,
 });
 
 const currentYear = new Date().getFullYear();
@@ -82,16 +84,21 @@ function submitQuery() {
         autofocus
         placeholder="Enter a query to send to the academic API…" />
 
-      <h4
-        class="mt-4">Subquery settings</h4>
-      <div class="row">
-        <div class="col-md-3 d-flex align-items-end">
-          <BFormCheckbox v-model="settings.use_py_filter" switch>
-            Generate subqueries
-          </BFormCheckbox>
-        </div>
-      </div>
+      <h4 class="mt-4">Subquery settings</h4>
       <div class="row g-3">
+        <div class="col-md-3 d-flex flex-column align-items-baseline">
+          <div class="d-flex align-items-end mt-auto">
+            <BFormCheckbox v-model="settings.use_py_filter" switch>
+              Generate PY subqueries
+            </BFormCheckbox>
+          </div>
+
+          <div class="d-flex align-items-end">
+            <BFormCheckbox v-model="settings.use_firstauth_filter" switch>
+              Generate FIRSTAUTH subqueries
+            </BFormCheckbox>
+          </div>
+        </div>
         <div class="col-md-3">
           <label class="form-label small text-body-secondary mb-1" for="settings-py-start">
             Start year
@@ -132,11 +139,14 @@ function submitQuery() {
         <ul>
           <li>for everything published before {{ settings.py_start }},</li>
           <li>for everything published after {{ settings.py_end ?? '[skipped]' }}, and</li>
-          <li>for publication years between {{ settings.py_start }}–{{ settings.py_end }} in steps of
+          <li>
+            for publication years between {{ settings.py_start }}–{{ settings.py_end }} in steps of
             {{ settings.py_steps }} year(s).
           </li>
         </ul>
-        <div v-if="!validSettings" class="alert alert-warning"> Check the years and step size above.</div>
+        <div v-if="!validSettings" class="alert alert-warning">
+          Check the years and step size above.
+        </div>
       </div>
 
       <BButton

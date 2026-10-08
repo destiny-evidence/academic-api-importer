@@ -2,11 +2,33 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Column, DateTime, text
+from sqlalchemy import JSON, Column, DateTime, TypeDecorator, text
+from sqlalchemy.engine import Dialect
 from sqlmodel import Field, SQLModel, UniqueConstraint
 from taskiq.depends.progress_tracker import TaskState
 
-from academic_apis.utils.types import Wrapper
+from academic_apis.utils.types import AzureAccessLinks, Wrapper
+
+
+class AzureAccessLinksType(TypeDecorator):  # type: ignore[misc]
+    """Store AzureAccessLinks as JSON, restoring the model instance on load."""
+
+    impl = JSON
+    cache_ok = True
+
+    def process_bind_param(
+        self, value: AzureAccessLinks | dict[str, Any] | None, _dialect: Dialect
+    ) -> dict[str, Any] | None:
+        if isinstance(value, AzureAccessLinks):
+            return value.model_dump()
+        return value
+
+    def process_result_value(
+        self, value: dict[str, Any] | None, _dialect: Dialect
+    ) -> AzureAccessLinks | None:
+        if value is None:
+            return None
+        return AzureAccessLinks.model_validate(value)
 
 
 class QueryInfo(SQLModel):
@@ -32,6 +54,10 @@ class Query(QueryInfo, table=True):
     is_public: bool = False
     first_result: datetime | None = Field(default=None, nullable=True)
     latest_result: datetime | None = Field(default=None, nullable=True)
+    azure_link: AzureAccessLinks | None = Field(
+        default=None,
+        sa_column=Column("azure_link", AzureAccessLinksType(), nullable=True),
+    )
 
 
 class AccessTokenPublic(SQLModel):

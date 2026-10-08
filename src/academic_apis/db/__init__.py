@@ -32,7 +32,10 @@ def make_engine() -> Engine:
         connect_args={"check_same_thread": False, "timeout": WRITE_LOCK_TIMEOUT},
         poolclass=NullPool,  # each connection is opened/closed per checkout; no long-lived pooled state per process
         json_serializer=lambda obj: json.dumps(obj, cls=DictLikeEncoder),
-        echo=settings.db_verbose,
+        # deliberately not settings-driven: echo=True bypasses configured log levels
+        # (logging.Logger._log) and adds its own stdout handler. SQL visibility is
+        # controlled by the `sqlalchemy.engine` logger in the logging config instead.
+        echo=False,
     )
 
     SQLModel.metadata.create_all(engine)

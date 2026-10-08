@@ -7,7 +7,7 @@ from uuid import UUID
 
 from destiny_sdk.references import Reference as ODSReference
 from nacsos_data.models.items import AcademicItemModel
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class Mode(Enum):
@@ -62,3 +62,9 @@ def assert_str(obj: object | None) -> str:
 
 
 type Record = AcademicItemModel | ODSReference
+
+
+class AzureAccessLinks(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    download_url: str
+    list_url: str

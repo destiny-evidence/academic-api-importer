@@ -3,7 +3,14 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { BButton, BFormCheckbox, BTable } from 'bootstrap-vue-next/components';
-import { BIconPersonFill, BIconInboxFill, BIconTrash } from 'bootstrap-icons-vue';
+import {
+  BIconPersonFill,
+  BIconInboxFill,
+  BIconTrash,
+  BIconLink,
+  BIconCloudArrowUpFill,
+  BIconArrowClockwise,
+} from 'bootstrap-icons-vue';
 import type { TableField } from 'bootstrap-vue-next/types';
 
 import ModalDialog from '@/components/ModalDialog.vue';
@@ -20,9 +27,9 @@ import TwoStageButton from '@/components/TwoStageButton.vue';
 
 // Longer queries are shortened to this many characters in the table.
 const PREVIEW_LENGTH = 10;
-
+type TableQuery = Query & { showLinks?: boolean };
 const router = useRouter();
-const queries = ref<Query[]>([]);
+const queries = ref<TableQuery[]>([]);
 const loadingQueries = ref(true);
 const loadingUsers = ref(false);
 // Full text of the query shown in the modal; `null` while the modal is closed.
@@ -39,7 +46,7 @@ const modalQueryOpen = computed({
 
 const users = ref<UserPublicBase[]>([]);
 /** Query whose permissions dialog is open; `null` while the modal is closed. */
-const permissionQuery = ref<Query | null>(null);
+const permissionQuery = ref<TableQuery | null>(null);
 /**
  * Known permissions for `permissionQuery`. No endpoint asks for them, so the
  * dialog starts out blank; both mutation endpoints answer with the query's
@@ -99,13 +106,13 @@ function updatePermission(user: UserPublicBase, access: boolean, owner = false) 
   };
   const request = access
     ? Queries.upsertPermissionQueriesPermissionPut(
-      { userQueryPermission },
-      { credentials: 'include' },
-    )
+        { userQueryPermission },
+        { credentials: 'include' },
+      )
     : Queries.dropPermissionQueriesPermissionDelete(
-      { userQueryPermission },
-      { credentials: 'include' },
-    );
+        { userQueryPermission },
+        { credentials: 'include' },
+      );
   request
     .then((result) => {
       queryPermissions.value = result.data ?? [];
@@ -169,12 +176,31 @@ function dropQuery(query: Query) {
   Queries.deleteQueryQueriesDelete({ query_id: query.query_id as number })
     .then(toastSuccessWith(`Marked query ${query.query_id} for deletion.`))
     .catch(toastReject);
-  const index = queries.value.findIndex((q) => query.query_id == q.query_id)
+  const index = queries.value.findIndex((q) => query.query_id == q.query_id);
   if (index >= 0) {
     queries.value.slice(index, 1);
   }
 }
 
+function syncQuery(query: Query) {
+  Queries.downloadQueryQueriesDownloadGet({ query_id: query.query_id! })
+    .then((response) => {
+      query.azure_link = response.data;
+      toastSuccessWith('Query results are now syncing with Azure, this might take a while.')(
+        response,
+      );
+    })
+    .catch(toastReject);
+}
+
+function refreshAzureToken(query: Query) {
+  Queries.refreshDownloadLinksQueriesDownloadRefreshGet({ query_id: query.query_id! })
+    .then((response) => {
+      query.azure_link = response.data;
+      toastSuccessWith('Access links updated.')(response);
+    })
+    .catch(toastReject);
+}
 </script>
 
 <template>
@@ -195,16 +221,42 @@ function dropQuery(query: Query) {
         <td :colspan="columns.length" class="text-body-secondary">Loading queries…</td>
       </template>
       <template #cell(query)="{ item }">
-        {{ preview(item.query) }}
-        <span
-          v-if="isTruncated(item.query)"
-          class="show-full small text-muted ms-1"
-          role="button"
-          tabindex="0"
-          @click.stop="fullQuery = item.query"
-          @keyup.enter.stop="fullQuery = item.query">
-          [show full]
-        </span>
+        <div>
+          {{ preview(item.query) }}
+          <span
+            v-if="isTruncated(item.query)"
+            class="show-full small text-muted ms-1"
+            role="button"
+            tabindex="0"
+            @click.stop="fullQuery = item.query"
+            @keyup.enter.stop="fullQuery = item.query">
+            [show full]
+          </span>
+        </div>
+        <div v-if="item.showLinks && item.azure_link">
+          <BButton
+            size="sm"
+            class="me-2"
+            variant="outline-secondary"
+            title="Generate new access link (only use if current link stopped working)"
+            @click.stop="refreshAzureToken(item)">
+            <BIconArrowClockwise />
+          </BButton>
+          <ul>
+            <li>
+              Download:
+              <a :href="item.azure_link.download_url" target="_blank"
+                >{{ item.azure_link.download_url.substring(0, 100) }}...</a
+              >
+            </li>
+            <li>
+              Listing:
+              <a :href="item.azure_link.list_url" target="_blank"
+                >{{ item.azure_link.list_url.substring(0, 100) }}...</a
+              >
+            </li>
+          </ul>
+        </div>
       </template>
       <template #cell(wrapper)="{ item }">
         <code>{{ item.wrapper }}</code>
@@ -218,6 +270,7 @@ function dropQuery(query: Query) {
           @click.stop="openPermissions(item)">
           <BIconPersonFill />
         </BButton>
+
         <BButton
           size="sm"
           class="me-2"
@@ -226,6 +279,24 @@ function dropQuery(query: Query) {
           @click.stop="openTasks(item)">
           <BIconInboxFill />
         </BButton>
+
+        <BButton
+          v-if="item.azure_link"
+          size="sm"
+          class="me-2"
+          variant="outline-secondary"
+          title="View cloud storage links"
+          @click.stop="item.showLinks = !item.showLinks">
+          <BIconLink />
+        </BButton>
+
+        <TwoStageButton
+          class="d-inline me-2"
+          btn-style="btn-sm btn-outline-secondary"
+          title="Sync results with cloud"
+          @accepted="syncQuery(item)">
+          <BIconCloudArrowUpFill />
+        </TwoStageButton>
 
         <TwoStageButton
           class="d-inline"
@@ -253,34 +324,34 @@ function dropQuery(query: Query) {
       <div v-else class="table-responsive">
         <table class="table table-sm align-middle">
           <thead>
-          <tr>
-            <th scope="col">User</th>
-            <th scope="col">Has access</th>
-            <th scope="col">Is owner</th>
-          </tr>
+            <tr>
+              <th scope="col">User</th>
+              <th scope="col">Has access</th>
+              <th scope="col">Is owner</th>
+            </tr>
           </thead>
           <tbody>
-          <tr v-for="user in users" :key="user.user_id">
-            <td>
-              {{ user.full_name }} (<code>{{ user.user_id }}</code
-            >)
-            </td>
-            <td>
-              <BFormCheckbox
-                :model-value="Boolean(permissionFor(user.user_id))"
-                switch
-                title="Revoke access by switching this off"
-                @update:model-value="(access) => updatePermission(user, Boolean(access))" />
-            </td>
-            <td>
-              <BFormCheckbox
-                :model-value="Boolean(permissionFor(user.user_id)?.is_owner)"
-                :disabled="!permissionFor(user.user_id)"
-                switch
-                title="Ownership requires access"
-                @update:model-value="(owner) => updatePermission(user, true, Boolean(owner))" />
-            </td>
-          </tr>
+            <tr v-for="user in users" :key="user.user_id">
+              <td>
+                {{ user.full_name }} (<code>{{ user.user_id }}</code
+                >)
+              </td>
+              <td>
+                <BFormCheckbox
+                  :model-value="Boolean(permissionFor(user.user_id))"
+                  switch
+                  title="Revoke access by switching this off"
+                  @update:model-value="(access) => updatePermission(user, Boolean(access))" />
+              </td>
+              <td>
+                <BFormCheckbox
+                  :model-value="Boolean(permissionFor(user.user_id)?.is_owner)"
+                  :disabled="!permissionFor(user.user_id)"
+                  switch
+                  title="Ownership requires access"
+                  @update:model-value="(owner) => updatePermission(user, true, Boolean(owner))" />
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>

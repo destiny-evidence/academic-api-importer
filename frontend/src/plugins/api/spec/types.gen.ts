@@ -83,6 +83,21 @@ export type AccessTokenPublic = {
 };
 
 /**
+ * AzureAccessLinks
+ */
+export type AzureAccessLinks = {
+    /**
+     * Download Url
+     */
+    download_url: string;
+    /**
+     * List Url
+     */
+    list_url: string;
+    [key: string]: unknown;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -141,6 +156,7 @@ export type Query = {
      * Latest Result
      */
     latest_result?: string | null;
+    azure_link?: AzureAccessLinks | null;
 };
 
 /**
@@ -644,6 +660,10 @@ export type SubmitQueryQueriesPostData = {
          * Use Py Filter
          */
         use_py_filter?: boolean;
+        /**
+         * Use Firstauth Filter
+         */
+        use_firstauth_filter?: boolean;
     };
     url: '/queries/';
 };
@@ -771,6 +791,78 @@ export type UpsertPermissionQueriesPermissionPutResponses = {
 };
 
 export type UpsertPermissionQueriesPermissionPutResponse = UpsertPermissionQueriesPermissionPutResponses[keyof UpsertPermissionQueriesPermissionPutResponses];
+
+export type DownloadQueryQueriesDownloadGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Query Id
+         */
+        query_id: number;
+    };
+    url: '/queries/download';
+};
+
+export type DownloadQueryQueriesDownloadGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DownloadQueryQueriesDownloadGetError = DownloadQueryQueriesDownloadGetErrors[keyof DownloadQueryQueriesDownloadGetErrors];
+
+export type DownloadQueryQueriesDownloadGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: AzureAccessLinks;
+};
+
+export type DownloadQueryQueriesDownloadGetResponse = DownloadQueryQueriesDownloadGetResponses[keyof DownloadQueryQueriesDownloadGetResponses];
+
+export type RefreshDownloadLinksQueriesDownloadRefreshGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Query Id
+         */
+        query_id: number;
+    };
+    url: '/queries/download/refresh';
+};
+
+export type RefreshDownloadLinksQueriesDownloadRefreshGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RefreshDownloadLinksQueriesDownloadRefreshGetError = RefreshDownloadLinksQueriesDownloadRefreshGetErrors[keyof RefreshDownloadLinksQueriesDownloadRefreshGetErrors];
+
+export type RefreshDownloadLinksQueriesDownloadRefreshGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: AzureAccessLinks;
+};
+
+export type RefreshDownloadLinksQueriesDownloadRefreshGetResponse = RefreshDownloadLinksQueriesDownloadRefreshGetResponses[keyof RefreshDownloadLinksQueriesDownloadRefreshGetResponses];
 
 export type ListTokensTokensListGetData = {
     body?: never;

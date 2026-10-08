@@ -243,5 +243,6 @@ class PubmedWrapper(AbstractWrapper):
         py_end: int | None = None,
         py_steps: int = 2,
         use_py_filter: bool = False,
+        use_firstauth_filter: bool = True,
     ) -> Generator[str]:
         raise NotImplementedError

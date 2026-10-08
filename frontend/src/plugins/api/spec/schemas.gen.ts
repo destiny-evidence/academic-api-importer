@@ -165,6 +165,26 @@ export const AccessTokenPublicSchema = {
     title: 'AccessTokenPublic'
 } as const;
 
+export const AzureAccessLinksSchema = {
+    properties: {
+        download_url: {
+            type: 'string',
+            title: 'Download Url'
+        },
+        list_url: {
+            type: 'string',
+            title: 'List Url'
+        }
+    },
+    additionalProperties: true,
+    type: 'object',
+    required: [
+        'download_url',
+        'list_url'
+    ],
+    title: 'AzureAccessLinks'
+} as const;
+
 export const HTTPValidationErrorSchema = {
     properties: {
         detail: {
@@ -264,6 +284,16 @@ export const QuerySchema = {
                 }
             ],
             title: 'Latest Result'
+        },
+        azure_link: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AzureAccessLinks'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',

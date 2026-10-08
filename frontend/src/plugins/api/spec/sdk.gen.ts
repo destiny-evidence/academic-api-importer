@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteQueryQueriesDeleteErrors, DeleteQueryQueriesDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TaskSummaryTasksSummaryGetErrors, TaskSummaryTasksSummaryGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteQueryQueriesDeleteErrors, DeleteQueryQueriesDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DownloadQueryQueriesDownloadGetErrors, DownloadQueryQueriesDownloadGetResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RefreshDownloadLinksQueriesDownloadRefreshGetErrors, RefreshDownloadLinksQueriesDownloadRefreshGetResponses, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TaskSummaryTasksSummaryGetErrors, TaskSummaryTasksSummaryGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -97,6 +97,7 @@ export class Queries {
         py_end?: number | null;
         py_steps?: number;
         use_py_filter?: boolean;
+        use_firstauth_filter?: boolean;
         queryInfo: QueryInfo;
     }, options?: Options<never, ThrowOnError>): RequestResult<SubmitQueryQueriesPostResponses, SubmitQueryQueriesPostErrors, ThrowOnError> {
         const params = buildClientParams([parameters], [{ args: [
@@ -105,6 +106,7 @@ export class Queries {
                     { in: 'query', key: 'py_end' },
                     { in: 'query', key: 'py_steps' },
                     { in: 'query', key: 'use_py_filter' },
+                    { in: 'query', key: 'use_firstauth_filter' },
                     { key: 'queryInfo', map: 'body' }
                 ] }]);
         return (options?.client ?? client).post<SubmitQueryQueriesPostResponses, SubmitQueryQueriesPostErrors, ThrowOnError>({
@@ -200,6 +202,36 @@ export class Queries {
                 ...options?.headers,
                 ...params.headers
             }
+        });
+    }
+    
+    /**
+     * Download Query
+     */
+    public static downloadQueryQueriesDownloadGet<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        query_id: number;
+    }, options?: Options<never, ThrowOnError>): RequestResult<DownloadQueryQueriesDownloadGetResponses, DownloadQueryQueriesDownloadGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'query_id' }] }]);
+        return (options?.client ?? client).get<DownloadQueryQueriesDownloadGetResponses, DownloadQueryQueriesDownloadGetErrors, ThrowOnError>({
+            url: '/queries/download',
+            ...options,
+            ...params
+        });
+    }
+    
+    /**
+     * Refresh Download Links
+     */
+    public static refreshDownloadLinksQueriesDownloadRefreshGet<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        query_id: number;
+    }, options?: Options<never, ThrowOnError>): RequestResult<RefreshDownloadLinksQueriesDownloadRefreshGetResponses, RefreshDownloadLinksQueriesDownloadRefreshGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'query_id' }] }]);
+        return (options?.client ?? client).get<RefreshDownloadLinksQueriesDownloadRefreshGetResponses, RefreshDownloadLinksQueriesDownloadRefreshGetErrors, ThrowOnError>({
+            url: '/queries/download/refresh',
+            ...options,
+            ...params
         });
     }
 }

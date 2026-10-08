@@ -24,8 +24,13 @@ _data_root = Path(tempfile.mkdtemp(prefix="academic-apis-tests-"))
 os.environ["AAI_CONF_FILE"] = os.devnull
 os.environ["AAI_DATA_ROOT"] = str(_data_root)
 os.environ["AAI_DB_FILE"] = str(_data_root / "academic_apis_tests.db")
-os.environ["AAI_DB_VERBOSE"] = "false"
 os.environ["AAI_SECRET_KEY"] = "test-secret-key-long-enough-for-hs256"
+# The Azure storage settings are required, but the tests never talk to Azure.
+os.environ["AAI_AZURE_STORAGE_CONNECTION_STRING"] = (
+    "DefaultEndpointsProtocol=https;AccountName=fake;AccountKey=fake;EndpointSuffix=core.windows.net"
+)
+os.environ["AAI_AZURE_STORAGE_ACCOUNT_NAME"] = "fake"
+os.environ["AAI_AZURE_STORAGE_ACCOUNT_KEY"] = "fake"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
