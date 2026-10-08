@@ -13,6 +13,7 @@ import asyncio
 import os
 import tempfile
 from collections.abc import Callable, Coroutine, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -41,11 +42,16 @@ from academic_apis.api.utils.auth import hash_password  # noqa: E402
 from academic_apis.db import (  # noqa: E402
     AccessToken,
     Mode,
+    Query,
+    Task,
     User,
     db_session,
     make_engine,
 )
-from academic_apis.db.schemas import UserTokenPermission  # noqa: E402
+from academic_apis.db.schemas import (  # noqa: E402
+    UserQueryPermission,
+    UserTokenPermission,
+)
 from academic_apis.utils.types import Wrapper  # noqa: E402
 
 DEFAULT_PASSWORD = "not-so-secret-password"
@@ -122,7 +128,8 @@ def make_token() -> Callable[..., str]:
 
     ``owner`` makes that user the owner of the token, ``users`` takes ``(user,
     is_owner)`` pairs; both create ``UserTokenPermission`` rows. ``token_id`` allows
-    storing a token with a predictable ID.
+    storing a token with a predictable ID. ``last_used`` and ``locked_until`` are
+    stored as given (aware UTC timestamps, as the application writes them).
     """
 
     def factory(
@@ -135,6 +142,8 @@ def make_token() -> Callable[..., str]:
         owner: User | None = None,
         users: Sequence[tuple[User, bool]] = (),
         token_id: str | None = None,
+        last_used: datetime | None = None,
+        locked_until: datetime | None = None,
     ) -> str:
         async def create() -> str:
             async with db_session(mode=Mode.WRITE) as session:
@@ -144,6 +153,8 @@ def make_token() -> Callable[..., str]:
                     comment=comment,
                     is_active=is_active,
                     proxy=proxy,
+                    last_used=last_used,
+                    locked_until=locked_until,
                 )
                 if token_id is not None:
                     new_token.token_id = token_id
@@ -163,6 +174,90 @@ def make_token() -> Callable[..., str]:
                 session.commit()
                 session.refresh(new_token)
                 return str(new_token.token_id)
+
+        return _run(create())
+
+    return factory
+
+
+@pytest.fixture
+def make_query() -> Callable[..., int]:
+    """
+    Factory that stores a :class:`~academic_apis.db.Query` and returns its ID.
+
+    ``owner`` makes that user the owner of the query, ``users`` takes ``(user,
+    is_owner)`` pairs; both create ``UserQueryPermission`` rows. ``created_at``
+    controls the timestamp that ``GET /queries/`` orders by.
+    """
+
+    def factory(
+        *,
+        query: str = 'TITLE-ABS-KEY("climate change")',
+        wrapper: Wrapper = Wrapper.SCOPUS,
+        params: dict[str, Any] | None = None,
+        owner: User | None = None,
+        users: Sequence[tuple[User, bool]] = (),
+        created_at: datetime | None = None,
+    ) -> int:
+        async def create() -> int:
+            async with db_session(mode=Mode.WRITE) as session:
+                new_query = Query(
+                    query=query,
+                    wrapper=wrapper,
+                    created_at=created_at or datetime.now(tz=UTC).replace(tzinfo=None),
+                )
+                if params is not None:
+                    new_query.params = params
+                session.add(new_query)
+                session.flush()
+                grants: list[tuple[User, bool]] = (
+                    [(owner, True)] if owner is not None else []
+                ) + list(users)
+                for user, is_owner in grants:
+                    session.add(
+                        UserQueryPermission(
+                            user_id=user.user_id,
+                            query_id=new_query.query_id,
+                            is_owner=is_owner,
+                        ),
+                    )
+                session.commit()
+                return int(new_query.query_id)
+
+        return _run(create())
+
+    return factory
+
+
+@pytest.fixture
+def make_task() -> Callable[..., str]:
+    """
+    Factory that stores a :class:`~academic_apis.db.Task` and returns its ID.
+
+    Only the columns the API itself touches matter here; the message blob is a
+    placeholder for the serialised taskiq message.
+    """
+
+    def factory(
+        *,
+        query_id: int,
+        subquery: str = "TITLE-ABS-KEY(sub)",
+        task_id: str | None = None,
+    ) -> str:
+        async def create() -> str:
+            async with db_session(mode=Mode.WRITE) as session:
+                task = Task(
+                    query_id=query_id,
+                    subquery=subquery,
+                    task_name="academic_apis.broker.tasks:retrieve_query",
+                    queue_name="retrieve_query",
+                    message=b"pickled-message",
+                )
+                if task_id is not None:
+                    task.task_id = task_id
+                session.add(task)
+                session.commit()
+                return str(task.task_id)
 
         return _run(create())
 
@@ -217,6 +312,74 @@ def stored_permissions() -> Callable[..., list[tuple[str, str, bool]]]:
     return factory
 
 
+@pytest.fixture
+def stored_query() -> Callable[[int], dict[str, Any]]:
+    """Read a query straight from the database (an empty dict if it is gone)."""
+
+    def factory(query_id: int) -> dict[str, Any]:
+        async def read() -> dict[str, Any]:
+            async with db_session() as session:
+                query = session.get(Query, query_id)
+                if query is None:
+                    return {}
+                return {
+                    "query_id": query.query_id,
+                    "query": query.query,
+                    "wrapper": query.wrapper,
+                    "params": query.params,
+                    "azure_link": (
+                        query.azure_link.model_dump() if query.azure_link else None
+                    ),
+                }
+
+        return _run(read())
+
+    return factory
+
+
+@pytest.fixture
+def stored_task_ids() -> Callable[[int], list[str]]:
+    """IDs of the tasks stored for one query."""
+
+    def factory(query_id: int) -> list[str]:
+        async def read() -> list[str]:
+            async with db_session() as session:
+                return [
+                    str(task.task_id)
+                    for task in session.exec(
+                        select(Task).where(Task.query_id == query_id),
+                    ).all()
+                ]
+
+        return _run(read())
+
+    return factory
+
+
+@pytest.fixture
+def stored_query_permissions() -> Callable[..., list[tuple[str, int, bool]]]:
+    """Read ``UserQueryPermission`` rows, optionally filtered by user and/or query."""
+
+    def factory(
+        *, user_id: str | None = None, query_id: int | None = None
+    ) -> list[tuple[str, int, bool]]:
+        async def read() -> list[tuple[str, int, bool]]:
+            async with db_session() as session:
+                stmt = select(UserQueryPermission)
+                if user_id is not None:
+                    stmt = stmt.where(UserQueryPermission.user_id == user_id)
+                if query_id is not None:
+                    stmt = stmt.where(UserQueryPermission.query_id == query_id)
+                return [
+                    (permission.user_id, permission.query_id, permission.is_owner)
+                    for permission in session.exec(stmt).all()
+                ]
+
+        return _run(read())
+
+    return factory
+
+
 # Users that are used by most tests. They only exist to keep the tests short; tests
 # that need a different constellation use `make_user` and `make_token` directly.
 
@@ -255,3 +418,9 @@ def inactive_user(make_user: Callable[..., User]) -> User:
 def owned_token(make_token: Callable[..., str], normal_user: User) -> str:
     """A token that `normal_user` owns; the only token in such tests."""
     return make_token(owner=normal_user, comment="token owned by normal_user")
+
+
+@pytest.fixture
+def owned_query(make_query: Callable[..., int], normal_user: User) -> int:
+    """A query that `normal_user` owns; the only query in such tests."""
+    return make_query(query='TITLE-ABS-KEY("owned by normal_user")', owner=normal_user)
