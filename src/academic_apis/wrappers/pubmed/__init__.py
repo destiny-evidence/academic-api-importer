@@ -15,8 +15,8 @@ from nacsos_data.models.items.academic import (
 
 from academic_apis.utils import Wrapper, as_uuid, clear_empty
 
-from ._abc import AbstractWrapper
-from ._client import RequestClient
+from academic_apis.wrappers._abc import AbstractWrapper
+from academic_apis.wrappers._client import RequestClient
 
 if TYPE_CHECKING:
     from collections.abc import Generator
