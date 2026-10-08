@@ -18,12 +18,12 @@ async def get_available_token(query_id: int, wrapper: Wrapper) -> AccessToken:
             # tokens are available for a query if one of their owners may access it
             .join(
                 UserQueryPermission,
-                onclause=col(UserQueryPermission.user_id)
-                == UserTokenPermission.user_id,
+                UserQueryPermission.user_id == UserTokenPermission.user_id,
             )
             .where(
                 AccessToken.wrapper == wrapper,
                 UserQueryPermission.query_id == query_id,
+                UserQueryPermission.is_owner.is_(True),
                 col(AccessToken.is_active).is_(True),
                 or_(
                     col(AccessToken.locked_until).is_(None),
