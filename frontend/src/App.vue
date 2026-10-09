@@ -23,7 +23,9 @@ const requestInProgress = computed(() => activity.isBusy);
 // built from bootstrap-vue-next components because the Bootstrap JS bundle,
 // which normally drives them, is not loaded.
 const menuOpen = ref(false);
-const queriesActive = computed(() => route.matched.some(({ name }) => name === 'queries'));
+const queriesActive = computed(
+  () => route.name !== 'query-list' && route.matched.some(({ name }) => name === 'queries'),
+);
 
 // Close the collapsed menu after navigating, mirroring the Bootstrap navbar's
 // default behavior (which relies on the JS bundle we do not load).
@@ -62,22 +64,23 @@ watch(
 
       <BCollapse id="app-nav-menu" v-model="menuOpen" is-nav>
         <div class="navbar-nav me-auto">
-          <BDropdown
-            is-nav
-            text="Queries"
-            variant="link"
-            wrapper-class="nav-item"
-            :class="{ 'queries-active': queriesActive }">
-            <BDropdownItem :to="{ name: 'query-list' }">List queries</BDropdownItem>
-            <BDropdownItem :to="{ name: 'query-utils' }">Query utils</BDropdownItem>
-            <BDropdownItem :to="{ name: 'query-submit' }">Submit query</BDropdownItem>
-          </BDropdown>
+          <RouterLink class="nav-link" :to="{ name: 'query-list' }">Queries</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'tasks' }">Tasks</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'tokens' }">Tokens</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'profile' }">Profile</RouterLink>
           <RouterLink v-if="session.user?.permission_admin" class="nav-link" :to="{ name: 'users' }"
-            >Users</RouterLink
-          >
+            >Users
+          </RouterLink>
+
+          <BDropdown
+            is-nav
+            text="Advanced"
+            variant="link"
+            wrapper-class="nav-item"
+            :class="{ 'queries-active': queriesActive }">
+            <BDropdownItem :to="{ name: 'query-utils' }">Query utils</BDropdownItem>
+            <BDropdownItem :to="{ name: 'query-submit' }">Submit query</BDropdownItem>
+          </BDropdown>
         </div>
 
         <div class="d-flex align-items-lg-center gap-2 mt-2 mt-lg-0">

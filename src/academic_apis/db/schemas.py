@@ -92,7 +92,7 @@ class TaskPublic(SQLModel):
     status: TaskState | None = None
     progress: dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column("progress", JSON, nullable=True),
+        sa_column=Column("progress", JSON, nullable=False),
     )
     execution_time: float | None = None
     created_at: datetime = Field(
@@ -113,7 +113,7 @@ class Task(TaskPublic, table=True):
     message: bytes
     labels: dict[str, Any] = Field(
         default_factory=dict,
-        sa_column=Column("labels", JSON, nullable=True),
+        sa_column=Column("labels", JSON, nullable=False),
     )
 
 

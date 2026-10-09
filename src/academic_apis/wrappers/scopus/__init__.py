@@ -12,7 +12,7 @@ from nacsos_data.util import get
 from sqlmodel import col
 
 from academic_apis.db import AccessToken, db_session
-from academic_apis.utils import Wrapper, as_int, drop_whitespaces
+from academic_apis.utils import Wrapper, as_int, drop_whitespaces, settings
 from academic_apis.wrappers._abc import AbstractWrapper, OnLoopInfo
 from academic_apis.wrappers._client import RequestClient
 
@@ -52,7 +52,7 @@ class ScopusWrapper(AbstractWrapper):
             locked_until: dt.datetime | None = None
             if (
                 as_int(self.api_feedback.get("scopus_requests_remaining"), default=0)
-                < self.page_max
+                < (settings.scopus_page_size or self.page_max)
                 or self.api_feedback.get("scopus_requests_exceeded") == "QUOTA_EXCEEDED"
             ):
                 timestamp: str | int | None = self.api_feedback.get(
@@ -115,7 +115,7 @@ class ScopusWrapper(AbstractWrapper):
             on_response=self.on_response,
         ) as request_client:
             next_cursor: str | None = "*"
-            n_pages = 0
+            n_pages = 1
             n_records = 0
             while True:
                 self.logger.info(f"Fetching page {n_pages}...")
@@ -126,7 +126,7 @@ class ScopusWrapper(AbstractWrapper):
                         "cursor": next_cursor,
                         # https://dev.elsevier.com/sc_search_views.html
                         "view": "COMPLETE",
-                        "count": self.page_max,
+                        "count": (settings.scopus_page_size or self.page_max),
                     }
                     | (params or {}),
                     headers={
@@ -138,7 +138,6 @@ class ScopusWrapper(AbstractWrapper):
                     },
                 )
 
-                n_pages += 1
                 data = page.json()
 
                 next_cursor = get(
@@ -167,9 +166,16 @@ class ScopusWrapper(AbstractWrapper):
                     or self.n_results is None
                     or self.n_results == 0
                 ):
+                    self.logger.info(
+                        "Response had no additional results, assuming to be done!"
+                    )
                     break
 
                 if len(entries) == 1 and entries[0].get("error") is not None:
+                    self.logger.error(
+                        "Had only one result entry which had an error code!"
+                    )
+                    self.logger.error(f"Error from response: {entries[0].get('error')}")
                     break
 
                 for entry in entries:
@@ -189,6 +195,7 @@ class ScopusWrapper(AbstractWrapper):
                 self.logger.debug(
                     f"Found {n_records}/{self.n_results} records after processing page {n_pages} {self.api_feedback}",
                 )
+                n_pages += 1
 
     @classmethod
     def translate_record_nacsos(

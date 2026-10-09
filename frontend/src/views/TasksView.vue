@@ -66,6 +66,15 @@ function hasProgress(task: TaskPublic): boolean {
   return Object.keys(task.progress ?? {}).length > 0;
 }
 
+/** "n_retrieved / n_results" cell; both counts live in the raw progress payload. */
+function progressCounts(task: TaskPublic): string {
+  const count = (key: string) => {
+    const value = task.progress?.[key];
+    return typeof value === 'number' || typeof value === 'string' ? value : null;
+  };
+  return `${formatNumber(count('n_retrieved'), 0)} / ${formatNumber(count('n_results'), 0)}`;
+}
+
 function loadProgress() {
   if (!selectedQueryId.value) {
     progress.value = [];
@@ -179,6 +188,7 @@ function changePage(delta: number) {
             <th scope="col">Subquery</th>
             <th scope="col" class="text-end">Retries</th>
             <th scope="col">Status</th>
+            <th scope="col" class="text-end">Retrieved / Target</th>
             <th scope="col" class="text-end">Execution time</th>
             <th scope="col">Dates</th>
             <th scope="col" class="text-end">Progress</th>
@@ -186,10 +196,10 @@ function changePage(delta: number) {
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="8" class="text-body-secondary">Loading tasks…</td>
+            <td colspan="9" class="text-body-secondary">Loading tasks…</td>
           </tr>
           <tr v-else-if="!tasks.length">
-            <td colspan="8" class="text-body-secondary">No tasks found.</td>
+            <td colspan="9" class="text-body-secondary">No tasks found.</td>
           </tr>
           <template v-else>
             <template v-for="task in tasks" :key="task.task_id">
@@ -205,6 +215,7 @@ function changePage(delta: number) {
                     {{ task.status ?? '—' }}
                   </span>
                 </td>
+                <td class="text-end text-nowrap">{{ progressCounts(task) }}</td>
                 <td class="text-end text-nowrap">
                   {{ formatNumber(task.execution_time, 2) }}&thinsp;s
                 </td>
@@ -239,7 +250,7 @@ function changePage(delta: number) {
                 </td>
               </tr>
               <tr v-if="hasProgress(task) && showTaskProgressField[task.task_id!]">
-                <td colspan="8">
+                <td colspan="9">
                   <pre class="task-progress bg-light p-3 border rounded mb-0">{{
                     task.progress
                   }}</pre>

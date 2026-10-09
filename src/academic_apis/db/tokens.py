@@ -7,7 +7,7 @@ from academic_apis.db.schemas import UserQueryPermission, UserTokenPermission
 from academic_apis.utils.types import Wrapper
 
 
-async def get_available_token(query_id: int, wrapper: Wrapper) -> AccessToken:
+async def get_available_token(query_id: int, wrapper: Wrapper) -> AccessToken | None:
     async with db_session() as session:
         token = session.exec(
             select(AccessToken)
@@ -32,12 +32,15 @@ async def get_available_token(query_id: int, wrapper: Wrapper) -> AccessToken:
             )
             .order_by(col(AccessToken.last_used))
             .limit(1)
-        ).one()
-        session.expunge(token)
+        ).one_or_none()
+        if token:
+            session.expunge(token)
     return token
 
 
-async def get_available_token_for_user(user_id: str, wrapper: Wrapper) -> AccessToken:
+async def get_available_token_for_user(
+    user_id: str, wrapper: Wrapper
+) -> AccessToken | None:
     async with db_session() as session:
         token = session.exec(
             select(AccessToken)
@@ -56,6 +59,7 @@ async def get_available_token_for_user(user_id: str, wrapper: Wrapper) -> Access
             )
             .order_by(col(AccessToken.last_used))
             .limit(1)
-        ).one()
-        session.expunge(token)
+        ).one_or_none()
+        if token:
+            session.expunge(token)
     return token

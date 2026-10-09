@@ -148,11 +148,18 @@ function save(user: UserUpdate) {
         <div class="d-flex flex-wrap align-items-center gap-2">
           {{ user.full_name }} (<code>{{ user.user_id }}</code
           >)
-          <BFormCheckbox v-model="user.is_active" switch>Active</BFormCheckbox>
+          <BFormCheckbox v-model="user.is_active" :value="true" :unchecked-value="false" switch
+            >Active</BFormCheckbox
+          >
           <BFormCheckbox v-model="user.permission_submit_query" switch>
             Query permission
           </BFormCheckbox>
-          <BFormCheckbox v-model="user.permission_admin" switch class="me-auto">
+          <BFormCheckbox
+            v-model="user.permission_admin"
+            switch
+            class="me-auto"
+            :value="true"
+            :unchecked-value="false">
             Admin permission</BFormCheckbox
           >
 

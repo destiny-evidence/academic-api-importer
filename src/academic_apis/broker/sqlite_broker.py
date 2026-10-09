@@ -65,13 +65,18 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
         """
         async with db_session() as session:
             task = session.exec(select(Task).where(Task.task_id == task_id)).one()
-            broker_logger.info(f"Found task: {task}")
+            broker_logger.info(
+                f"Found task: {task.model_dump(exclude={'subquery', 'message'})}"
+            )
             result_file = self.result_file(task_id=task_id, query_id=task.query_id)
             log_file = self.log_file(task_id=task_id, query_id=task.query_id)
             exc_file = self.err_file(task_id=task_id, query_id=task.query_id)
 
             task.execution_time = result.execution_time
             task.labels = (task.labels | {}) | (result.labels | {})
+            task.labels.pop("_capture_state", None)
+            task.labels.pop("_log_file_state", None)
+
             if result.is_err:
                 task.num_retries += 1
                 if task.num_retries > settings.max_retries:
@@ -268,15 +273,18 @@ class SQLiteBroker(AsyncBroker):
                             ),
                         )
                         .order_by(func.coalesce(Task.latest_try, Task.created_at))
-                    ).first()
-                    self.logger.debug(f"Checked queue, next task: {next_task}")
+                        .limit(1)
+                    ).one_or_none()
                     if next_task:
                         next_task.status = TaskState.STARTED
                         next_task.latest_try = dt.datetime.now(tz=dt.UTC)
                         session.commit()
-                        self.logger.debug(f"Next task by broker: {next_task}")
                         session.refresh(next_task)
+                        self.logger.debug(
+                            f"Next task by broker: {next_task.model_dump_json(exclude={'message', 'subquery'})}"
+                        )
                         # session.expunge(next_task)
+
                 if next_task and next_task.message:
                     yield next_task.message
                 else:
@@ -287,6 +295,7 @@ class SQLiteBroker(AsyncBroker):
             except ConnectionError as exc:
                 self.logger.warning(f"Connection error: {exc}")
                 continue
+
             await asyncio.sleep(self.listen_loop_timeout)
 
     async def wait_all(self) -> None:

@@ -9,6 +9,14 @@
         "access": {
             "format": "%(asctime)s [%(levelname)s] %(name)s (%(process)d): %(message)s",
             "datefmt": "%Y-%m-%d %H:%M:%S"
+        },
+        "task": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s [%(task_id)s | %(task_name)s]: %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+            "defaults": {
+                "task_id": "-",
+                "task_name": "-"
+            }
         }
     },
     "handlers": {
@@ -28,6 +36,11 @@
         "handlers": ["console"]
     },
     "loggers": {
+        "academic_apis.task": {
+            "level": "DEBUG",
+            "handlers": [],
+            "propagate": false
+        },
         "uvicorn": {
             "level": "INFO",
             "handlers": ["access"],

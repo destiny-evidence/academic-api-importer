@@ -6,7 +6,7 @@ from taskiq import SimpleRetryMiddleware, TaskiqEvents
 
 from academic_apis.utils import init_logging, settings
 
-from .middleware_log import OutputCaptureMiddleware
+from .middleware_log import TaskLogFileMiddleware
 from .sqlite_broker import OnDiskResultBackend, SQLiteBroker
 
 app = typer.Typer()
@@ -21,7 +21,7 @@ broker = (
     )
     .with_middlewares(SimpleRetryMiddleware(default_retry_count=5))
     .with_result_backend(results)
-    .with_middlewares(OutputCaptureMiddleware())
+    .with_middlewares(TaskLogFileMiddleware())
 )
 
 

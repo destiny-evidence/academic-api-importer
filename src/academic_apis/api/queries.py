@@ -46,6 +46,11 @@ async def test_query(
     token = await get_available_token_for_user(
         user_id=current_user.user_id, wrapper=query.wrapper
     )
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You do not have access to any active auth token.",
+        )
 
     api = API(
         logger=logger,
@@ -207,6 +212,26 @@ async def submit_query(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have the permission to submit queries.",
         )
+    if len(query.query) < 3:  # noqa: PLR2004
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Query too short!"
+        )
+
+    if query.wrapper not in WRAPPERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Wrapper {query.wrapper} not implemented yet!",
+        )
+
+    token = await get_available_token_for_user(
+        user_id=current_user.user_id,
+        wrapper=query.wrapper,
+    )
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You do not have access to any active auth token.",
+        )
 
     async with db_session(mode=Mode.WRITE) as session:  # type: Session
         query_orm = Query(
@@ -226,6 +251,7 @@ async def submit_query(
             )
         )
         session.commit()
+        session.refresh(query_orm)
 
     background_tasks.add_task(
         _queue_subqueries,

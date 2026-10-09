@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 DEFAULT_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s (%(process)d): %(message)s"
+DEFAULT_TASK_LOGGER_NAME = "academic_apis.task"
 
 # Third-party loggers that are too chatty at the default level; used when the
 # config file cannot be found (the file itself configures them as well).

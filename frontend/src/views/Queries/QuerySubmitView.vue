@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { BButton, BFormCheckbox, BFormInput } from 'bootstrap-vue-next/components';
+import { BFormCheckbox, BFormInput } from 'bootstrap-vue-next/components';
 import { BIconPlay } from 'bootstrap-icons-vue';
-
 import CodeTextarea from '@/components/CodeTextarea.vue';
 import { Queries, type QueryInfo } from '@/plugins/api/spec';
 import { toastReject } from '@/plugins/api';
 import { useSessionStore } from '@/stores/store-session';
+import TwoStageButton from '@/components/TwoStageButton.vue';
 
 const submitted = ref<boolean>(false);
 const session = useSessionStore();
@@ -88,13 +88,21 @@ function submitQuery() {
       <div class="row g-3">
         <div class="col-md-3 d-flex flex-column align-items-baseline">
           <div class="d-flex align-items-end mt-auto">
-            <BFormCheckbox v-model="settings.use_py_filter" switch>
+            <BFormCheckbox
+              v-model="settings.use_py_filter"
+              switch
+              :value="true"
+              :unchecked-value="false">
               Generate PY subqueries
             </BFormCheckbox>
           </div>
 
           <div class="d-flex align-items-end">
-            <BFormCheckbox v-model="settings.use_firstauth_filter" switch>
+            <BFormCheckbox
+              v-model="settings.use_firstauth_filter"
+              switch
+              :value="true"
+              :unchecked-value="false">
               Generate FIRSTAUTH subqueries
             </BFormCheckbox>
           </div>
@@ -149,14 +157,14 @@ function submitQuery() {
         </div>
       </div>
 
-      <BButton
+      <TwoStageButton
         variant="primary"
         :aria-disabled="submitted || !validSettings"
         :disabled="submitted || !validSettings"
-        @click="submitQuery()">
+        @accepted="submitQuery()">
         <BIconPlay />
         Submit
-      </BButton>
+      </TwoStageButton>
     </div>
     <div v-else>You do not have permissions to submit queries.</div>
   </section>

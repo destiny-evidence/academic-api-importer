@@ -27,7 +27,11 @@ and error loggers get a dedicated `access` handler/formatter (like the default o
 the process ID), so request lines such as `127.0.0.1 - "GET /health HTTP/1.1" 404` are
 formatted consistently with the rest of the logs instead of uvicorn's own `INFO:` style
 (this also replaces `fastapi dev`'s rich formatting; note that the reloader process,
-which starts before the app is imported, still logs in uvicorn's format). The
+which starts before the app is imported, still logs in uvicorn's format). The task output
+capture (`academic_apis.broker.middleware_log.OutputCaptureMiddleware`) uses a dedicated
+`task` handler/formatter (held by the otherwise unused `academic_apis.task_capture`
+logger) whose format adds the running task's `task_id` and `task_name` to every line of
+the per-task `.log` files. The
 `academic_apis` loggers follow the root level, which always comes from `AAI_LOGLEVEL`
 (default `DEBUG`). To see SQL statements, run with `AAI_DB_VERBOSE=true` (or set the
 `sqlalchemy.engine` logger to `INFO` in the config file); the engine never uses

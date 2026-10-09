@@ -96,6 +96,11 @@ class Config(BaseSettings):
         description="Maximum number of parallel uploads.",
     )
 
+    scopus_page_size: int | None = Field(
+        default=None,
+        description="Number of records to request per page. If not set, using API maximum.",
+    )
+
     OPENAPI_FILE: str = "/openapi.json"  # absolute URL path to openapi.json file
     # see https://fastapi.tiangolo.com/advanced/behind-a-proxy/
     OPENAPI_PREFIX: str = ""
@@ -105,6 +110,9 @@ class Config(BaseSettings):
         target = self.result_dir / str(query_id) / "responses"
         target.mkdir(parents=True, exist_ok=True)
         return target
+
+    def task_log(self, query_id: int, task_id: str) -> Path:
+        return self.responses_dir(query_id) / f"{task_id}.log"
 
     def converted_dir(self, query_id: int) -> Path:
         target = self.result_dir / str(query_id) / "converted"
