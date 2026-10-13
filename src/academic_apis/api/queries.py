@@ -266,6 +266,100 @@ async def submit_query(
     return query_id
 
 
+async def _queue_tasks(query_id: int, tasks: list[QueryInfo]) -> None:
+    from academic_apis.broker.tasks import retrieve_query
+
+    background_logger.info(f"Queueing {len(tasks):,} tasks for query_id={query_id}...")
+
+    n_tasks = 0
+    for task in tasks:
+        background_logger.debug(f"Task query: {task.query[-200:]}")
+        await retrieve_query.kiq(
+            query=task.query, wrapper=task.wrapper, query_id=query_id
+        )  # type: ignore[call-overload]
+        n_tasks += 1
+
+    background_logger.info(f"Queued {n_tasks:,} tasks for query_id={query_id}!")
+
+
+@route.post("/tasks")
+async def submit_tasks(
+    current_user: Annotated[User, Depends(get_current_user)],
+    queries: Annotated[list[QueryInfo], Body()],
+    background_tasks: BackgroundTasks,
+) -> int:
+    """
+    Submit a list of queries that are queued as tasks directly, i.e. without
+    generating subqueries first (see `submit_query`).
+
+    The first query is registered as the parent query the tasks belong to.
+
+    :param current_user:
+    :param queries: the queries to submit as tasks to the queue
+    :return: the query_id of the registered parent query
+    """
+    if not current_user.permission_submit_query or not current_user.permission_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have the permission to submit queries.",
+        )
+    if not queries:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No queries submitted!",
+        )
+    if any(len(q.query) < 3 for q in queries):  # noqa: PLR2004
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Query too short!"
+        )
+
+    wrapper = queries[0].wrapper
+    if any(q.wrapper != wrapper for q in queries):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="All queries must use the same wrapper!",
+        )
+    if wrapper not in WRAPPERS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Wrapper {wrapper} not implemented yet!",
+        )
+
+    token = await get_available_token_for_user(
+        user_id=current_user.user_id,
+        wrapper=wrapper,
+    )
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You do not have access to any active auth token.",
+        )
+
+    async with db_session(mode=Mode.WRITE) as session:  # type: Session
+        query_orm = Query(
+            query=queries[0].query,
+            wrapper=queries[0].wrapper,
+        )
+        session.add(query_orm)
+        session.flush()
+        session.refresh(query_orm)
+        query_id: int = cast("int", query_orm.query_id)
+        logger.info(f"Registered query as query_id={query_id}")
+        session.add(
+            UserQueryPermission(
+                user_id=current_user.user_id,
+                query_id=query_id,
+                is_owner=True,
+            )
+        )
+        session.commit()
+        session.refresh(query_orm)
+
+    background_tasks.add_task(_queue_tasks, query_id=query_id, tasks=queries)
+
+    return query_id
+
+
 @route.get("/")
 async def list_queries(
     current_user: Annotated[User, Depends(get_current_user)],

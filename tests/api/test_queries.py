@@ -10,6 +10,7 @@ The rules covered here:
 ``POST /queries/test``            401          with an API key    with an API key   with an API key
 ``POST /queries/render``          401          allowed            allowed           allowed
 ``POST /queries/``                401          403                403               allowed
+``POST /queries/tasks``           401          403                403               allowed
 ``GET /queries/``                 401          own queries only   own queries only  every query
 ``DELETE /queries/``              401          403                403               allowed
 ``DELETE /queries/logs``          401          403                allowed           allowed
@@ -73,6 +74,7 @@ ENDPOINTS: dict[str, tuple[str, str, Any]] = {
     "test": ("POST", "/queries/test", SCOPUS_BODY),
     "render": ("POST", "/queries/render", SCOPUS_BODY),
     "submit": ("POST", "/queries/", SCOPUS_BODY),
+    "submit-tasks": ("POST", "/queries/tasks", [SCOPUS_BODY]),
     "list": ("GET", "/queries/", None),
     "delete": ("DELETE", "/queries/?query_id=1", None),
     "delete-logs": ("DELETE", "/queries/logs?query_id=1", None),
@@ -978,6 +980,169 @@ class TestSubmitQuery:
         assert response.status_code == 422
         assert stored_query_permissions(user_id=admin_user.user_id) == []
         assert fake_queue.queued == []
+
+
+# --------------------------------------------------------------------------------------
+# POST /queries/tasks
+# --------------------------------------------------------------------------------------
+
+
+class TestSubmitTasks:
+    """``POST /queries/tasks`` - registering a query and queueing given queries as tasks."""
+
+    def test_an_admin_may_submit_tasks(
+        self,
+        client: TestClient,
+        admin_user: User,
+        make_token: Callable[..., str],
+        stored_query: Callable[[int], dict[str, Any]],
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        make_token(owner=admin_user, wrapper=Wrapper.SCOPUS)
+        response = client.post(
+            "/queries/tasks",
+            headers=auth_header(admin_user),
+            json=[
+                {"query": "TITLE-ABS-KEY(alpha)", "wrapper": "scopus"},
+                {"query": "TITLE-ABS-KEY(beta)", "wrapper": "scopus"},
+            ],
+        )
+        assert response.status_code == 200
+        query_id = response.json()
+        assert isinstance(query_id, int)
+        # the first submitted query becomes the registered parent query
+        stored = stored_query(query_id)
+        assert stored["query"] == "TITLE-ABS-KEY(alpha)"
+        assert stored["wrapper"] == Wrapper.SCOPUS
+        # the submitter automatically becomes the owner of the new query
+        assert stored_query_permissions(query_id=query_id) == [
+            permission(admin_user, query_id, True)
+        ]
+
+    def test_every_submitted_query_is_queued(
+        self,
+        client: TestClient,
+        admin_user: User,
+        make_token: Callable[..., str],
+        fake_queue: FakeQueue,
+    ) -> None:
+        make_token(owner=admin_user, wrapper=Wrapper.SCOPUS)
+        query_id = client.post(
+            "/queries/tasks",
+            headers=auth_header(admin_user),
+            json=[
+                {"query": "TITLE-ABS-KEY(alpha)", "wrapper": "scopus"},
+                {"query": "TITLE-ABS-KEY(beta)", "wrapper": "scopus"},
+            ],
+        ).json()
+        assert fake_queue.queued == [
+            {
+                "query": "TITLE-ABS-KEY(alpha)",
+                "wrapper": "scopus",
+                "query_id": query_id,
+            },
+            {"query": "TITLE-ABS-KEY(beta)", "wrapper": "scopus", "query_id": query_id},
+        ]
+
+    def test_a_plain_user_is_refused(
+        self,
+        client: TestClient,
+        normal_user: User,
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        response = client.post(
+            "/queries/tasks",
+            headers=auth_header(normal_user),
+            json=[{"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"}],
+        )
+        assert response.status_code == 403
+        assert response.json()["detail"] == (
+            "You do not have the permission to submit queries."
+        )
+        assert fake_queue.queued == []
+        assert stored_query_permissions(user_id=normal_user.user_id) == []
+
+    def test_an_empty_list_is_refused(
+        self,
+        client: TestClient,
+        admin_user: User,
+        make_token: Callable[..., str],
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        make_token(owner=admin_user, wrapper=Wrapper.SCOPUS)
+        response = client.post(
+            "/queries/tasks", headers=auth_header(admin_user), json=[]
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "No queries submitted!"
+        assert fake_queue.queued == []
+        assert stored_query_permissions(user_id=admin_user.user_id) == []
+
+    def test_a_short_query_is_refused(
+        self,
+        client: TestClient,
+        admin_user: User,
+        make_token: Callable[..., str],
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        make_token(owner=admin_user, wrapper=Wrapper.SCOPUS)
+        response = client.post(
+            "/queries/tasks",
+            headers=auth_header(admin_user),
+            json=[
+                {"query": "TITLE-ABS-KEY(alpha)", "wrapper": "scopus"},
+                {"query": "x", "wrapper": "scopus"},
+            ],
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Query too short!"
+        assert fake_queue.queued == []
+        assert stored_query_permissions(user_id=admin_user.user_id) == []
+
+    def test_mixed_wrappers_are_refused(
+        self,
+        client: TestClient,
+        admin_user: User,
+        make_token: Callable[..., str],
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        make_token(owner=admin_user, wrapper=Wrapper.SCOPUS)
+        make_token(owner=admin_user, wrapper=Wrapper.PUBMED)
+        response = client.post(
+            "/queries/tasks",
+            headers=auth_header(admin_user),
+            json=[
+                {"query": "TITLE-ABS-KEY(alpha)", "wrapper": "scopus"},
+                {"query": "TITLE-ABS-KEY(beta)", "wrapper": "pubmed"},
+            ],
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "All queries must use the same wrapper!"
+        assert fake_queue.queued == []
+        assert stored_query_permissions(user_id=admin_user.user_id) == []
+
+    def test_a_user_without_an_api_key_is_refused(
+        self,
+        client: TestClient,
+        admin_user: User,
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        response = client.post(
+            "/queries/tasks",
+            headers=auth_header(admin_user),
+            json=[{"query": "TITLE-ABS-KEY(alpha)", "wrapper": "scopus"}],
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "You do not have access to any active auth token."
+        )
+        assert fake_queue.queued == []
+        assert stored_query_permissions(user_id=admin_user.user_id) == []
 
 
 # --------------------------------------------------------------------------------------
