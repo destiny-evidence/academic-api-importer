@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import Integer
-from sqlmodel import cast, col, func, select
+from sqlmodel import case, cast, col, func, select
 from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.api.utils import require_query_permission
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 route = APIRouter()
 
-SUBQUERY_LENGTH = 50
+SUBQUERY_PREVIEW_LENGTH = 50
 
 
 @route.get("/")
@@ -41,7 +41,13 @@ async def list_tasks(
                 Task.task_id,
                 Task.status,
                 Task.query_id,
-                func.substr(Task.subquery, -SUBQUERY_LENGTH).label("subquery"),
+                case(
+                    (
+                        func.length(Task.subquery) > SUBQUERY_PREVIEW_LENGTH,
+                        func.concat("...", func.substr(Task.subquery, -SUBQUERY_PREVIEW_LENGTH)),
+                    ),
+                    else_=Task.subquery,
+                ).label("subquery"),
                 Task.num_retries,
                 Task.created_at,
                 Task.latest_try,
