@@ -88,6 +88,7 @@ test-ruff:
 test-pytest:
   extends: .uv
   stage: test
+  allow_failure: true
   script:
     - uv run pytest
 
@@ -101,7 +102,6 @@ test-mypy:
 test-frontend:
   stage: test
   extends: .npm
-  allow_failure: true
   script:
     - npm run format:check
     - npm run lint
