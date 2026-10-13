@@ -228,7 +228,20 @@ async def edit_permissions(
 
     :param permissions: List of permissions to create or update
     :param _current_admin:
+    :raises: Unprocessable content if an entry misses `user_id` or `token_id`
     """
+    # Both ids are primary keys, and SQLModel turns primary keys of table
+    # models into optional fields (defaulting to None), so FastAPI lets
+    # entries without them through. Merging such an incomplete permission
+    # would make SQLAlchemy insert a row without `token_id` (warning about a
+    # primary key that "typically may not store NULL") and abort with a 500.
+    for index, perm in enumerate(permissions):
+        if not (perm.user_id or "").strip() or not (perm.token_id or "").strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Fields 'user_id' and 'token_id' are required (entry {index})",
+            )
+
     async with db_session(mode=Mode.WRITE) as session:
         for perm in permissions:
             session.merge(perm)

@@ -1342,20 +1342,44 @@ class TestEditPermissions:
             ("ghost-user", "ghost-token", False)
         ]
 
-    def test_incomplete_permission_entries_are_not_validated(
+    def test_incomplete_permission_entries_are_rejected(
         self,
         client: TestClient,
         admin_user: User,
+        make_user: Callable[..., User],
+        make_token: Callable[..., str],
         stored_permissions: Callable[..., list[PermissionRow]],
     ) -> None:
-        """KNOWN BUG: a missing ``token_id`` fails in the database (500) not as 422."""
-        response = client.post(
-            "/tokens/permissions",
-            headers=auth_header(admin_user),
-            json=[{"user_id": admin_user.user_id}],
-        )
-        assert response.status_code == 500
+        """
+        An entry without ``user_id`` or ``token_id`` is answered as unprocessable.
+
+        Both fields are primary keys, and SQLModel makes primary keys of table
+        models optional, so FastAPI lets such an entry through. The endpoint has
+        to reject it itself: merging it would make SQLAlchemy insert a row whose
+        primary key value is missing (and warn about it), ending in a 500.
+        """
+        other = make_user(email="incomplete@example.org")
+        token_id = make_token()
+        bodies = [
+            {"user_id": admin_user.user_id},  # token_id omitted
+            {"token_id": token_id},  # user_id omitted
+            {"user_id": other.user_id, "token_id": "   "},  # blank token_id
+            {"user_id": "", "token_id": token_id},  # blank user_id
+        ]
+        for body in bodies:
+            response = client.post(
+                "/tokens/permissions",
+                headers=auth_header(admin_user),
+                json=[body],
+            )
+            assert response.status_code == 422, body
+            assert response.json()["detail"] == (
+                "Fields 'user_id' and 'token_id' are required (entry 0)"
+            )
+        # the endpoint stores the whole list or none of it
         assert stored_permissions(user_id=admin_user.user_id) == []
+        assert stored_permissions(user_id=other.user_id) == []
+        assert stored_permissions(token_id=token_id) == []
 
 
 # --------------------------------------------------------------------------------------
