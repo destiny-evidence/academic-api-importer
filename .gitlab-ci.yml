@@ -125,7 +125,7 @@ deploy-web-to-production:
     - se164-bare
   stage: deploy
   dependencies:
-    - build
+    - build-frontend
   script:
     - echo "Deploying to production"
     - ls -lisah
