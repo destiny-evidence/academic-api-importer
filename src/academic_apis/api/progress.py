@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 route = APIRouter()
 
 SUBQUERY_PREVIEW_LENGTH = 50
+ELLIPSIS = "..."
 
 
 @route.get("/")
@@ -45,7 +46,11 @@ async def list_tasks(
                     (
                         func.length(Task.subquery) > SUBQUERY_PREVIEW_LENGTH,
                         func.concat(
-                            "...", func.substr(Task.subquery, -SUBQUERY_PREVIEW_LENGTH)
+                            ELLIPSIS,
+                            func.substr(
+                                Task.subquery,
+                                -(SUBQUERY_PREVIEW_LENGTH - len(ELLIPSIS)),
+                            ),
                         ),
                     ),
                     else_=Task.subquery,

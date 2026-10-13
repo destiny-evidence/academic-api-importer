@@ -48,7 +48,7 @@ import pytest
 from fastapi.testclient import TestClient
 from taskiq.depends.progress_tracker import TaskState
 
-from academic_apis.api.progress import SUBQUERY_PREVIEW_LENGTH
+from academic_apis.api.progress import SUBQUERY_PREVIEW_LENGTH, ELLIPSIS
 from academic_apis.api.utils.auth import create_access_token
 from academic_apis.db import Mode, User, db_session
 from academic_apis.db.schemas import Query, Task, UserQueryPermission
@@ -553,11 +553,18 @@ class TestListTasks:
     @pytest.mark.parametrize(
         ("subquery", "expected"),
         [
-            pytest.param("short", "short", id="shorter-than-50"),
-            pytest.param("x" * 50, "x" * 50, id="exactly-50"),
+            pytest.param("short", "short", id="shorter-than-limit"),
             pytest.param(
-                "head-" + "m" * 55 + "-tail",
-                ("head-" + "m" * 55 + "-tail")[-50:],
+                "x" * SUBQUERY_PREVIEW_LENGTH,
+                "x" * SUBQUERY_PREVIEW_LENGTH,
+                id="exactly-limit",
+            ),
+            pytest.param(
+                "head-" + "m" * (SUBQUERY_PREVIEW_LENGTH + 5) + "-tail",
+                ELLIPSIS
+                + ("head-" + "m" * (SUBQUERY_PREVIEW_LENGTH + 5) + "-tail")[
+                    -(SUBQUERY_PREVIEW_LENGTH - len("...")) :
+                ],
                 id="longer-keeps-the-tail",
             ),
         ],
