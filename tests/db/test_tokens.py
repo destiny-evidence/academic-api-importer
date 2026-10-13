@@ -2,8 +2,7 @@
 Tests for ``academic_apis.db.tokens``: which stored API key the helpers hand out.
 
 Both helpers return the *least recently used* of the qualifying tokens (a token that
-was never used counts as used longest ago) and raise ``NoResultFound`` when none
-qualifies:
+was never used counts as used longest ago) and return ``None`` when none qualifies:
 
 =============================  =========================  =============================
 condition                      ``get_available_token``    ``get_available_token_for_user``
@@ -21,12 +20,12 @@ user's own activity is not looked at anywhere.
 - get_available_token(query_id, wrapper) (12 tests)
     - returns the token when the same user owns the query and holds any token permission (owned or shared); fields stay readable after the session closes (detached via expunge)
     - filters out: query permission without is_owner, token access without query ownership, permissions split across different users, requests for a query the token holder can't run
-    - parametrized negatives: inactive, still-locked (locked_until in the future), and wrong-wrapper tokens → NoResultFound
+    - parametrized negatives: inactive, still-locked (locked_until in the future), and wrong-wrapper tokens → ``None``
     - expired lock → usable again
     - selection: least recently used first; last_used IS NULL wins; lock filtering happens before ordering
-    - same token reachable through two qualifying users returns once (join duplicates don't break .one())
+    - same token reachable through two qualifying users returns once (join duplicates don't break ``one_or_none()``)
 - get_available_token_for_user(user_id, wrapper) (10 tests)
-    - owned and shared tokens returned; no permission, unknown user, inactive/locked/wrong-wrapper → NoResultFound
+    - owned and shared tokens returned; no permission, unknown user, inactive/locked/wrong-wrapper → ``None``
     - same ordering and lock semantics, plus: an inactive user still gets their token (the query never checks users.is_active)
 """
 
@@ -37,7 +36,6 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 import pytest
-from sqlalchemy.exc import NoResultFound
 
 from academic_apis.db.tokens import get_available_token, get_available_token_for_user
 from academic_apis.utils.types import Wrapper
@@ -119,8 +117,8 @@ class TestGetAvailableToken:
         user = make_user(email="reader@example.org")
         make_token(owner=user)
         query_id = make_query(users=[(user, False)])
-        with pytest.raises(NoResultFound):
-            run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is None
 
     def test_token_access_without_query_ownership_is_not_enough(
         self,
@@ -133,8 +131,8 @@ class TestGetAvailableToken:
         outsider = make_user(email="outsider@example.org")
         make_token(owner=token_holder)
         query_id = make_query(owner=outsider)
-        with pytest.raises(NoResultFound):
-            run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is None
 
     def test_grants_to_different_users_do_not_combine(
         self,
@@ -147,8 +145,8 @@ class TestGetAvailableToken:
         token_owner = make_user(email="token-owner@example.org")
         make_token(owner=token_owner)
         query_id = make_query(owner=query_owner)
-        with pytest.raises(NoResultFound):
-            run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is None
 
     @UNUSABLE_CASES
     def test_unusable_tokens_leave_no_result(
@@ -162,8 +160,8 @@ class TestGetAvailableToken:
         user = make_user(email="blocked@example.org")
         make_token(owner=user, **token_kwargs)
         query_id = make_query(owner=user)
-        with pytest.raises(NoResultFound):
-            run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is None
 
     def test_a_token_with_an_expired_lock_is_returned(
         self,
@@ -249,8 +247,10 @@ class TestGetAvailableToken:
         make_query(owner=user)  # the query this token may be used for
         stranger = make_user(email="stranger@example.org")
         stranger_query_id = make_query(query="TITLE-ABS-KEY(stranger)", owner=stranger)
-        with pytest.raises(NoResultFound):
-            run(get_available_token(query_id=stranger_query_id, wrapper=Wrapper.SCOPUS))
+        token = run(
+            get_available_token(query_id=stranger_query_id, wrapper=Wrapper.SCOPUS)
+        )
+        assert token is None
 
 
 # --------------------------------------------------------------------------------------
@@ -298,12 +298,12 @@ class TestGetAvailableTokenForUser:
         """Without a permission row, the token is invisible to the user."""
         make_token(owner=make_user(email="someone-else@example.org"))
         outsider = make_user(email="outsider@example.org")
-        with pytest.raises(NoResultFound):
-            run(
-                get_available_token_for_user(
-                    user_id=outsider.user_id, wrapper=Wrapper.SCOPUS
-                )
+        token = run(
+            get_available_token_for_user(
+                user_id=outsider.user_id, wrapper=Wrapper.SCOPUS
             )
+        )
+        assert token is None
 
     def test_an_unknown_user_leaves_no_result(
         self,
@@ -312,12 +312,10 @@ class TestGetAvailableTokenForUser:
     ) -> None:
         """A user ID missing from the database simply has no available token."""
         make_token(owner=make_user(email="someone-else@example.org"))
-        with pytest.raises(NoResultFound):
-            run(
-                get_available_token_for_user(
-                    user_id="ghost-user", wrapper=Wrapper.SCOPUS
-                )
-            )
+        token = run(
+            get_available_token_for_user(user_id="ghost-user", wrapper=Wrapper.SCOPUS)
+        )
+        assert token is None
 
     @UNUSABLE_CASES
     def test_unusable_tokens_leave_no_result(
@@ -329,12 +327,10 @@ class TestGetAvailableTokenForUser:
         """Inactive, still locked, and foreign-wrapper tokens are filtered out."""
         user = make_user(email="blocked@example.org")
         make_token(owner=user, **token_kwargs)
-        with pytest.raises(NoResultFound):
-            run(
-                get_available_token_for_user(
-                    user_id=user.user_id, wrapper=Wrapper.SCOPUS
-                )
-            )
+        token = run(
+            get_available_token_for_user(user_id=user.user_id, wrapper=Wrapper.SCOPUS)
+        )
+        assert token is None
 
     def test_a_token_with_an_expired_lock_is_returned(
         self,

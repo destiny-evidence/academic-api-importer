@@ -48,7 +48,7 @@ import pytest
 from fastapi.testclient import TestClient
 from taskiq.depends.progress_tracker import TaskState
 
-from academic_apis.api.progress import SUBQUERY_PREVIEW_LENGTH, ELLIPSIS
+from academic_apis.api.progress import ELLIPSIS, SUBQUERY_PREVIEW_LENGTH
 from academic_apis.api.utils.auth import create_access_token
 from academic_apis.db import Mode, User, db_session
 from academic_apis.db.schemas import Query, Task, UserQueryPermission

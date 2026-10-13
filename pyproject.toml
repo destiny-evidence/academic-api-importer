@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-nacsos-data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.55" }
+nacsos-data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.58" }
 #nacsos-data = { git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.55" }
 
 [dependency-groups]
@@ -129,7 +129,7 @@ runtime-evaluated-base-classes = ["pydantic.BaseModel", "sqlmodel.SQLModel"]
 runtime-evaluated-decorators = ["pydantic.validate_call"]
 
 [tool.mypy]
-plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+plugins = ["pydantic.mypy"]
 strict = true
 follow_imports = "silent"
 check_untyped_defs = true
@@ -160,7 +160,7 @@ disallow_untyped_defs = true
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
-warn_untyped_fields = true
+#warn_untyped_fields = true
 
 [tool.tomlsort]
 all = true

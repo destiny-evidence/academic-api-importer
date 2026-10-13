@@ -375,12 +375,19 @@ async def upsert_permission(
     :return: all permissions stored for `permission.query_id` afterwards
     """
     async with db_session(mode=Mode.WRITE) as session:  # type: Session
-        if session.get(Query, permission.query_id) is None:
+        # Both body fields are primary keys, so SQLModel makes them optional and an
+        # incomplete body reaches this point. Handing a NULL primary key to `session.get`
+        # would make SQLAlchemy warn that such an "identity cannot load any object"; the
+        # lookup is skipped instead, which answers the very same 404.
+        if (
+            permission.query_id is None
+            or session.get(Query, permission.query_id) is None
+        ):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No query found with query_id={permission.query_id}",
             )
-        if session.get(User, permission.user_id) is None:
+        if permission.user_id is None or session.get(User, permission.user_id) is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No user found with user_id={permission.user_id}",

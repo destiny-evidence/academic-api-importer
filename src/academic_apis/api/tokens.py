@@ -75,7 +75,8 @@ async def add_token(
 
     async with db_session(mode=Mode.WRITE) as session:
         new_token = AccessToken(
-            wrapper=token.wrapper,
+            # the check above guarantees this is one of the enum's values
+            wrapper=Wrapper(token.wrapper),
             token=token.token,
             comment=token.comment,
             proxy=token.proxy,
@@ -130,13 +131,26 @@ async def update_token(
                 detail=f"No API token found with token_id={token.token_id}",
             )
 
+        # ``AccessToken`` is a table model, so ``wrapper`` arrives unvalidated. Reject
+        # anything the enum does not define before it can reach the row, and store the
+        # valid ones as real ``Wrapper`` members: leaving a plain string on an enum field
+        # would make the ``model_dump`` below warn while serialising it.
+        if "wrapper" in token.model_fields_set and token.wrapper is not None:
+            try:
+                token.wrapper = Wrapper(token.wrapper)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Field 'wrapper' must be one of: "
+                    + ", ".join(wrapper.value for wrapper in Wrapper),
+                ) from None
+
         updates: dict[str, Any] = token.model_dump(
             exclude_unset=True,
             exclude={"token_id"},
         )
 
-        # ``AccessToken`` is a table model, so ``wrapper`` arrives unvalidated.
-        # Reject anything the enum does not define before it can reach the row.
+        # An explicit ``"wrapper": null`` is unset-like input the enum does not allow.
         if "wrapper" in updates and updates["wrapper"] not in Wrapper:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
