@@ -424,6 +424,7 @@ export class Tokens {
      *
      * :param permissions: List of permissions to create or update
      * :param _current_admin:
+     * :raises: Unprocessable content if an entry misses `user_id` or `token_id`
      */
     public static editPermissionsTokensPermissionsPost<ThrowOnError extends boolean = true>(parameters: {
         authorization?: string | null;
