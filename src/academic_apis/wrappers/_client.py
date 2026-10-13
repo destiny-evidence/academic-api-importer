@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 
 class RequestClient(AsyncClient):
-    def __init__(  # type: ignore[no-untyped-def]
+    def __init__(
         self,
         *,
         max_req_per_sec: int = 5,
@@ -144,7 +144,7 @@ class RequestClient(AsyncClient):
 
                 await self.on_response(getattr(e, "response"))
 
-                if hasattr(e, "response") and e.response.status_code in self.callbacks:  # type: ignore[attr-defined]
+                if hasattr(e, "response") and e.response.status_code in self.callbacks:
                     self.logger.debug(
                         f"Found status handler for {e.response.status_code}"
                     )
@@ -174,7 +174,7 @@ class RequestClient(AsyncClient):
                     hasattr(e, "response")
                     and e.response.status_code not in self.retry_on_status
                     and len(self.retry_on_status) > 0
-                ):  # type: ignore[attr-defined]
+                ):
                     self.logger.warning("No handler found for error, raising.")
                     raise e
 

@@ -13,7 +13,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from academic_apis.utils.config import settings
 from academic_apis.utils.types import DictLikeEncoder, Mode
 
-from .schemas import AccessToken, Query, Task, Wrapper
+from .schemas import AccessToken, Query, Task, User, UserCreate, UserPublic, Wrapper
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -32,13 +32,16 @@ def make_engine() -> Engine:
         connect_args={"check_same_thread": False, "timeout": WRITE_LOCK_TIMEOUT},
         poolclass=NullPool,  # each connection is opened/closed per checkout; no long-lived pooled state per process
         json_serializer=lambda obj: json.dumps(obj, cls=DictLikeEncoder),
-        echo=settings.db_verbose,
+        # deliberately not settings-driven: echo=True bypasses configured log levels
+        # (logging.Logger._log) and adds its own stdout handler. SQL visibility is
+        # controlled by the `sqlalchemy.engine` logger in the logging config instead.
+        echo=False,
     )
 
     SQLModel.metadata.create_all(engine)
 
     @event.listens_for(engine, "connect")
-    def _set_pragmas(conn: Connection, _) -> None:
+    def _set_pragmas(conn: Connection, _record: object) -> None:
         cur = conn.cursor()
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute(f"PRAGMA busy_timeout={WRITE_LOCK_TIMEOUT * 1000}")
@@ -64,4 +67,14 @@ async def db_session(mode: Mode = Mode.READ) -> AsyncGenerator[Session]:
         await _write_lock.release(force=True)
 
 
-__all__ = ["AccessToken", "Mode", "Query", "Task", "Wrapper", "db_session"]
+__all__ = [
+    "AccessToken",
+    "Mode",
+    "Query",
+    "Task",
+    "User",
+    "UserCreate",
+    "UserPublic",
+    "Wrapper",
+    "db_session",
+]

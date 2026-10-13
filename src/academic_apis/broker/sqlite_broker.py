@@ -5,10 +5,10 @@ import datetime as dt
 import logging
 import pickle
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import orjson as json
-import sqlalchemy as sa
+from sqlmodel import col, func, or_, select, update
 from taskiq.abc.broker import AsyncBroker
 from taskiq.abc.result_backend import AsyncResultBackend, TaskiqResult
 from taskiq.depends.progress_tracker import TaskProgress, TaskState
@@ -22,10 +22,9 @@ from academic_apis.utils.types import Mode, Wrapper, assert_int, assert_str
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
 
-    from sqlmodel import Session  # noqa: F401
     from taskiq.message import BrokerMessage
 
-logger = logging.getLogger(__name__)
+broker_logger = logging.getLogger(__name__)
 
 _ReturnType = TypeVar("_ReturnType")
 _T = TypeVar("_T")
@@ -34,8 +33,8 @@ _T = TypeVar("_T")
 async def get_task(task_id: str) -> Task:
     async with db_session() as session:
         task: Task = session.exec(
-            sa.select(Task).where(Task.task_id == task_id),
-        ).scalar_one()
+            select(Task).where(Task.task_id == task_id),
+        ).one()
         session.expunge(task)
     return task
 
@@ -65,16 +64,19 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
         :param result: result of an execution.
         """
         async with db_session() as session:
-            task: Task = session.exec(
-                sa.select(Task).where(Task.task_id == task_id),
-            ).scalar_one()
-            logger.info(f"Found task: {task}")
+            task = session.exec(select(Task).where(Task.task_id == task_id)).one()
+            broker_logger.info(
+                f"Found task: {task.model_dump(exclude={'subquery', 'message'})}"
+            )
             result_file = self.result_file(task_id=task_id, query_id=task.query_id)
             log_file = self.log_file(task_id=task_id, query_id=task.query_id)
             exc_file = self.err_file(task_id=task_id, query_id=task.query_id)
 
             task.execution_time = result.execution_time
             task.labels = (task.labels | {}) | (result.labels | {})
+            task.labels.pop("_capture_state", None)
+            task.labels.pop("_log_file_state", None)
+
             if result.is_err:
                 task.num_retries += 1
                 if task.num_retries > settings.max_retries:
@@ -95,11 +97,9 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
                 with log_file.open("w") as log_fp:
                     log_fp.write(result.log)
             if result.return_value:
+                records = cast("list[dict[str, Any]]", result.return_value)
                 with result_file.open("wb") as result_fp:
-                    [
-                        result_fp.write(json.dumps(record) + b"\n")
-                        for record in result.return_value
-                    ]
+                    [result_fp.write(json.dumps(record) + b"\n") for record in records]
 
     async def is_result_ready(self, task_id: str) -> bool:
         """
@@ -158,7 +158,7 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
             execution_time=task.execution_time or -1.0,
             labels=task.labels,
             error=exc,
-            return_value=result,
+            return_value=cast("_ReturnType", result),
         )
 
     async def set_progress(
@@ -174,8 +174,8 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
         """
         async with db_session() as session:
             session.exec(
-                sa.update(Task)
-                .where(Task.task_id == task_id)
+                update(Task)
+                .where(col(Task.task_id) == task_id)
                 .values(progress=progress.meta, status=progress.state),
             )
             session.commit()
@@ -191,6 +191,8 @@ class OnDiskResultBackend(AsyncResultBackend[_ReturnType]):
         :return: progress or None
         """
         task = await get_task(task_id)
+        if task.status is None:
+            return None
         return TaskProgress(state=task.status, meta=task.progress)
 
 
@@ -204,6 +206,7 @@ class SQLiteBroker(AsyncBroker):
         logger: logging.Logger | None = None,
         wait_loop_timeout: float = 1,
         listen_loop_timeout: float = 1,
+        empty_loop_sleep: float = 1,
     ) -> None:
         """
         Constructs a new broker.
@@ -211,6 +214,9 @@ class SQLiteBroker(AsyncBroker):
         Inspiration: https://github.com/taskiq-python/taskiq-redis/blob/main/taskiq_redis/redis_broker.py#L104
         :param task_id_generator: custom task_id generator.
         :param result_backend: custom result backend.
+        :param empty_loop_sleep: Number of seconds to sleep when the current worker loop iteration found no tasks
+        :param listen_loop_timeout: Number of seconds to sleep between worker loop iterations
+        :param wait_loop_timeout: Number of seconds to wait between status checks on shutdown
         :param queue_name: name for a list in redis.
             Each worker opens its own connection. Therefore, this value has to be
             at least number of workers + 1
@@ -221,13 +227,14 @@ class SQLiteBroker(AsyncBroker):
         )
         self.queue_name = queue_name
         self.wrapper = wrapper
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logger or broker_logger
         self.wait_loop_timeout: float | int = wait_loop_timeout
         self.listen_loop_timeout: float | int = listen_loop_timeout
+        self.empty_loop_sleep: float | int = empty_loop_sleep
 
     async def kick(self, message: BrokerMessage) -> None:
         async with db_session(Mode.WRITE) as session:
-            logger.debug(f"Kicking message to sqlite: {message}")
+            self.logger.debug(f"Kicking message to sqlite: {message}")
             queue_name = message.labels.pop("queue_name", None) or self.queue_name
             kwargs = json.loads(message.message)
             session.add(
@@ -247,43 +254,48 @@ class SQLiteBroker(AsyncBroker):
         while True:
             try:
                 next_task: Task | None = None
-                async with db_session(Mode.WRITE) as session:  # type: Session  # session is a transaction
+                async with db_session(
+                    Mode.WRITE
+                ) as session:  # session is a transaction
                     next_task = session.exec(
-                        sa.select(Task)
+                        select(Task)
                         .where(
                             Task.queue_name == self.queue_name,
-                            sa.or_(
-                                Task.status.not_in(
+                            or_(
+                                col(Task.status).not_in(
                                     [TaskState.SUCCESS, TaskState.STARTED],
                                 ),
-                                Task.status == None,  # noqa: E711
+                                col(Task.status).is_(None),
                             ),
-                            sa.or_(
-                                Task.num_retries == None,  # noqa: E711
+                            or_(
+                                col(Task.num_retries).is_(None),
                                 Task.num_retries <= settings.max_retries,
                             ),
                         )
-                        .order_by(sa.func.coalesce(Task.latest_try, Task.created_at))
-                        .limit(1),
-                    ).scalar_one_or_none()
-                    logger.debug(f"Checked queue, next task: {next_task}")
+                        .order_by(func.coalesce(Task.latest_try, Task.created_at))
+                        .limit(1)
+                    ).one_or_none()
                     if next_task:
                         next_task.status = TaskState.STARTED
                         next_task.latest_try = dt.datetime.now(tz=dt.UTC)
                         session.commit()
-                        logger.debug(f"Next task by broker: {next_task}")
                         session.refresh(next_task)
+                        self.logger.debug(
+                            f"Next task by broker: {next_task.model_dump_json(exclude={'message', 'subquery'})}"
+                        )
                         # session.expunge(next_task)
-                if next_task:
+
+                if next_task and next_task.message:
                     yield next_task.message
                 else:
                     self.logger.info(
-                        f"No task in queue, going to sleep for {settings.empty_loop_sleep} seconds."
+                        f"No task in queue, going to sleep for {self.empty_loop_sleep} seconds."
                     )
-                    await asyncio.sleep(settings.empty_loop_sleep)
+                    await asyncio.sleep(self.empty_loop_sleep)
             except ConnectionError as exc:
                 self.logger.warning(f"Connection error: {exc}")
                 continue
+
             await asyncio.sleep(self.listen_loop_timeout)
 
     async def wait_all(self) -> None:
@@ -294,10 +306,10 @@ class SQLiteBroker(AsyncBroker):
         before asserting results.
         """
         while True:
-            async with db_session() as session:  # type: Session
+            async with db_session() as session:
                 tasks = session.exec(
-                    sa.select(Task.task_id, Task.task_name).where(
-                        Task.status == "RUNNING",
+                    select(Task.task_id, Task.task_name).where(
+                        Task.status == TaskState.STARTED.value
                     ),
                 ).all()
                 if len(tasks) > 0:
@@ -306,12 +318,13 @@ class SQLiteBroker(AsyncBroker):
 
     async def startup(self) -> None:
         """Runs startup events for client and worker side."""
-        async with db_session() as session:  # type: Session
+        async with db_session(Mode.WRITE) as session:
             session.exec(
-                sa.update(Task)
+                update(Task)
                 .values(status=None)
-                .where(Task.status != TaskState.SUCCESS),
+                .where(col(Task.status) != TaskState.SUCCESS.value),
             )
+            session.commit()
 
         for event in (TaskiqEvents.CLIENT_STARTUP, TaskiqEvents.WORKER_STARTUP):
             for handler in self.event_handlers.get(event, []):

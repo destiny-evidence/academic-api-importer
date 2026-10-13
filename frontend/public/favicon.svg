@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Academic API Importer">
+  <!-- Bootstrap primary, to match the app's theme -->
+  <rect width="64" height="64" rx="14" fill="#0d6efd" />
+  <!-- Mortarboard: cap diamond, stem and tassel -->
+  <path d="M32 13 6 24l26 11 20-8.44V37h5V24l7-3.19z" fill="#fff" />
+  <path d="M17 31.5v9.2c0 4.3 6.9 7.8 15 7.8s15-3.5 15-7.8v-9.2l-15 6.33z" fill="#fff" />
+</svg>

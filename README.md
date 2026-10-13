@@ -1,3 +1,61 @@
+## Logging
+
+Logging for both the API and the workers is configured in code at startup via
+`init_logging()` (`src/academic_apis/utils/logging.py`), which applies a standard
+Python dictConfig read from a JSON logging config file. Both `fastapi dev` (through
+the app lifespan) and `taskiq worker` (through the broker's `WORKER_STARTUP` event)
+pick it up, so no CLI flags are needed:
+
+```bash
+# uses .config/logging.json by default
+uv run fastapi dev
+uv run taskiq worker academic_apis.broker.broker:broker --workers=3 --max-async-tasks=1
+
+# point at a different config file (e.g. a more verbose one for debugging)
+AAI_LOG_CONFIG=.config/logging-debug.json uv run fastapi dev
+AAI_LOG_CONFIG=.config/logging-debug.json uv run taskiq worker academic_apis.broker.broker:broker --workers=3 --max-async-tasks=1
+
+# override the root log level without editing the file (numeric: 10=DEBUG, 20=INFO, 30=WARNING)
+AAI_LOGLEVEL=20 uv run fastapi dev
+```
+
+The default lives in `.config/logging.json` (same format as uvicorn's `--log-config`;
+it is applied with `disable_existing_loggers: false`). It logs everything to the console
+with a common format and pins the known noisy loggers (`matplotlib`, `urllib3`,
+`httpcore`, `httpx`, `taskiq`, `sqlalchemy`, `azure`) to WARNING/INFO. Uvicorn's access
+and error loggers get a dedicated `access` handler/formatter (like the default one, minus
+the process ID), so request lines such as `127.0.0.1 - "GET /health HTTP/1.1" 404` are
+formatted consistently with the rest of the logs instead of uvicorn's own `INFO:` style
+(this also replaces `fastapi dev`'s rich formatting; note that the reloader process,
+which starts before the app is imported, still logs in uvicorn's format). The task output
+capture (`academic_apis.broker.middleware_log.OutputCaptureMiddleware`) uses a dedicated
+`task` handler/formatter (held by the otherwise unused `academic_apis.task_capture`
+logger) whose format adds the running task's `task_id` and `task_name` to every line of
+the per-task `.log` files. The
+`academic_apis` loggers follow the root level, which always comes from `AAI_LOGLEVEL`
+(default `DEBUG`). To see SQL statements, run with `AAI_DB_VERBOSE=true` (or set the
+`sqlalchemy.engine` logger to `INFO` in the config file); the engine never uses
+SQLAlchemy's `echo` flag, since that would bypass the configured log levels and print
+each statement twice.
+
+
+```bash
+# unit/integration tests (they use a throwaway sqlite database, never data/oracle.db)
+uv run pytest
+
+# install the pre-commit hook (runs ruff, mypy and frontend checks on commit)
+uv run pre-commit install
+
+# run all pre-commit checks against every file
+uv run pre-commit run --all-files
+
+# ...or run one language group at a time (pre-commit takes a single hook-id per run,
+# so group with a loop; hooks: ruff-check ruff-format mypy | frontend-lint frontend-format frontend-typecheck)
+for h in ruff-check ruff-format mypy; do uv run pre-commit run "$h" --all-files || break; done
+for h in frontend-lint frontend-format frontend-typecheck; do uv run pre-commit run "$h" --all-files || break; done
+```
+
+
 ```bash
 # start api/webui server
 # this is also the taskiq scheduler
@@ -12,6 +70,9 @@ rsync -avh --progress -e ssh . se164:/data/academic-api --exclude=.venv/ --exclu
 
 # Access "UI"
 ssh -N -J ts01 -L 7050:localhost:7050 se164
+
+# Copy remote DB to local
+scp se164:/data/academic-api/data/oracle.db data/oracle.bak.db
 
 # API: http://localhost:7050/docs
 # UI: http://localhost:7050/queries/html

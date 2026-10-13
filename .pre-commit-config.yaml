@@ -1,35 +1,69 @@
+# Pre-commit checks, grouped by language: the Python tasks run through uv
+# against the backend, the JavaScript tasks run through npm in frontend/ and
+# only trigger on files below it.
 repos:
+  # ----------------------------------------------------------------- Python
   - repo: local
     hooks:
-        - id: ruff-check
-          name: ruff check
-          description: "Run 'ruff check' for Python linting"
-          entry: uv run ruff check --fix
-          language: python
-          types_or: [python, pyi, jupyter]
-          args: []
-          require_serial: true
-          additional_dependencies: []
-          minimum_pre_commit_version: '2.9.2'
-    
-        - id: ruff-format
-          name: ruff format
-          description: "Run 'ruff format' for Python formatting"
-          entry: uv run ruff format
-          language: python
-          types_or: [python, pyi, jupyter]
-          args: []
-          require_serial: true
-          additional_dependencies: []
-          minimum_pre_commit_version: '2.9.2'
+      - id: ruff-check
+        name: ruff check
+        description: "Run 'ruff check' for Python linting"
+        entry: uv run ruff check --fix
+        language: python
+        types_or: [python, pyi, jupyter]
+        args: []
+        require_serial: true
+        additional_dependencies: []
+        minimum_pre_commit_version: '2.9.2'
 
-        - id: mypy
-          name: mypy
-          description: ''
-          entry: uv run mypy
-          language: python
-          types_or: [python, pyi]
-          args: []
-          require_serial: true
-          additional_dependencies: []
-          minimum_pre_commit_version: '2.9.2'
+      - id: ruff-format
+        name: ruff format
+        description: "Run 'ruff format' for Python formatting"
+        entry: uv run ruff format
+        language: python
+        types_or: [python, pyi, jupyter]
+        args: []
+        require_serial: true
+        additional_dependencies: []
+        minimum_pre_commit_version: '2.9.2'
+
+      - id: mypy
+        name: mypy
+        description: "Run 'uv run mypy' for Python type checking"
+        entry: uv run mypy
+        language: python
+        types_or: [python, pyi]
+        args: []
+        require_serial: true
+        additional_dependencies: []
+        minimum_pre_commit_version: '2.9.2'
+
+  # ------------------------------------------------------------- JavaScript
+  - repo: local
+    hooks:
+      - id: frontend-lint
+        name: frontend lint
+        description: "Run 'npm run lint' for frontend linting"
+        entry: bash -c 'cd frontend && npm run --silent lint'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+        require_serial: true
+
+      - id: frontend-format
+        name: frontend format
+        description: "Run 'npm run format' for frontend formatting (re-stages fixes; re-run the commit)"
+        entry: bash -c 'cd frontend && npm run --silent format'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+        require_serial: true
+
+      - id: frontend-typecheck
+        name: frontend typecheck
+        description: "Run 'npm run typecheck' for frontend type checking"
+        entry: bash -c 'cd frontend && npm run --silent typecheck'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+        require_serial: true

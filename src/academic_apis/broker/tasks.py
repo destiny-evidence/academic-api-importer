@@ -1,13 +1,12 @@
-import datetime as dt
 import logging
 from dataclasses import asdict
 from typing import Annotated, Any
 
-import sqlalchemy as sa
 from taskiq import Context, TaskiqDepends
 from taskiq.depends.progress_tracker import TaskProgress, TaskState
 
-from academic_apis.db import AccessToken, db_session
+from academic_apis.db.tokens import get_available_token
+from academic_apis.utils.logging import DEFAULT_TASK_LOGGER_NAME
 from academic_apis.utils.types import Wrapper
 from academic_apis.wrappers import WRAPPERS, OnLoopInfo
 
@@ -21,26 +20,14 @@ async def retrieve_query(
     query_id: int,
     context: Annotated[Context, TaskiqDepends()],
 ) -> list[dict[str, Any]]:
-    logger = logging.getLogger(
-        f"query-retrieve | query={query_id} | task={context.message.task_id}",
-    )
-
+    # Standardized logger path: academic_apis.task.retrieve_query
+    logger = logging.getLogger(f"{DEFAULT_TASK_LOGGER_NAME}.retrieve_query")
     API = WRAPPERS[wrapper]  # noqa: N806
-    async with db_session() as session:  # type: Session
-        token = session.exec(
-            sa.select(AccessToken)
-            .where(
-                AccessToken.wrapper == wrapper,
-                AccessToken.active.is_(True),
-                sa.or_(
-                    AccessToken.locked_until.is_(None),
-                    AccessToken.locked_until <= dt.datetime.now(tz=dt.UTC).timestamp(),
-                ),
-            )
-            .order_by(AccessToken.last_used)
-            .limit(1),
-        ).scalar_one()
-        session.expunge(token)
+    token = await get_available_token(query_id=query_id, wrapper=wrapper)
+    if not token:
+        raise PermissionError(
+            "No active API token available for the owner of the query."
+        )
 
     async def _on_loop(info: OnLoopInfo) -> None:
         result_backend = context.broker.result_backend
@@ -51,7 +38,6 @@ async def retrieve_query(
             task_id=context.message.task_id,
             progress=TaskProgress(state=TaskState.STARTED, meta=asdict(info)),
         )
-        api._on_loop = None  # noqa: SLF001
         return
 
     api = API(
@@ -61,4 +47,5 @@ async def retrieve_query(
         skip_token_logging=False,
         on_loop=_on_loop,
     )
+
     return [item async for item in api.fetch_raw(query=query)]

@@ -8,6 +8,18 @@ variables:
   #UV_NO_SOURCES: true
   DEPLOYMENT_DIR: "/data/academic-api"
 
+  AAPI_WWW_DIR:
+    description: "Absolute path on server to public_html for frontend"
+    value: "/var/www/aapi"
+  VITE_AAPI_UI_URL:
+    description: "Complete URL to web UI"
+    value: "http://127.0.0.1:8080"
+  VITE_AAPI_API_URL:
+    description: "Complete URL to api"
+    value: "http://127.0.0.1:8081"
+  NODE_ENV: "development"
+
+
 before_script:
   # Provides credentials to pip to access private GitLab PyPi index.
   - echo "machine gitlab.pik-potsdam.de" > ~/.netrc
@@ -40,11 +52,31 @@ cache:
   after_script:
     - uv cache prune --ci
 
+.npm:
+  image: node:26-alpine
+  tags:
+    - se164-docker
+  before_script:
+    - cd frontend
+    - npm ci --cache .npm
+    - npm ls
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .npm/
+
 build-job:
   extends: .uv
   stage: build
   script:
     - uv pip freeze
+
+prepare:
+  extends: .npm
+  stage: build
+  script:
+    - echo "Building the static sources"
+    - npx npm-check-updates
 
 test-ruff:
   extends: .uv
@@ -53,6 +85,12 @@ test-ruff:
     - uv run ruff check
     - uv run ruff format --check
 
+test-pytest:
+  extends: .uv
+  stage: test
+  script:
+    - uv run pytest
+
 test-mypy:
   extends: .uv
   stage: test
@@ -60,7 +98,49 @@ test-mypy:
   script:
     - uv run mypy
 
-deploy-to-production:
+test-frontend:
+  stage: test
+  extends: .npm
+  allow_failure: true
+  script:
+    - cd frontend
+    - npm run lint
+    - npm run typecheck
+    - npm run format:check
+
+build:
+  extends: .npm
+  stage: build
+  script:
+    - export NODE_ENV=production
+    - npm run build
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - dist/
+  only:
+    - production
+
+deploy-web-to-production:
+  tags:
+    - se164-bare
+  stage: deploy
+  dependencies:
+    - build
+  script:
+    - echo "Deploying to production"
+    - ls -lisah
+    - ls -lisah dist
+    - sudo /usr/bin/chown -R gitlab-runner "${AAPI_WWW_DIR}"
+    - ls -lisah
+    - rsync -av dist/ "${AAPI_WWW_DIR}"
+    - ls -lisah
+    - sudo /usr/bin/chown -R nacsos "${AAPI_WWW_DIR}"
+  when: manual
+  only:
+    - production
+
+deploy-api-to-production:
   stage: deploy
   tags:
     - se164-bare

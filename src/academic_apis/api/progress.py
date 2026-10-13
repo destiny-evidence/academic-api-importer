@@ -1,41 +1,47 @@
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
+from typing import Annotated
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy import func
-from sqlmodel import select
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy import Integer
+from sqlmodel import cast, col, func, select
 from taskiq.depends.progress_tracker import TaskState
 
+from academic_apis.api.utils import require_query_permission
+from academic_apis.api.utils.auth import get_current_user
 from academic_apis.db import db_session
-from academic_apis.db.schemas import Task, TaskPublic
-from academic_apis.utils import settings
-
-if TYPE_CHECKING:
-    from sqlmodel import Session  # noqa: F401
+from academic_apis.db.schemas import Query, Task, TaskPublic, User, UserQueryPermission
 
 logger = logging.getLogger(__name__)
 
 route = APIRouter()
 
-templates = Jinja2Templates(directory="src/academic_apis/api/templates")
+SUBQUERY_LENGTH = 50
 
 
 @route.get("/")
 async def list_tasks(
+    current_user: Annotated[User, Depends(get_current_user)],
     query_id: int | None = None,
     offset: int = 0,
     limit: int = 5,
     status: TaskState | None = None,
-) -> list[TaskPublic]:
-    async with db_session() as session:  # type: Session
+) -> Sequence[TaskPublic]:
+    async with db_session() as session:
+        require_query_permission(
+            session=session,
+            current_user=current_user,
+            query_id=query_id,
+            require_ownership=False,
+        )
+
         stmt = (
-            select(
+            select(  # type: ignore[call-overload]
                 Task.task_id,
                 Task.status,
                 Task.query_id,
-                func.substr(Task.subquery, -50).label("subquery"),
+                func.substr(Task.subquery, -SUBQUERY_LENGTH).label("subquery"),
                 Task.num_retries,
                 Task.created_at,
                 Task.latest_try,
@@ -43,50 +49,69 @@ async def list_tasks(
                 Task.progress,
                 Task.execution_time,
             )
-            .where(Task.query_id == query_id if query_id is not None else False)
             .order_by(func.coalesce(Task.latest_try, Task.created_at))
             .limit(limit)
             .offset(offset)
         )
+        if query_id is not None:
+            stmt = stmt.where(Task.query_id == query_id)
         if status is not None:
             stmt = stmt.where(Task.status == status)
+        if not current_user.permission_admin:
+            stmt = (
+                stmt.join(Query)
+                .join(UserQueryPermission)
+                .where(UserQueryPermission.user_id == current_user.user_id)
+            )
 
-        return session.exec(stmt).all()
+        return session.exec(stmt).all()  # type: ignore[no-any-return]
 
 
-@route.get("/html", response_class=HTMLResponse)
-async def list_tasks_html(
-    request: Request,
-    query_id: int | None = None,
-    offset: int = 0,
-    limit: int = 10,
-    status: TaskState | None = None,
-) -> HTMLResponse:
-    tasks = await list_tasks(
-        query_id=query_id, offset=offset, limit=limit, status=status
-    )
+class QueryProgress(BaseModel):
+    status: TaskState | None
+    n_tasks: int
+    n_results: int
+    n_retrieved: int
 
-    async with db_session() as session:  # type: Session
-        count_stmt = (
-            select(func.count())
-            .select_from(Task)
-            .where(Task.query_id == query_id if query_id is not None else False)
+
+@route.get("/summary")
+async def task_summary(
+    current_user: Annotated[User, Depends(get_current_user)],
+    query_id: int,
+) -> Sequence[QueryProgress]:
+
+    async with db_session() as session:
+        require_query_permission(
+            session=session,
+            current_user=current_user,
+            query_id=query_id,
+            require_ownership=False,
         )
-        if status is not None:
-            count_stmt = count_stmt.where(Task.status == status)
-        total = session.exec(count_stmt).one()
+        stmt = (
+            select(
+                Task.status,
+                func.count(col(Task.task_id)).label("n_tasks"),
+                func.sum(
+                    func.coalesce(
+                        cast(Task.progress["n_results"].as_string(), Integer), 0
+                    )
+                ).label("n_results"),
+                func.sum(
+                    func.coalesce(
+                        cast(Task.progress["n_retrieved"].as_string(), Integer), 0
+                    )
+                ).label("n_retrieved"),
+            )
+            .where(Task.query_id == query_id)
+            .group_by(Task.status)
+        )
 
-    return templates.TemplateResponse(
-        request,
-        "progress.html",
-        {
-            "request": request,
-            "tasks": tasks,
-            "total": total,
-            "query_id": query_id,
-            "offset": offset,
-            "limit": limit,
-            "status": status,
-            "settings": settings,
-        },
-    )
+        return [
+            QueryProgress(
+                status=None if status is None else TaskState(status),
+                n_tasks=n_tasks,
+                n_results=n_results,
+                n_retrieved=n_retrieved,
+            )
+            for status, n_tasks, n_results, n_retrieved in session.exec(stmt).all()
+        ]

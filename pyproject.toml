@@ -11,17 +11,23 @@ authors = [
 dependencies = [
     "destiny-sdk[labs]>=0.16.0",
     "nacsos-data",
-    "taskiq>=0.12.5",
+    "taskiq~=0.13",
     #"taskiq-dashboard==0.4.4",
     #"taskiq-admin",
-    "filelock>=3.32.4",
-    "sqlmodel>=0.0.39",
-    "pandas[excel]>=3.0.0",
-    "fastapi[standard]>=0.141.1",
-    "orjson>=3.11.0",
+    "filelock~=4.0",
+    "sqlmodel~=0.0.47",
+    "pandas[excel]~=3.0",
+    "fastapi[standard]~=0.142",
+    "orjson~=3.12",
     "socksio==1.*",
-    "jinja2>=3.1.6",
+    "argon2-cffi~=25.1",
+    "httpx2~=2.13",# not required, avoids deprecation warning: https://github.com/epam/ai-dial-quickapps-backend/issues/566
+    "PyJWT~=2.15",
+    "azure-storage-blob~=12.31",
+    "azure-identity~=1.26",
+    "aiofiles~=25.1",
 ]
+
 [tool.uv.sources]
 nacsos-data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.55" }
 #nacsos-data = { git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.55" }
@@ -29,9 +35,10 @@ nacsos-data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-dat
 [dependency-groups]
 dev = [
     "academic-apis",
-    "mypy>=1.14.1,<2",
-    "pre-commit>=4.2.0,<5",
-    "ruff>=0.8.6,<0.20",
+    "mypy~=2.3",
+    "pre-commit~=4.2",
+    "pytest~=9.0",
+    "ruff~=0.16",
 ]
 
 [tool.fastapi]
@@ -41,9 +48,12 @@ entrypoint = "academic_apis.api:api"
 #api = "academic_apis.api:serve"
 
 [build-system]
-requires = ["uv_build>=0.11.31,<0.13.0"]
+requires = ["uv_build~=0.12"]
 build-backend = "uv_build"
 
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 fix = false
@@ -101,11 +111,22 @@ lint.mccabe.max-complexity = 18
 lint.pep8-naming.classmethod-decorators = ["classmethod"]
 lint.pylint.max-branches = 20
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "ARG002", # fixtures are requested to create data, not to be used in the test body
+    "FBT003", # positional booleans in the test helpers read better than keywords
+    "PLR2004", # expected status codes and messages are spelled out literally
+    "S101", # assert is how tests assert
+    "S105", # fake API keys and passwords make up the test data
+    "S106",
+    "S107",
+    "D103",   # test function names describe the expectation
+    "DOC201", # what a test asserts is in its name and body, not in a Returns clause
+]
+
 [tool.ruff.lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel", "sqlmodel.SQLModel"]
 runtime-evaluated-decorators = ["pydantic.validate_call"]
-
-
 
 [tool.mypy]
 plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]

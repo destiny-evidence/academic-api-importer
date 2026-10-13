@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator, AsyncIterable, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from httpx import Response
 from taskiq.utils import maybe_awaitable
 
 from academic_apis.utils.types import Format, Record, Wrapper
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from pathlib import Path
 
-    from destiny_sdk.references import Reference as ODSReference
+    from destiny_sdk.references import ReferenceFileInput as ODSReference
     from nacsos_data.models.items import AcademicItemModel
 
 base_logger = logging.getLogger(__name__)
@@ -53,8 +54,9 @@ class AbstractWrapper(ABC):
         self.max_retries = max_retries
         self.backoff_rate = backoff_rate
         self.ignored_exceptions = ignored_exceptions or []
-        self.api_feedback: dict[str, int] = {}
+        self.api_feedback: dict[str, Any] = {}
         self.n_results: int | None = None
+        self.last_response: Response | None = None
         self.skip_token_logging = skip_token_logging
         self._on_loop = on_loop
         self.logger = (
@@ -74,11 +76,13 @@ class AbstractWrapper(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def fetch_raw(
+    def fetch_raw(
         self,
         query: str,
         params: dict[str, Any] | None = None,
     ) -> AsyncGenerator[dict[str, Any]]:
+        # implementations are async generator functions, so this is declared as a
+        # plain method returning an async generator (not as a coroutine)
         raise NotImplementedError
 
     @classmethod
@@ -119,6 +123,7 @@ class AbstractWrapper(ABC):
         py_end: int | None = None,
         py_steps: int = 2,
         use_py_filter: bool = False,
+        use_firstauth_filter: bool = True,
     ) -> Generator[str]:
         raise NotImplementedError
 
@@ -136,6 +141,15 @@ class AbstractWrapper(ABC):
         async for _record in self.fetch_raw(query=query, params=params):
             break
         return self.n_results
+
+    async def get_first_response(
+        self,
+        query: str,
+        params: dict[str, Any] | None = None,
+    ) -> Response | None:
+        async for _record in self.fetch_raw(query=query, params=params):
+            break
+        return self.last_response
 
     async def download_raw(
         self,
@@ -187,15 +201,12 @@ def _assert_target(target: Path) -> None:
 async def collect_raw_jsonl(target: Path, items: AsyncIterable[dict[str, Any]]) -> None:
     _assert_target(target)
     with target.open("w", encoding="utf-8") as f:
-        f.writelines(json.dumps(item) + "\n" async for item in items)
+        async for item in items:
+            f.write(json.dumps(item) + "\n")
 
 
 async def collect_jsonl(target: Path, items: AsyncIterable[AcademicItemModel]) -> None:
     _assert_target(target)
     with target.open("w", encoding="utf-8") as f:
-        f.writelines(
-            (
-                item.model_dump_json(exclude_defaults=True) + "\n"
-                async for item in items
-            ),
-        )
+        async for item in items:
+            f.write(item.model_dump_json(exclude_defaults=True) + "\n")

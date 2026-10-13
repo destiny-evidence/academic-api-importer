@@ -1,21 +1,19 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING
 
-from fastapi import Body, Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
 
 from academic_apis.broker.broker import broker
 from academic_apis.utils import init_logging, settings
 
-from .middlewares import verify_auth_key_cookie
 from .progress import route as progress_app
 from .queries import route as manage_app
 from .tokens import route as token_app
+from .users import route as users_app
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -44,57 +42,22 @@ api = FastAPI(
     separate_input_output_schemas=False,
 )
 
-if len(settings.access_tokens) > 0:
-    # api.router.dependencies.append(Depends(verify_auth_key_header))
-    api.router.dependencies.append(Depends(verify_auth_key_cookie))
-
 api.add_middleware(
     CORSMiddleware,
     allow_origins=settings.web_origins,  # Explicit origin required (no "*")
     allow_credentials=True,  # Required for cookies
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
-
-@api.post("/set-cookie")
-async def set_cookie(
-    response: Response, token: Annotated[str, Body()]
-) -> dict[str, str]:
-    response.set_cookie(
-        key="aai_auth_token",
-        value=token,
-        path="/",
-        samesite="lax",  # Default behavior for same-origin or top-level navigation
-        httponly=False,  # Set to True if you don't need frontend JS to read it directly
-        secure=False,  # Set to True if using HTTPS
-        expires=8640000,  # Lifetime in seconds (100 days)
+if settings.static_files is not None:
+    api.mount(
+        "/static",
+        StaticFiles(directory=settings.static_files),
+        name="static",
     )
-    return {"message": "Cookie set successfully"}
 
-
-@api.post("/set-admin-cookie")
-async def set_admin_cookie(
-    response: Response, token: Annotated[str, Body()]
-) -> dict[str, str]:
-    response.set_cookie(
-        key="aai_admin_token",
-        value=token,
-        path="/",
-        samesite="lax",  # Default behavior for same-origin or top-level navigation
-        httponly=False,  # Set to True if you don't need frontend JS to read it directly
-        secure=False,  # Set to True if using HTTPS
-        expires=8640000,  # Lifetime in seconds (100 days)
-    )
-    return {"message": "Cookie set successfully"}
-
-
-api.mount(
-    "/static",
-    StaticFiles(directory=Path(__file__).parent / "static"),
-    name="static",
-)
-
-api.include_router(manage_app, prefix="/queries")
-api.include_router(token_app, prefix="/tokens")
-api.include_router(progress_app, prefix="/tasks")
+api.include_router(manage_app, prefix="/queries", tags=["Queries"])
+api.include_router(token_app, prefix="/tokens", tags=["Tokens"])
+api.include_router(progress_app, prefix="/tasks", tags=["Tasks"])
+api.include_router(users_app, prefix="/users", tags=["Users"])
