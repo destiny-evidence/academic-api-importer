@@ -1,3 +1,35 @@
+## Frontend
+
+```bash
+cd frontend
+# update api spec from backend openapi.json
+npm run api
+
+# lint, typechecking, code formatting
+npm run lint:fix
+npm run format
+npm run typecheck
+
+# run frontend in development mode
+npm run dev
+```
+
+## Backend
+
+```bash
+# Run REST API
+uv run fastapi dev
+
+# Run worker backend
+uv run taskiq worker academic_apis.broker.broker:broker --workers=3 --max-async-tasks=1
+
+# Testing/formatting
+uv run ruff format
+uv run ruff check --fix
+uv run mypy
+uv run pytest
+```
+
 ## Logging
 
 Logging for both the API and the workers is configured in code at startup via
