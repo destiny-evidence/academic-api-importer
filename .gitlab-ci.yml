@@ -18,6 +18,8 @@ variables:
     description: "Complete URL to api"
     value: "http://127.0.0.1:8081"
   NODE_ENV: "development"
+  # Where build-frontend puts (and deploy-web-to-production expects) the static files
+  WEB_ARTIFACT_DIR: "$CI_PROJECT_DIR/frontend/dist"
 
 
 before_script:
@@ -56,12 +58,18 @@ cache:
   image: node:26-alpine
   tags:
     - se164-docker
+  variables:
+    # Keep the npm cache in the project root so it matches the cache paths below
+    # (before_script changes into frontend/).
+    npm_config_cache: "$CI_PROJECT_DIR/.npm"
   before_script:
     - cd frontend
-    - npm ci --cache .npm
+    - npm ci
     - npm ls
   cache:
-    key: ${CI_COMMIT_REF_SLUG}
+    key:
+      files:
+        - frontend/package-lock.json
     paths:
       - .npm/
 
@@ -113,10 +121,13 @@ build-frontend:
   script:
     - export NODE_ENV=production
     - npm run build
+    - ls -lisah dist
   artifacts:
+    name: "frontend-$CI_COMMIT_SHORT_SHA"
     expire_in: 1 day
     paths:
-      - dist/
+      # vite builds into frontend/dist and artifact paths are relative to CI_PROJECT_DIR
+      - frontend/dist/
   only:
     - production
 
@@ -128,12 +139,11 @@ deploy-web-to-production:
     - build-frontend
   script:
     - echo "Deploying to production"
+    - pwd
     - ls -lisah
-    - ls -lisah dist
+    - ls -lisah "${WEB_ARTIFACT_DIR}"
     - sudo /usr/bin/chown -R gitlab-runner "${AAPI_WWW_DIR}"
-    - ls -lisah
-    - rsync -av dist/ "${AAPI_WWW_DIR}"
-    - ls -lisah
+    - rsync -av --delete "${WEB_ARTIFACT_DIR}/" "${AAPI_WWW_DIR}"
     - sudo /usr/bin/chown -R nacsos "${AAPI_WWW_DIR}"
   when: manual
   only:
