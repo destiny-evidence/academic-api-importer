@@ -65,13 +65,13 @@ cache:
     paths:
       - .npm/
 
-build-job:
+pre-uv:
   extends: .uv
   stage: build
   script:
     - uv pip freeze
 
-prepare:
+pre-npm:
   extends: .npm
   stage: build
   script:
@@ -103,12 +103,11 @@ test-frontend:
   extends: .npm
   allow_failure: true
   script:
-    - cd frontend
+    - npm run format:check
     - npm run lint
     - npm run typecheck
-    - npm run format:check
 
-build:
+build-frontend:
   extends: .npm
   stage: build
   script:
