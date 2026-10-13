@@ -160,10 +160,9 @@ deploy-api-to-production:
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull pik main
-    - echo "Creating new virtual environment"
-    - sudo -u nacsos /usr/bin/bash -c "cd ${DEPLOYMENT_DIR} && uv sync --frozen --reinstall --cache-dir .cache"
     - sudo chown -R nacsos "${DEPLOYMENT_DIR}"
-#    - sudo chgrp -R nacsos "${DEPLOYMENT_DIR}"
+    - echo "Creating new virtual environment"
+    - sudo -u nacsos /usr/bin/bash -c "uv sync --frozen --reinstall --cache-dir .cache"
     - echo "Starting core service"
     - sudo systemctl start academic-api.service
   when: manual
