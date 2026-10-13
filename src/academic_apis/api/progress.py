@@ -44,7 +44,9 @@ async def list_tasks(
                 case(
                     (
                         func.length(Task.subquery) > SUBQUERY_PREVIEW_LENGTH,
-                        func.concat("...", func.substr(Task.subquery, -SUBQUERY_PREVIEW_LENGTH)),
+                        func.concat(
+                            "...", func.substr(Task.subquery, -SUBQUERY_PREVIEW_LENGTH)
+                        ),
                     ),
                     else_=Task.subquery,
                 ).label("subquery"),

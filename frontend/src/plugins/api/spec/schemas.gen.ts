@@ -200,6 +200,33 @@ export const AzureAccessLinksSchema = {
     title: 'AzureAccessLinks'
 } as const;
 
+export const Body_submit_query_queries__postSchema = {
+    properties: {
+        query: {
+            $ref: '#/components/schemas/QueryInfo'
+        },
+        queries: {
+            anyOf: [
+                {
+                    items: {
+                        $ref: '#/components/schemas/QueryInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queries'
+        }
+    },
+    type: 'object',
+    required: [
+        'query'
+    ],
+    title: 'Body_submit_query_queries__post'
+} as const;
+
 export const HTTPValidationErrorSchema = {
     properties: {
         detail: {

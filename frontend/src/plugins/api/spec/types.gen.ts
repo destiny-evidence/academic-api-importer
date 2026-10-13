@@ -110,6 +110,17 @@ export type AzureAccessLinks = {
 };
 
 /**
+ * Body_submit_query_queries__post
+ */
+export type BodySubmitQueryQueriesPost = {
+    query: QueryInfo;
+    /**
+     * Queries
+     */
+    queries?: Array<QueryInfo> | null;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -647,7 +658,7 @@ export type ListQueriesQueriesGetResponses = {
 export type ListQueriesQueriesGetResponse = ListQueriesQueriesGetResponses[keyof ListQueriesQueriesGetResponses];
 
 export type SubmitQueryQueriesPostData = {
-    body: QueryInfo;
+    body: BodySubmitQueryQueriesPost;
     headers?: {
         /**
          * Authorization

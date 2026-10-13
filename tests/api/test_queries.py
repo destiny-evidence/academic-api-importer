@@ -24,6 +24,11 @@ Permissions are stored per query (``m2m_user_query``): an ``is_owner=True`` row 
 user the owner of a query, which is what the permission endpoints and the log and link
 endpoints check. Admins override ownership everywhere.
 
+``POST /queries/`` works in two modes: it either splits the query it is given into
+subqueries, or, when a ``queries`` list comes with it, queues every entry of that list as
+a task of its own. Both of the endpoint's ``QueryInfo`` parameters have to be embedded in
+the body, which is what ``submit_body`` builds.
+
 Work that the endpoints schedule as background tasks - deleting rows and files, queueing
 subqueries, talking to Azure - is executed by ``TestClient`` before a request returns, so
 the tests can assert on its effects directly.
@@ -48,7 +53,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from academic_apis.api import queries as queries_module
-from academic_apis.api.queries import _queue_subqueries
+from academic_apis.api.queries import _queue_subqueries, _submit_subqueries
 from academic_apis.api.utils.auth import create_access_token
 from academic_apis.broker import tasks as broker_tasks
 from academic_apis.db import Query, User
@@ -72,7 +77,7 @@ SCOPUS_BODY: dict[str, Any] = {"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"}
 ENDPOINTS: dict[str, tuple[str, str, Any]] = {
     "test": ("POST", "/queries/test", SCOPUS_BODY),
     "render": ("POST", "/queries/render", SCOPUS_BODY),
-    "submit": ("POST", "/queries/", SCOPUS_BODY),
+    "submit": ("POST", "/queries/", {"query": SCOPUS_BODY}),
     "list": ("GET", "/queries/", None),
     "delete": ("DELETE", "/queries/?query_id=1", None),
     "delete-logs": ("DELETE", "/queries/logs?query_id=1", None),
@@ -106,6 +111,29 @@ RENDERED_SCOPUS_QUERY = 'TITLE-ABS-KEY (\n  "climate change"\n)\nAND PUBYEAR AFT
 OWNER_ONLY_DETAIL = (
     "Not enough permissions: only owners of a query can manage its permissions"
 )
+
+#: the shortest query ``POST /queries/`` accepts (``queries.MIN_QUERY_LENGTH``)
+MIN_QUERY_LENGTH = 3
+
+#: the parent query the submit tests register
+SUBMIT_QUERY = "TITLE-ABS-KEY(parent)"
+
+#: query splitting that keeps the number of queued tasks small and predictable
+PY_FILTER_PARAMS: dict[str, Any] = {
+    "py_start": 2019,
+    "py_end": 2021,
+    "py_steps": 1,
+    "use_py_filter": True,
+    "use_firstauth_filter": False,
+}
+
+#: the year windows ``PY_FILTER_PARAMS`` makes the Scopus wrapper generate
+PY_FILTER_SUBQUERIES = [
+    "( TITLE-ABS-KEY(parent) ) AND ( PUBYEAR BEF 2019 )",
+    "( TITLE-ABS-KEY(parent) ) AND ( PUBYEAR AFT 2018 ) AND ( PUBYEAR BEF 2020 )",
+    "( TITLE-ABS-KEY(parent) ) AND ( PUBYEAR AFT 2019 ) AND ( PUBYEAR BEF 2021 )",
+    "( TITLE-ABS-KEY(parent) ) AND ( PUBYEAR AFT 2020 )",
+]
 
 
 def _run[T](coroutine: Coroutine[Any, Any, T]) -> T:
@@ -191,6 +219,31 @@ def expected_links(query_id: int, version: int = 1) -> dict[str, str]:
         name: f"https://storage.example.org/{blob(query_id)}/{name}?v={version}"
         for name in LINK_FIELDS
     }
+
+
+def submit_body(
+    parent: dict[str, Any], tasks: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
+    """
+    Request body of ``POST /queries/``: both ``QueryInfo`` parameters are embedded.
+
+    FastAPI embeds body parameters by name as soon as an endpoint declares more than one
+    of them, so ``{"query": ..., "queries": ...}`` is what the endpoint understands.
+    """
+    body: dict[str, Any] = {"query": parent}
+    if tasks is not None:
+        body["queries"] = tasks
+    return body
+
+
+def task_info(query: str, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
+    """One entry of the ``queries`` list: a Scopus ``QueryInfo`` for a single task."""
+    return {"query": query, "wrapper": "scopus", **kwargs}
+
+
+def queued_subqueries(queue: FakeQueue) -> list[str]:
+    """The subqueries ``fake_queue`` saw, in the order they were handed to the broker."""
+    return [entry["query"] for entry in queue.queued]
 
 
 # --------------------------------------------------------------------------------------
@@ -305,7 +358,7 @@ def fake_azure(monkeypatch: pytest.MonkeyPatch) -> FakeAzure:
 
 @dataclass
 class FakeQueue:
-    """Records what ``_queue_subqueries`` hands to the task broker."""
+    """Records what the queueing helpers hand to the task broker."""
 
     queued: list[dict[str, Any]] = field(default_factory=list)
 
@@ -316,7 +369,7 @@ class FakeQueue:
 
 @pytest.fixture
 def fake_queue(monkeypatch: pytest.MonkeyPatch) -> FakeQueue:
-    """Replace the taskiq task that ``_queue_subqueries`` imports at call time."""
+    """Replace the taskiq task that the queueing helpers import at call time."""
     queue = FakeQueue()
     monkeypatch.setattr(broker_tasks, "retrieve_query", queue)
     return queue
@@ -326,9 +379,24 @@ def transient_query(
     query: str = "TITLE-ABS-KEY(x)",
     wrapper: Wrapper = Wrapper.SCOPUS,
     query_id: int = 42,
+    params: dict[str, Any] | None = None,
 ) -> Query:
     """A ``Query`` that never touched a session, for calling the background helpers."""
-    return Query(query=query, wrapper=wrapper, query_id=query_id)
+    record = Query(query=query, wrapper=wrapper, query_id=query_id)
+    if params is not None:
+        record.params = params
+    return record
+
+
+@pytest.fixture
+def admin_token(make_token: Callable[..., str], admin_user: User) -> str:
+    """
+    A key ``admin_user`` may submit with.
+
+    ``POST /queries/`` looks up an active token for the requested wrapper before it
+    registers anything, so submit tests need one.
+    """
+    return make_token(owner=admin_user, comment="token owned by admin_user")
 
 
 # --------------------------------------------------------------------------------------
@@ -577,18 +645,21 @@ class TestTestQuery:
             headers=auth_header(user),
             json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
         )
-        # KNOWN BUG: see `test_a_user_without_an_api_key_fails`.
-        assert response.status_code == 500
+        # neither key is usable, so it is as if the user had none at all
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "You do not have access to any active auth token."
+        )
         assert fake_wrapper.inits == []
 
-    def test_a_user_without_an_api_key_fails(
+    def test_a_user_without_an_api_key_is_refused(
         self, client: TestClient, make_user: Callable[..., User]
     ) -> None:
         """
-        KNOWN BUG: ``get_available_token_for_user`` raises ``NoResultFound``.
+        A user without a usable key is turned away before a query reaches an API.
 
-        The endpoint should answer that no API key is available for this wrapper, but the
-        unhandled SQLAlchemy error turns into a 500.
+        KNOWN BUG: the detail does not name the database the key is missing for, although
+        keys are looked up per wrapper, so a caller of several databases has to guess.
         """
         outsider = make_user(email="keyless@example.org")
         response = client.post(
@@ -596,7 +667,10 @@ class TestTestQuery:
             headers=auth_header(outsider),
             json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
         )
-        assert response.status_code == 500
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "You do not have access to any active auth token."
+        )
 
     def test_a_wrapper_without_implementation_fails(
         self, client: TestClient, normal_user: User, owned_token: str
@@ -787,19 +861,28 @@ class TestRenderQuery:
 
 
 class TestSubmitQuery:
-    """``POST /queries/`` - registering a query and queueing its subqueries."""
+    """
+    ``POST /queries/`` - registering a query and queueing its subqueries.
+
+    Both of the endpoint's ``QueryInfo`` parameters are embedded, which is what
+    :func:`submit_body` builds. The queueing happens in a background task that
+    ``TestClient`` runs before the response is handed back, so ``fake_queue`` shows what
+    the workers would be asked to fetch. An active API key for the requested wrapper is a
+    condition of submitting at all.
+    """
 
     def test_an_admin_may_submit_a_query(
         self,
         client: TestClient,
         admin_user: User,
+        admin_token: str,
         stored_query: Callable[[int], dict[str, Any]],
         stored_query_permissions: Callable[..., list[PermissionRow]],
     ) -> None:
         response = client.post(
             "/queries/",
             headers=auth_header(admin_user),
-            json={"query": VALID_SCOPUS_QUERY, "wrapper": "scopus"},
+            json=submit_body({"query": VALID_SCOPUS_QUERY, "wrapper": "scopus"}),
         )
         assert response.status_code == 200
         query_id = response.json()
@@ -813,12 +896,12 @@ class TestSubmitQuery:
         ]
 
     def test_the_query_is_listed_for_its_submitter(
-        self, client: TestClient, admin_user: User
+        self, client: TestClient, admin_user: User, admin_token: str
     ) -> None:
         query_id = client.post(
             "/queries/",
             headers=auth_header(admin_user),
-            json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
         ).json()
         assert listed_ids(client.get("/queries/", headers=auth_header(admin_user))) == [
             query_id
@@ -828,13 +911,14 @@ class TestSubmitQuery:
         self,
         client: TestClient,
         admin_user: User,
+        admin_token: str,
         normal_user: User,
         stored_query_permissions: Callable[..., list[PermissionRow]],
     ) -> None:
         client.post(
             "/queries/",
             headers=auth_header(admin_user),
-            json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
         )
         assert (
             listed_ids(client.get("/queries/", headers=auth_header(normal_user))) == []
@@ -847,7 +931,7 @@ class TestSubmitQuery:
         response = client.post(
             "/queries/",
             headers=auth_header(normal_user),
-            json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
         )
         assert response.status_code == 403
         assert response.json()["detail"] == (
@@ -864,7 +948,7 @@ class TestSubmitQuery:
             client.post(
                 "/queries/",
                 headers=auth_header(admin),
-                json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
+                json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
             ).status_code
             == 403
         )
@@ -873,6 +957,7 @@ class TestSubmitQuery:
         self,
         client: TestClient,
         make_user: Callable[..., User],
+        make_token: Callable[..., str],
         stored_query_permissions: Callable[..., list[PermissionRow]],
     ) -> None:
         """
@@ -884,81 +969,250 @@ class TestSubmitQuery:
         submitter = make_user(
             email="dedicated-submitter@example.org", permission_submit_query=True
         )
+        make_token(owner=submitter)
         response = client.post(
             "/queries/",
             headers=auth_header(submitter),
-            json={"query": "TITLE-ABS-KEY(x)", "wrapper": "scopus"},
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
         )
         assert response.status_code == 403
         assert stored_query_permissions(user_id=submitter.user_id) == []
 
-    def test_no_subqueries_are_queued(
+    def test_a_user_without_an_api_key_cannot_submit(
+        self,
+        client: TestClient,
+        make_user: Callable[..., User],
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        """Without a key for the wrapper there is nothing to fetch with, and nothing is stored."""
+        keyless = make_user(
+            email="keyless-submitter@example.org",
+            permission_admin=True,
+            permission_submit_query=True,
+        )
+        response = client.post(
+            "/queries/",
+            headers=auth_header(keyless),
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "You do not have access to any active auth token."
+        )
+        assert stored_query_permissions(user_id=keyless.user_id) == []
+        assert fake_queue.queued == []
+
+    # -- the query and its generated sub-queries ------------------------------------
+
+    def test_generated_subqueries_are_queued_as_tasks(
         self,
         client: TestClient,
         admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+    ) -> None:
+        response = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
+            params=PY_FILTER_PARAMS,
+        )
+        assert response.status_code == 200
+        query_id = response.json()
+        assert queued_subqueries(fake_queue) == PY_FILTER_SUBQUERIES
+        assert {entry["query_id"] for entry in fake_queue.queued} == {query_id}
+        assert {entry["wrapper"] for entry in fake_queue.queued} == {Wrapper.SCOPUS}
+
+    def test_a_query_without_filters_becomes_a_single_task(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+    ) -> None:
+        client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
+            params={"use_py_filter": False, "use_firstauth_filter": False},
+        )
+        assert queued_subqueries(fake_queue) == ["( TITLE-ABS-KEY(parent) )"]
+
+    def test_the_default_author_filter_splits_the_query_676_times(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+    ) -> None:
+        """Neither ``PUBYEAR`` nor ``FIRSTAUTH`` filtering is switched off by default."""
+        client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}),
+        )
+        assert len(fake_queue.queued) == 26 * 26
+        assert queued_subqueries(fake_queue)[0] == (
+            f"( {SUBMIT_QUERY} ) AND FIRSTAUTH ( aa* )"
+        )
+        assert queued_subqueries(fake_queue)[-1] == (
+            f"( {SUBMIT_QUERY} ) AND FIRSTAUTH ( zz* )"
+        )
+
+    def test_query_parameters_are_neither_stored_nor_queued(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
         fake_queue: FakeQueue,
         stored_query: Callable[[int], dict[str, Any]],
     ) -> None:
         """
-        KNOWN BUG: the background task dies on the detached ``Query`` instance.
+        KNOWN BUG: only the ``Query`` row's own parameters reach the workers.
 
-        ``submit_query`` hands the ORM object to ``BackgroundTasks`` after closing the
-        session it belongs to, so reading ``query.query_id`` in ``_queue_subqueries``
-        raises ``DetachedInstanceError``. The endpoint still reports the new ID - and
-        nothing is ever retrieved.
+        ``QueryInfo.params`` is accepted for the parent query and dropped: it is not
+        stored, and the generated tasks are queued with an empty parameter dict, so the
+        view a query was submitted with is silently lost.
         """
+        query_id = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body(
+                {
+                    "query": SUBMIT_QUERY,
+                    "wrapper": "scopus",
+                    "params": {"view": "METADATA_AND_REF"},
+                }
+            ),
+            params={"use_py_filter": False, "use_firstauth_filter": False},
+        ).json()
+        assert stored_query(query_id)["params"] == {}
+        assert [entry["params"] for entry in fake_queue.queued] == [{}]
+
+    # -- what is refused before anything is registered ------------------------------
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            pytest.param("", id="empty-query"),
+            pytest.param("ab", id="two-characters"),
+        ],
+    )
+    def test_queries_below_the_minimum_length_are_refused(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+        query: str,
+    ) -> None:
         response = client.post(
             "/queries/",
             headers=auth_header(admin_user),
-            json={"query": VALID_SCOPUS_QUERY, "wrapper": "scopus"},
-            params={"py_start": 2019, "py_end": 2021, "py_steps": 1},
+            json=submit_body({"query": query, "wrapper": "scopus"}),
         )
-        assert response.status_code == 200
-        assert stored_query(response.json()) != {}
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Query too short!"
+        assert stored_query_permissions(user_id=admin_user.user_id) == []
         assert fake_queue.queued == []
 
-    def test_query_parameters_are_not_persisted(
+    def test_a_query_of_exactly_the_minimum_length_is_accepted(
         self,
         client: TestClient,
         admin_user: User,
+        admin_token: str,
         stored_query: Callable[[int], dict[str, Any]],
     ) -> None:
-        """Unlike ``/queries/test``, a ``params`` object here is dropped silently."""
+        """The bound is inclusive: a query of ``MIN_QUERY_LENGTH`` characters passes."""
+        assert len("abc") == MIN_QUERY_LENGTH
         query_id = client.post(
             "/queries/",
             headers=auth_header(admin_user),
-            json={
-                "query": "TITLE-ABS-KEY(x)",
-                "wrapper": "scopus",
-                "params": {"view": "METADATA_AND_REF"},
-            },
+            json=submit_body({"query": "abc", "wrapper": "scopus"}),
+            params={"use_py_filter": False, "use_firstauth_filter": False},
         ).json()
-        assert stored_query(query_id)["params"] == {}
+        assert stored_query(query_id)["query"] == "abc"
 
-    def test_an_empty_query_text_is_accepted(
+    def test_a_wrapper_without_an_implementation_is_refused(
         self,
         client: TestClient,
         admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+    ) -> None:
+        """
+        ``Wrapper`` lists more databases than ``WRAPPERS`` implements.
+
+        ``openalex`` is a valid value of the enum, so the body passes validation; the
+        answer is the same 400 as for a wrapper mismatch, which does not tell the caller
+        that the database is simply not supported yet.
+        """
+        assert "openalex" not in WRAPPERS
+        response = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "openalex"}),
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "Requested queries use different or invalid wrappers!"
+        )
+        assert fake_queue.queued == []
+
+    def test_a_wrapper_without_a_subquery_generator_queues_nothing(
+        self,
+        client: TestClient,
+        make_user: Callable[..., User],
+        make_token: Callable[..., str],
+        fake_queue: FakeQueue,
         stored_query: Callable[[int], dict[str, Any]],
     ) -> None:
         """
-        KNOWN BUG: nothing validates the query itself, so an empty one is registered and
-        the year splitting produces subqueries that Scopus will reject.
+        KNOWN BUG: a wrapper whose generator is a stub leaves the query registered and
+        nothing queued, while the caller is told the submission worked.
         """
-        query_id = client.post(
+        user = make_user(
+            email="pubmed-submitter@example.org",
+            permission_admin=True,
+            permission_submit_query=True,
+        )
+        make_token(owner=user, wrapper=Wrapper.PUBMED, token="pubmed-key")
+        response = client.post(
             "/queries/",
-            headers=auth_header(admin_user),
-            json={"query": "", "wrapper": "scopus"},
-        ).json()
-        assert stored_query(query_id)["query"] == ""
+            headers=auth_header(user),
+            json=submit_body({"query": "cancer[titles]", "wrapper": "pubmed"}),
+        )
+        assert response.status_code == 200
+        assert stored_query(response.json())["wrapper"] == Wrapper.PUBMED
+        assert fake_queue.queued == []
 
     @pytest.mark.parametrize(
         "payload",
         [
             pytest.param(
-                {"query": "x", "wrapper": "google-scholar"}, id="unknown-wrapper"
+                {"query": {"query": SUBMIT_QUERY, "wrapper": "google-scholar"}},
+                id="unknown-wrapper",
             ),
-            pytest.param({"wrapper": "scopus"}, id="missing-query"),
+            pytest.param({"query": {"wrapper": "scopus"}}, id="missing-query"),
+            pytest.param(
+                {"queries": [task_info("TITLE-ABS-KEY(one)")]}, id="missing-parent"
+            ),
+            pytest.param(
+                submit_body(
+                    {"query": SUBMIT_QUERY, "wrapper": "scopus"},
+                    [{"wrapper": "scopus"}],
+                ),
+                id="task-without-query",
+            ),
+            pytest.param(
+                submit_body(
+                    {"query": SUBMIT_QUERY, "wrapper": "scopus"},
+                    [task_info("TITLE-ABS-KEY(one)", wrapper="wot")],
+                ),
+                id="task-with-unknown-wrapper",
+            ),
             pytest.param(None, id="no-body"),
         ],
     )
@@ -966,31 +1220,288 @@ class TestSubmitQuery:
         self,
         client: TestClient,
         admin_user: User,
+        admin_token: str,
         fake_queue: FakeQueue,
         stored_query_permissions: Callable[..., list[PermissionRow]],
         payload: dict[str, Any] | None,
     ) -> None:
+        # `None` stands for the request that is sent without any body at all
+        arguments: dict[str, Any] = {} if payload is None else {"json": payload}
         response = client.post(
-            "/queries/",
-            headers=auth_header(admin_user),
-            **({} if payload is None else {"json": payload}),
+            "/queries/", headers=auth_header(admin_user), **arguments
         )
         assert response.status_code == 422
         assert stored_query_permissions(user_id=admin_user.user_id) == []
         assert fake_queue.queued == []
 
+    def test_a_body_that_sends_the_query_unembedded_is_unprocessable(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        """
+        KNOWN BUG: the second body parameter makes FastAPI embed both of them.
+
+        A client that sends the ``QueryInfo`` itself as the body, as the submit view still
+        does (``frontend/src/views/Queries/QuerySubmitView.vue`` passes ``queryInfo``), is
+        rejected without the endpoint saying what shape it would rather be given.
+        """
+        response = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json={"query": SUBMIT_QUERY, "wrapper": "scopus"},
+        )
+        assert response.status_code == 422
+        (error,) = response.json()["detail"]
+        assert error["loc"] == ["body", "query"]
+        assert error["type"] == "model_attributes_type"
+        # the key the submit view names today is not part of the schema either
+        assert (
+            client.post(
+                "/queries/",
+                headers=auth_header(admin_user),
+                json={
+                    "py_start": 2010,
+                    "queryInfo": {"query": SUBMIT_QUERY, "wrapper": "scopus"},
+                },
+            ).status_code
+            == 422
+        )
+        assert stored_query_permissions(user_id=admin_user.user_id) == []
+        assert fake_queue.queued == []
+
+    # -- submitting a ready-made list of tasks instead of splitting a query ---------
+
+    def test_a_list_of_queries_is_queued_without_splitting(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+    ) -> None:
+        """The year and author parameters play no part once tasks are named by hand."""
+        response = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body(
+                {"query": SUBMIT_QUERY, "wrapper": "scopus"},
+                [task_info("TITLE-ABS-KEY(one)"), task_info("TITLE-ABS-KEY(two)")],
+            ),
+            params=PY_FILTER_PARAMS,
+        )
+        assert response.status_code == 200
+        assert queued_subqueries(fake_queue) == [
+            "TITLE-ABS-KEY(one)",
+            "TITLE-ABS-KEY(two)",
+            # the parent query is queued as a task of its own, and without splitting
+            SUBMIT_QUERY,
+        ]
+
+    def test_each_task_carries_its_own_parameters(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+    ) -> None:
+        client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body(
+                {"query": SUBMIT_QUERY, "wrapper": "scopus", "params": {"cursor": "*"}},
+                [
+                    task_info("TITLE-ABS-KEY(one)", params={"view": "FULL"}),
+                    task_info("TITLE-ABS-KEY(two)"),
+                ],
+            ),
+        )
+        assert [entry["params"] for entry in fake_queue.queued] == [
+            {"view": "FULL"},
+            {},
+            {"cursor": "*"},
+        ]
+
+    def test_only_the_parent_query_is_registered(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        stored_query: Callable[[int], dict[str, Any]],
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        """The tasks are tasks, not queries: just the parent becomes a ``Query`` row."""
+        query_id = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body(
+                {"query": SUBMIT_QUERY, "wrapper": "scopus"},
+                [task_info("TITLE-ABS-KEY(one)"), task_info("TITLE-ABS-KEY(two)")],
+            ),
+        ).json()
+        assert stored_query(query_id)["query"] == SUBMIT_QUERY
+        assert stored_query(query_id + 1) == {}
+        assert stored_query_permissions(query_id=query_id) == [
+            permission(admin_user, query_id, True)
+        ]
+
+    def test_duplicate_tasks_are_queued_more_than_once(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+    ) -> None:
+        """Nothing is deduplicated, so the same subquery is fetched twice."""
+        client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body(
+                {"query": SUBMIT_QUERY, "wrapper": "scopus"},
+                [task_info("TITLE-ABS-KEY(same)")] * 2,
+            ),
+        )
+        assert queued_subqueries(fake_queue) == [
+            "TITLE-ABS-KEY(same)",
+            "TITLE-ABS-KEY(same)",
+            SUBMIT_QUERY,
+        ]
+
+    def test_queries_of_different_wrappers_are_refused(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        response = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body(
+                {"query": SUBMIT_QUERY, "wrapper": "scopus"},
+                [{"query": "cancer[titles]", "wrapper": "pubmed"}],
+            ),
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "Requested queries use different or invalid wrappers!"
+        )
+        assert stored_query_permissions(user_id=admin_user.user_id) == []
+        assert fake_queue.queued == []
+
+    def test_an_empty_task_list_is_refused(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+        stored_query_permissions: Callable[..., list[PermissionRow]],
+    ) -> None:
+        response = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body({"query": SUBMIT_QUERY, "wrapper": "scopus"}, []),
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "The provided sub-query (task) list is empty!"
+        )
+        assert stored_query_permissions(user_id=admin_user.user_id) == []
+        assert fake_queue.queued == []
+
+    def test_an_empty_task_list_is_reported_before_a_short_query(
+        self, client: TestClient, admin_user: User, admin_token: str
+    ) -> None:
+        """Both conditions are checked, and the task list is the one reported first."""
+        response = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body({"query": "x", "wrapper": "scopus"}, []),
+        )
+        assert response.json()["detail"] == (
+            "The provided sub-query (task) list is empty!"
+        )
+
+    def test_a_short_task_in_the_list_is_refused(
+        self,
+        client: TestClient,
+        admin_user: User,
+        admin_token: str,
+        fake_queue: FakeQueue,
+    ) -> None:
+        """The minimum length is checked for every task, not just for the parent."""
+        response = client.post(
+            "/queries/",
+            headers=auth_header(admin_user),
+            json=submit_body(
+                {"query": SUBMIT_QUERY, "wrapper": "scopus"}, [task_info("ab")]
+            ),
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Query too short!"
+        assert fake_queue.queued == []
+
 
 # --------------------------------------------------------------------------------------
-# _queue_subqueries (the background task of POST /queries/)
+# _submit_subqueries and _queue_subqueries (the background tasks of POST /queries/)
 # --------------------------------------------------------------------------------------
+
+
+class TestSubmitSubqueries:
+    """``academic_apis.api.queries._submit_subqueries`` - the last step before workers."""
+
+    def test_every_task_names_the_query_and_wrapper_it_belongs_to(
+        self, fake_queue: FakeQueue
+    ) -> None:
+        _run(
+            _submit_subqueries(
+                transient_query(SUBMIT_QUERY, query_id=7),
+                [
+                    (f"{SUBMIT_QUERY} AND aa*", None),
+                    (f"{SUBMIT_QUERY} AND zz*", {"view": "FULL"}),
+                ],
+            )
+        )
+        assert fake_queue.queued == [
+            {
+                "query": f"{SUBMIT_QUERY} AND aa*",
+                "wrapper": Wrapper.SCOPUS,
+                "query_id": 7,
+                "params": None,
+            },
+            {
+                "query": f"{SUBMIT_QUERY} AND zz*",
+                "wrapper": Wrapper.SCOPUS,
+                "query_id": 7,
+                "params": {"view": "FULL"},
+            },
+        ]
+
+    def test_a_generator_of_tasks_is_consumed_in_order(
+        self, fake_queue: FakeQueue
+    ) -> None:
+        """``POST /queries/`` hands over a generator rather than a list."""
+        _run(
+            _submit_subqueries(
+                transient_query(), ((query, None) for query in ("one", "two", "three"))
+            )
+        )
+        assert queued_subqueries(fake_queue) == ["one", "two", "three"]
+
+    def test_an_empty_task_list_queues_nothing(self, fake_queue: FakeQueue) -> None:
+        _run(_submit_subqueries(transient_query(), []))
+        assert fake_queue.queued == []
 
 
 class TestQueueSubqueries:
     """
     ``academic_apis.api.queries._queue_subqueries``.
 
-    Called directly here: going through ``POST /queries/`` cannot work at all because of
-    the detached instance bug recorded in ``TestSubmitQuery``.
+    Splitting a query is the part worth pinning down here; that the result reaches the
+    queue as tasks is covered by ``TestSubmitQuery`` and ``TestSubmitSubqueries``.
     """
 
     def test_a_query_without_filters_becomes_one_task(
@@ -1008,6 +1519,7 @@ class TestQueueSubqueries:
                 "query": "( TITLE-ABS-KEY( climate ) )",
                 "wrapper": Wrapper.SCOPUS,
                 "query_id": 42,
+                "params": {},
             }
         ]
 
@@ -1066,13 +1578,20 @@ class TestQueueSubqueries:
             f"AND ( PUBYEAR AFT {this_year - 1} )"
         )
 
-    def test_every_task_carries_the_query_id_and_wrapper(
+    def test_the_parameters_of_the_query_reach_every_task(
         self, fake_queue: FakeQueue
     ) -> None:
-        query = transient_query("TITLE-ABS-KEY( climate )", query_id=7)
+        """Unlike the tasks of ``TestSubmitSubqueries``, generated ones share one dict."""
+        query = transient_query(
+            "TITLE-ABS-KEY( climate )", query_id=7, params={"view": "METADATA"}
+        )
         _run(_queue_subqueries(query, use_py_filter=False, use_firstauth_filter=True))
+        assert len(fake_queue.queued) == 26 * 26
         assert {entry["query_id"] for entry in fake_queue.queued} == {7}
         assert {entry["wrapper"] for entry in fake_queue.queued} == {Wrapper.SCOPUS}
+        assert all(
+            entry["params"] == {"view": "METADATA"} for entry in fake_queue.queued
+        )
 
     def test_an_inverted_year_range_fails(self, fake_queue: FakeQueue) -> None:
         with pytest.raises(AssertionError, match="strictly smaller"):

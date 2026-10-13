@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import shutil
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from itertools import repeat
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException
@@ -29,6 +30,8 @@ logger = logging.getLogger(__name__)
 background_logger = logger.getChild("background")
 
 route = APIRouter()
+
+MIN_QUERY_LENGTH = 3
 
 
 class TestResult(BaseModel):
@@ -161,6 +164,31 @@ async def delete_query_logs(
     background_tasks.add_task(_delete_query_logs, query_id)
 
 
+async def _submit_subqueries(
+    query: Query,
+    tasks: Iterable[tuple[str, dict[str, Any] | None]],
+) -> None:
+
+    from academic_apis.broker.tasks import retrieve_query
+
+    background_logger.info(f"Queueing subquery tasks for query_id={query.query_id}...")
+
+    n_subqueries = 0
+    for subquery, params in tasks:
+        background_logger.debug(f"Subquery: {subquery[-200:]}")
+        await retrieve_query.kiq(
+            query=subquery,
+            wrapper=query.wrapper,
+            query_id=query.query_id,
+            params=params,
+        )  # type: ignore[call-overload]
+        n_subqueries += 1
+
+    background_logger.info(
+        f"Queued {n_subqueries:,} subquery tasks for query_id={query.query_id}!"
+    )
+
+
 async def _queue_subqueries(
     query: Query,
     py_start: int = 2010,
@@ -170,57 +198,78 @@ async def _queue_subqueries(
     use_firstauth_filter: bool = True,
 ) -> None:
 
-    from academic_apis.broker.tasks import retrieve_query
-
-    background_logger.info(f"Queueing subquery tasks for query_id={query.query_id}...")
-
     API = WRAPPERS[query.wrapper]  # noqa: N806
-
-    n_subqueries = 0
-    for subquery in API.generate_subqueries(
-        query.query,
-        py_start=py_start,
-        py_end=py_end,
-        py_steps=py_steps,
-        use_py_filter=use_py_filter,
-        use_firstauth_filter=use_firstauth_filter,
-    ):
-        background_logger.debug(f"Subquery: {subquery[-200:]}")
-        await retrieve_query.kiq(
-            query=subquery, wrapper=query.wrapper, query_id=query.query_id
-        )  # type: ignore[call-overload]
-        n_subqueries += 1
-
-    background_logger.info(
-        f"Queued {n_subqueries:,} subquery tasks for query_id={query.query_id}!"
+    await _submit_subqueries(
+        query=query,
+        tasks=zip(
+            API.generate_subqueries(
+                query.query,
+                py_start=py_start,
+                py_end=py_end,
+                py_steps=py_steps,
+                use_py_filter=use_py_filter,
+                use_firstauth_filter=use_firstauth_filter,
+            ),
+            repeat(query.params),
+            strict=False,
+        ),
     )
 
 
 @route.post("/")
 async def submit_query(
     current_user: Annotated[User, Depends(get_current_user)],
-    query: Annotated[QueryInfo, Body()],
     background_tasks: BackgroundTasks,
+    query: Annotated[QueryInfo, Body()],
+    queries: Annotated[list[QueryInfo], Body()] | None = None,
     py_start: int = 2010,
     py_end: int | None = None,
     py_steps: int = 2,
     use_py_filter: bool = False,
     use_firstauth_filter: bool = True,
 ) -> int:
+    """
+    Submit a query to be queued for workers to fetch.
+
+    In case a list of queries is provided, this will not use the wrapper-specific
+    sub-query generator but interpret each `QueryInfo` as a dedicated task. These
+    are queued as tasks directly, i.e. without generating subqueries first.
+    The first query is registered as the parent query the tasks belong to.
+
+    :param current_user:
+    :param query: the query of which to generate sub-queries to submit as tasks to the queue;
+                  if `queries` are set, using this only for reference
+    :param queries: the queries to submit as tasks to the queue
+    :param py_start:
+    :param py_end:
+    :param py_steps:
+    :param use_py_filter:
+    :param use_firstauth_filter:
+    :param background_tasks:
+    :return: the query_id of the registered parent query
+    """
     if not current_user.permission_submit_query or not current_user.permission_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have the permission to submit queries.",
         )
-    if len(query.query) < 3:  # noqa: PLR2004
+    if queries is not None and len(queries) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The provided sub-query (task) list is empty!",
+        )
+    if any(len(q.query) < MIN_QUERY_LENGTH for q in ((queries or []) + [query])):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Query too short!"
         )
 
-    if query.wrapper not in WRAPPERS:
+    if (
+        len({q.wrapper for q in ((queries or []) + [query])}) > 1
+        or query.wrapper not in WRAPPERS
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Wrapper {query.wrapper} not implemented yet!",
+            detail="Requested queries use different or invalid wrappers!",
         )
 
     token = await get_available_token_for_user(
@@ -243,6 +292,17 @@ async def submit_query(
         session.refresh(query_orm)
         query_id: int = cast("int", query_orm.query_id)
         logger.info(f"Registered query as query_id={query_id}")
+
+        if queries is not None:
+            logger.info(
+                f"Submitting {len(queries) + 1:,} sub-queries directly to worker queue for query {query_id}"
+            )
+            background_tasks.add_task(
+                _submit_subqueries,
+                query=query_orm,
+                tasks=((q.query, q.params) for q in ((queries or []) + [query])),
+            )
+
         session.add(
             UserQueryPermission(
                 user_id=current_user.user_id,
@@ -253,15 +313,19 @@ async def submit_query(
         session.commit()
         session.refresh(query_orm)
 
-    background_tasks.add_task(
-        _queue_subqueries,
-        query=query_orm,
-        py_start=py_start,
-        py_end=py_end,
-        py_steps=py_steps,
-        use_py_filter=use_py_filter,
-        use_firstauth_filter=use_firstauth_filter,
-    )
+    if queries is None:
+        logger.info(
+            f"Submitting generated sub-queries to worker queue for query {query_id}"
+        )
+        background_tasks.add_task(
+            _queue_subqueries,
+            query=query_orm,
+            py_start=py_start,
+            py_end=py_end,
+            py_steps=py_steps,
+            use_py_filter=use_py_filter,
+            use_firstauth_filter=use_firstauth_filter,
+        )
 
     return query_id
 

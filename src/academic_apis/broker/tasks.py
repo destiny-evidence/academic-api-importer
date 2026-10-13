@@ -18,6 +18,7 @@ async def retrieve_query(
     query: str,
     wrapper: Wrapper,
     query_id: int,
+    params: dict[str, Any] | None,
     context: Annotated[Context, TaskiqDepends()],
 ) -> list[dict[str, Any]]:
     # Standardized logger path: academic_apis.task.retrieve_query
@@ -48,4 +49,4 @@ async def retrieve_query(
         on_loop=_on_loop,
     )
 
-    return [item async for item in api.fetch_raw(query=query)]
+    return [item async for item in api.fetch_raw(query=query, params=params)]

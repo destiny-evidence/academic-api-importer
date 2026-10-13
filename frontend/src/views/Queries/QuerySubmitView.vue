@@ -4,7 +4,7 @@ import { BFormCheckbox, BFormInput } from 'bootstrap-vue-next/components';
 import { BIconPlay } from 'bootstrap-icons-vue';
 import CodeTextarea from '@/components/CodeTextarea.vue';
 import { Queries, type QueryInfo } from '@/plugins/api/spec';
-import { toastReject } from '@/plugins/api';
+import { toastReject, toastSuccessWith } from '@/plugins/api';
 import { useSessionStore } from '@/stores/store-session';
 import TwoStageButton from '@/components/TwoStageButton.vue';
 
@@ -51,9 +51,15 @@ const validSettings = computed(
 
 function submitQuery() {
   submitted.value = true;
-  Queries.submitQueryQueriesPost({ ...settings.value, queryInfo: queryInfo.value })
-    .then(({ data }) => {
-      console.log(data);
+  Queries.submitQueryQueriesPost({
+    ...settings.value,
+    bodySubmitQueryQueriesPost: { query: queryInfo.value },
+  })
+    .then((response) => {
+      console.log(response.data);
+      toastSuccessWith(
+        'Submitted query to job queue. It may take a while, but it show up within a few minutes in the queue overview.',
+      );
     })
     .catch(toastReject);
 }

@@ -48,7 +48,7 @@ import pytest
 from fastapi.testclient import TestClient
 from taskiq.depends.progress_tracker import TaskState
 
-from academic_apis.api.progress import SUBQUERY_LENGTH
+from academic_apis.api.progress import SUBQUERY_PREVIEW_LENGTH
 from academic_apis.api.utils.auth import create_access_token
 from academic_apis.db import Mode, User, db_session
 from academic_apis.db.schemas import Query, Task, UserQueryPermission
@@ -576,8 +576,8 @@ class TestListTasks:
             f"/tasks/?query_id={query.query_id}", headers=auth_header(admin_user)
         ).json()
         assert listed["subquery"] == expected
-        assert len(expected) <= SUBQUERY_LENGTH
-        if len(subquery) > SUBQUERY_LENGTH:  # the *last* characters are kept
+        assert len(expected) <= SUBQUERY_PREVIEW_LENGTH
+        if len(subquery) > SUBQUERY_PREVIEW_LENGTH:  # the *last* characters are kept
             assert expected.endswith("-tail")
             assert not expected.startswith("head-")
 
