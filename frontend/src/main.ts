@@ -23,6 +23,8 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 
+if (AAPI_VITE_API_URL) client.setConfig({ baseUrl: AAPI_VITE_API_URL });
+
 // Authenticate API requests with the session token and count running requests in
 // the activity store (both require an active Pinia).
 installApiClientPlugins(client, [createAuthPlugin(), createRequestCounterPlugin()]);

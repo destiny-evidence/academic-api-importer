@@ -6,21 +6,28 @@ variables:
   UV_PROJECT_ENVIRONMENT: ".venv"
   UV_CACHE_DIR: .uv-cache
   #UV_NO_SOURCES: true
-  DEPLOYMENT_DIR: "/data/academic-api"
 
+  # Both are baked into the frontend build (see frontend/README.md). Empty
+  # defaults keep the previous behaviour: app at the site root, API requests
+  # relative to it. Set e.g. VITE_AAPI_UI_URL=https://domain.com/aapi/ and
+  # VITE_AAPI_API_URL=https://domain.com/aapi-api to serve them elsewhere.
+  AAPI_VITE_UI_URL:
+    description: "URL (or path) the web UI is served under; only the path part is used"
+    value: ""
+  AAPI_VITE_API_URL:
+    description: "Root URL of the API; defaults to the path the web UI is served under"
+    value: ""
+  NODE_ENV: "development"
+
+  AAPI_WEB_ARTIFACT_DIR:
+    description: "Where build-frontend puts (and deploy-web-to-production expects) the static files"
+    value: "$CI_PROJECT_DIR/frontend/dist"
   AAPI_WWW_DIR:
     description: "Absolute path on server to public_html for frontend"
     value: "/var/www/aapi"
-  VITE_AAPI_UI_URL:
-    description: "Complete URL to web UI"
-    value: "http://127.0.0.1:8080"
-  VITE_AAPI_API_URL:
-    description: "Complete URL to api"
-    value: "http://127.0.0.1:8081"
-  NODE_ENV: "development"
-  # Where build-frontend puts (and deploy-web-to-production expects) the static files
-  WEB_ARTIFACT_DIR: "$CI_PROJECT_DIR/frontend/dist"
-
+  AAPI_DEPLOYMENT_DIR:
+    description: "Absolute path to base directory (parent of where repository is cloned into)"
+    value: "/data/academic-api"
 
 before_script:
   # Provides credentials to pip to access private GitLab PyPi index.
@@ -141,9 +148,9 @@ deploy-web-to-production:
     - echo "Deploying to production"
     - pwd
     - ls -lisah
-    - ls -lisah "${WEB_ARTIFACT_DIR}"
+    - ls -lisah "${AAPI_WEB_ARTIFACT_DIR}"
     - sudo /usr/bin/chown -R gitlab-runner "${AAPI_WWW_DIR}"
-    - rsync -av --delete "${WEB_ARTIFACT_DIR}/" "${AAPI_WWW_DIR}"
+    - rsync -av --delete "${AAPI_WEB_ARTIFACT_DIR}/" "${AAPI_WWW_DIR}"
     - sudo /usr/bin/chown -R nacsos "${AAPI_WWW_DIR}"
   when: manual
   only:
@@ -162,16 +169,18 @@ deploy-api-to-production:
     - echo "Go to deployment location"
     - echo "Stopping core service"
     - sudo systemctl stop academic-api.service
-    - cd "${DEPLOYMENT_DIR}"
+    - cd "${AAPI_DEPLOYMENT_DIR}"
     - pwd
-    - sudo chown -R gitlab-runner "${DEPLOYMENT_DIR}"
+    - sudo chown -R gitlab-runner "${AAPI_DEPLOYMENT_DIR}"
+    - ls -lisah
+    - cd academic-api
     - ls -lisah
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
     - git pull pik main
-    - sudo chown -R nacsos "${DEPLOYMENT_DIR}"
+    - sudo chown -R nacsos "${AAPI_DEPLOYMENT_DIR}"
     - echo "Creating new virtual environment"
-    - sudo -u nacsos /usr/bin/bash -c "uv sync --frozen --reinstall --cache-dir .cache"
+    - sudo -u nacsos /usr/bin/bash -c "uv sync --frozen --reinstall --cache-dir ../.cache"
     - echo "Starting core service"
     - sudo systemctl start academic-api.service
   when: manual

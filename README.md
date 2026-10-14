@@ -14,6 +14,10 @@ npm run typecheck
 npm run dev
 ```
 
+See `frontend/README.md` for building the app under a path
+(`VITE_AAPI_UI_URL`, e.g. `domain.com/path/`) and pointing the API client at a
+configured base URL (`VITE_AAPI_API_URL`).
+
 ## Backend
 
 ```bash

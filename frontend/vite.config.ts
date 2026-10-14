@@ -2,10 +2,7 @@ import { fileURLToPath, URL } from 'node:url';
 import type { IncomingMessage } from 'node:http';
 
 import vue from '@vitejs/plugin-vue';
-import { defineConfig } from 'vite';
-
-// Backend the dev server proxies API calls to (e.g. `uv run fastapi dev`).
-const apiTarget = process.env.VITE_API_TARGET || 'http://localhost:8000';
+import { defineConfig, loadEnv } from 'vite';
 
 // The SPA routes share paths with the API (/queries, /tasks, /tokens). Serve the
 // app for browser page loads (Accept: text/html) and proxy everything else
@@ -14,21 +11,31 @@ function bypassHtml(req: IncomingMessage): string | undefined {
   if (req.headers.accept?.includes('text/html')) return '/index.html';
 }
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiTarget = env.AAPI_VITE_API_URL || 'http://localhost:8000';
+
+  return {
+    plugins: [vue()],
+    envPrefix: ['AAPI_'],
+    base: env.AAPI_VITE_UI_URL,
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
     },
-  },
-  server: {
-    proxy: {
-      '/users': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
-      '/queries': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
-      '/tasks': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
-      '/tokens': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
-      '/profile': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
+    server: {
+      proxy: {
+        '/users': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
+        '/queries': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
+        '/tasks': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
+        '/tokens': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
+        '/profile': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
+      },
     },
-  },
+    define: {
+      AAPI_VITE_API_URL: JSON.stringify(env.AAPI_VITE_API_URL || ''),
+      AAPI_VITE_UI_URL: JSON.stringify(env.AAPI_VITE_UI_URL || ''),
+    },
+  };
 });

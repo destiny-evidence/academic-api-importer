@@ -9,9 +9,9 @@ npm install
 npm run dev
 ```
 
-The dev server proxies `/set-cookie`, `/queries`, `/tasks` and `/tokens` to the
-backend (`http://localhost:8000` by default, override with `VITE_API_TARGET`),
-so run `uv run fastapi dev` in the repo root alongside.
+The dev server proxies `/users`, `/queries`, `/tasks`, `/tokens` and `/profile`
+to the backend (`http://localhost:8000` by default, override with
+`VITE_API_TARGET`), so run `uv run fastapi dev` in the repo root alongside.
 
 ## Build
 
@@ -19,6 +19,31 @@ so run `uv run fastapi dev` in the repo root alongside.
 npm run build   # output in dist/
 npm run preview
 ```
+
+### Serving under a path / other origin
+
+All three knobs are build-time environment variables (also set as CI/CD
+variables, e.g. `AAPI_VITE_API_URL=https://domain.com/aapi-api npm run build`;
+a `.env.local` file works locally):
+
+- `AAPI_VITE_UI_URL`: URL (or bare path) the frontend is served under, e.g.
+  `https://domain.com/aapi/` or `/aapi/`. Only the path part is used: it
+  becomes Vite's `base`, so built asset and favicon URLs and the Vue router
+  (via `import.meta.env.BASE_URL`) all live under it. Copy `dist/` into that
+  directory on the web server. Defaults to the site root (`/`).
+- `AAPI_VITE_API_URL`: root of the API, absolute (`https://api.domain.com` or
+  `https://domain.com/aapi-api`) or relative to the origin (`/aapi-api`). It
+  becomes the generated client's `baseUrl` (`src/plugins/api/base-url.ts`);
+  without it, API requests go to the same path the frontend is served under —
+  with the default `AAPI_VITE_UI_URL` that means plain `/queries` requests,
+  as before.
+- `VITE_API_TARGET`: dev-server proxy target only; irrelevant to builds.
+
+The API endpoints themselves never move: when the backend runs on a different
+origin, configure its CORS with `AAI_WEB_ORIGINS`; when it sits behind a
+reverse proxy under a path of its own, set `AAI_ROOT_PATH` accordingly. In
+dev mode, requests to `<base>queries` (etc.) are proxied to `VITE_API_TARGET`
+with the base prefix stripped, so the backend stays at the root.
 
 ## Lint, format & type-check
 
