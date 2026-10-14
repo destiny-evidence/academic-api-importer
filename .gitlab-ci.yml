@@ -177,7 +177,7 @@ deploy-api-to-production:
     - ls -lisah
     - echo "Fetching updated source"
     - git stash  # "reset" softly by stashing (in case files changed)
-    - git pull pik main
+    - git pull pik production
     - sudo chown -R nacsos "${AAPI_DEPLOYMENT_DIR}"
     - echo "Creating new virtual environment"
     - sudo -u nacsos /usr/bin/bash -c "uv sync --frozen --reinstall --cache-dir ../.cache"
