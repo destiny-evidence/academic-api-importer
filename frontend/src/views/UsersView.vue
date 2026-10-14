@@ -8,6 +8,7 @@ import {
   type AccessTokenPublic,
   Tokens,
   Users,
+  type UserCreate,
   type UserTokenPermission,
   type UserUpdate,
   type Wrapper,
@@ -121,13 +122,30 @@ function resetPassword(user: UserUpdate) {
   user.password_plain = createRandomString(PASSWORD_LENGTH);
 }
 
+/**
+ * Appends an unsaved draft to the list, already carrying a fresh password.
+ * A draft is recognised as new by its empty `user_id`, which only the
+ * create call below fills in with the server-generated id.
+ */
+function addUser() {
+  const user = { user_id: '' } as UserUpdate;
+  resetPassword(user);
+  users.value.push(user);
+}
+
 /** Sends the draft - every typed value and the pending password - to the API. */
 function save(user: UserUpdate) {
-  Users.updateUserUsersPut({ userUpdate: user })
+  // A draft without an id is created instead of updated; UserCreate requires
+  // the fields the blank draft has, which is why it goes over as-is.
+  const request = user.user_id
+    ? Users.updateUserUsersPut({ userUpdate: user })
+    : Users.createUserUsersPost({ userCreate: user as unknown as UserCreate });
+  request
     .then((result) => {
       if (result.data) {
         // Rebase the draft (in place, keeping the input bindings) on what the
         // server stored; the generated password has been applied and is gone.
+        // For a new user this is where it gets its id.
         Object.assign(user, result.data);
         delete user.password_plain;
       }
@@ -143,7 +161,7 @@ function save(user: UserUpdate) {
     <p v-if="loading" class="text-body-secondary">Loading users…</p>
     <p v-else-if="!users.length" class="text-body-secondary">No users yet.</p>
 
-    <div v-for="user in users" :key="user.user_id" class="card mb-3">
+    <div v-for="(user, index) in users" :key="user.user_id || `new-${index}`" class="card mb-3">
       <div class="card-body">
         <div class="d-flex flex-wrap align-items-center gap-2">
           {{ user.full_name }} (<code>{{ user.user_id }}</code
@@ -216,6 +234,8 @@ function save(user: UserUpdate) {
         </p>
       </div>
     </div>
+
+    <BButton variant="outline-primary" class="mb-3" @click="addUser">New user</BButton>
   </section>
 
   <ModalDialog

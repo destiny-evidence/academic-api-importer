@@ -1,6 +1,9 @@
 ## Frontend
 
 ```bash
+# if not default, choose npm/node version
+nvm use v26
+
 cd frontend
 # update api spec from backend openapi.json
 npm run api
