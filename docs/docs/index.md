@@ -38,6 +38,8 @@ flowchart LR
     P[(API token pool)] --> W
     W -->|one file per sub-query| F[(result files on disk)]
     F -->|sync + share links| C[(Cloud storage)]
+    C -.->|optional next step| I[Ingest robot]
+    I -.-> O[ODS search]
 ```
 
 | Term | Meaning |
@@ -64,6 +66,14 @@ flowchart LR
 Also on the roadmap: a *quasi-sampling* download mode that fetches only a slice of the
 results first, and query analysis to show which terms drive the hit count (see
 [Checking and submitting queries](query-submit.md)).
+
+## Related projects
+
+This repository covers the **collection** side: it fetches records from scholarly search
+APIs and leaves the result files in cloud storage. Downstream, the
+[bulk abstract ingest robot](https://github.com/destiny-evidence/bulk-abstract-ingest-robot)
+can pick up those files from the cloud storage and feed the records into the ODS search —
+turning a downloaded result set into a searchable corpus.
 
 ## Getting started
 

@@ -1,5 +1,8 @@
 # Academic API Importer
 
+[![GitHub](https://img.shields.io/badge/GitHub-source-181717?logo=github&logoColor=white)](https://github.com/destiny-evidence/academic-api-importer)
+[![GitLab](https://img.shields.io/badge/GitLab%20(PIK)-source-FC6D26?logo=gitlab&logoColor=white)](https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/academic-apis)
+
 A web interface for downloading **large result sets** from academic literature APIs
 (Scopus today; PubMed, Web of Science, Dimensions and OpenAlex to follow).
 
@@ -73,6 +76,17 @@ does it in one paste.
 | `docs/` | Documentation sources ([zensical](https://zensical.org)) |
 | `tests/` | Backend tests (throwaway SQLite database) |
 | `data/` | SQLite database, task queue, and downloaded results at runtime |
+
+## Source code
+
+| Host | URL |
+| --- | --- |
+| GitHub | <https://github.com/destiny-evidence/academic-api-importer> |
+| GitLab (PIK) | <https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/academic-apis> |
+
+For the downstream step — turning the synced result files into a searchable corpus — see
+the [bulk abstract ingest robot](https://github.com/destiny-evidence/bulk-abstract-ingest-robot),
+which consumes the cloud storage of this tool and feeds records into the ODS search.
 
 ## License
 

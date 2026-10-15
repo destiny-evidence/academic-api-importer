@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { BCollapse, BDropdown, BDropdownItem } from 'bootstrap-vue-next/components';
 
+import RepoLinks from '@/components/RepoLinks.vue';
 import ToastsViewer from '@/components/ToastsViewer.vue';
 import { useActivityStore } from '@/stores/store-activity';
 import { useSessionStore } from '@/stores/store-session';
@@ -95,6 +96,7 @@ watch(
   <main class="container py-4">
     <RouterView />
   </main>
+  <RepoLinks />
   <ToastsViewer />
 </template>
 

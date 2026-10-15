@@ -95,13 +95,20 @@ scheme = "slate"
 toggle.icon = "lucide/moon"
 toggle.name = "Switch to system preference"
 
-# [[project.extra.social]]
-# icon = "fontawesome/brands/github"
-# link = "https://github.com/user/repo"
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/destiny-evidence/academic-api-importer"
+name = "GitHub"
 
-# [[project.extra.social]]
-# icon = "fontawesome/brands/mastodon"
-# link = "https://fosstodon.org/@user"
+[[project.extra.social]]
+icon = "fontawesome/brands/gitlab"
+link = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/academic-apis"
+name = "GitLab (PIK)"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/destiny-evidence/bulk-abstract-ingest-robot"
+name = "GitHub (robot)"
 
 [project.markdown_extensions]
 abbr = { }
