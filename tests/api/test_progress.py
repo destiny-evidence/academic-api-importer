@@ -28,7 +28,7 @@ GET /tasks/ (list_tasks)
 - Query permissions: admins bypass the check; non-admins need a UserQueryPermission row (ownership not required); listing across all queries is admin-only; unknown query IDs behave per role
 - Filtering: query_id, status (all four TaskState values, combinations, invalid values → 422)
 - Paging: default limit of 5, limit/offset pages, offset past the end
-- Ordering: coalesce(latest_try, created_at) ascending (a late-retried task sorts correctly)
+- Ordering: coalesce(latest_try, created_at) descending (a late-retried task sorts correctly)
 - The substr(..., -50) subquery trimming (short / exactly-50 / longer-keeps-the-tail)
 - Only public TaskPublic fields leak — task_name, queue_name, message, labels stay hidden; full-record comparison including the mixed naive/aware datetime serialization (latest_try comes back with a Z suffix, created_at without)
 GET /tasks/summary (task_summary)
@@ -450,11 +450,11 @@ class TestListTasks:
         for day in range(1, 8):  # seven tasks
             make_task(query.query_id, task_id=f"t{day}", created_at=ts(day))
         assert listed_ids(client.get("/tasks/", headers=auth_header(admin_user))) == [
-            "t1",
-            "t2",
-            "t3",
-            "t4",
+            "t7",
+            "t6",
             "t5",
+            "t4",
+            "t3",
         ]
 
     def test_limit_and_offset_page_through_the_tasks(
@@ -469,13 +469,13 @@ class TestListTasks:
         base = f"/tasks/?query_id={query.query_id}"
         assert listed_ids(
             client.get(f"{base}&limit=3&offset=0", headers=auth_header(admin_user))
-        ) == ["t1", "t2", "t3"]
+        ) == ["t7", "t6", "t5"]
         assert listed_ids(
             client.get(f"{base}&limit=3&offset=3", headers=auth_header(admin_user))
-        ) == ["t4", "t5", "t6"]
+        ) == ["t4", "t3", "t2"]
         assert listed_ids(
             client.get(f"{base}&limit=3&offset=6", headers=auth_header(admin_user))
-        ) == ["t7"]
+        ) == ["t1"]
 
     def test_an_offset_past_the_end_returns_nothing(
         self,
@@ -595,15 +595,16 @@ class TestListTasks:
         query: Query,
         make_task: Callable[..., str],
     ) -> None:
-        # Sort key is `coalesce(latest_try, created_at)`, ascending: `late` tried on
-        # the 3rd and comes first even though it was created on the 1st.
+        # Sort key is `coalesce(latest_try, created_at)`, descending: `newest` tried
+        # on the 10th and comes first; `late` tried on the 3rd and comes last even
+        # though it was created on the 1st.
         make_task(query.query_id, task_id="plain", created_at=ts(5))
         make_task(query.query_id, task_id="late", created_at=ts(1), latest_try=ts(3))
         make_task(query.query_id, task_id="newest", created_at=ts(10))
         assert listed_ids(client.get("/tasks/", headers=auth_header(admin_user))) == [
-            "late",
-            "plain",
             "newest",
+            "plain",
+            "late",
         ]
 
     def test_only_public_fields_are_returned(
