@@ -155,6 +155,8 @@ build-docs:
     expire_in: 1 day
     paths:
       - docs/site/
+  only:
+    - production
 
 deploy-documentation:
   tags:
