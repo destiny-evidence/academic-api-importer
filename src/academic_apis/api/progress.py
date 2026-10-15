@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import Integer
-from sqlmodel import case, cast, col, func, select
+from sqlmodel import case, cast, col, func, select, desc
 from taskiq.depends.progress_tracker import TaskState
 
 from academic_apis.api.utils import require_query_permission
@@ -62,7 +62,7 @@ async def list_tasks(
                 Task.progress,
                 Task.execution_time,
             )
-            .order_by(func.coalesce(Task.latest_try, Task.created_at))
+            .order_by(desc(func.coalesce(Task.latest_try, Task.created_at)))
             .limit(limit)
             .offset(offset)
         )
