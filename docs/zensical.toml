@@ -1,18 +1,21 @@
 [project]
 site_url = "https://www.example.com/"
-site_name = "Documentation"
-# site_description = "Your project description"
-# site_author = "Your name"
+site_name = "Academic API Importer"
+site_description = "Downloading large result sets from academic literature APIs, one sub-query at a time."
+site_author = "Tim Repke"
 
-# copyright = "Copyright &copy; 2026 Your name"
+copyright = "Copyright &copy; 2026 The Academic API Importer contributors"
 
-# repo_url = "https://github.com/user/repo"
-# repo_name = "user/repo"
-# edit_uri = "edit/main/docs/"
+repo_url = "https://github.com/destiny-evidence/academic-api-importer"
+repo_name = "destiny-evidence/academic-api-importer"
+edit_uri = "edit/main/docs/docs/"
 
 nav = [
     { "Get started" = "index.md" },
-    { "Markdown in 5min" = "markdown.md" },
+    { "Managing account, tokens and users" = "management.md" },
+    { "Checking and submitting queries" = "query-submit.md" },
+    { "Monitoring queries and tasks" = "query-monitor.md" },
+    #{ "Markdown in 5min" = "template/markdown.md" },
 ]
 
 extra_javascript = [

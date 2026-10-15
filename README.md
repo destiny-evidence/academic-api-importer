@@ -37,6 +37,12 @@ uv run mypy
 uv run pytest
 ```
 
+## Documentation
+```bash
+# Run development mode of documentation
+uv run zensical serve -f docs/zensical.toml -a localhost:8001
+```
+
 ## Logging
 
 Logging for both the API and the workers is configured in code at startup via

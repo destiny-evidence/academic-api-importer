@@ -22,9 +22,15 @@ variables:
   AAPI_WEB_ARTIFACT_DIR:
     description: "Where build-frontend puts (and deploy-web-to-production expects) the static files"
     value: "$CI_PROJECT_DIR/frontend/dist"
+  AAPI_DOCS_ARTIFACT_DIR:
+    description: "Where build-documentation puts (and deploy-docs-to-production expects) the static files"
+    value: "$CI_PROJECT_DIR/docs/site"
   AAPI_WWW_DIR:
     description: "Absolute path on server to public_html for frontend"
     value: "/var/www/aapi"
+  AAPI_DOCS_WWW_DIR:
+    description: "Absolute path on server to public_html for documentation"
+    value: "/var/www/aapi/docs"
   AAPI_DEPLOYMENT_DIR:
     description: "Absolute path to base directory (parent of where repository is cloned into)"
     value: "/data/academic-api"
@@ -135,6 +141,37 @@ build-frontend:
     paths:
       # vite builds into frontend/dist and artifact paths are relative to CI_PROJECT_DIR
       - frontend/dist/
+  only:
+    - production
+
+build-docs:
+  extends: .uv
+  stage: build
+  script:
+    - cd docs
+    - uv run zensical build --strict --clean
+  artifacts:
+    name: "documentation-$CI_COMMIT_SHORT_SHA"
+    expire_in: 1 day
+    paths:
+      - docs/site/
+
+deploy-documentation:
+  tags:
+    - se164-bare
+  stage: deploy
+  dependencies:
+    - build-docs
+  script:
+    - echo "Deploying to production"
+    - ls -lisah
+    - ls -lisah "${AAPI_DOCS_ARTIFACT_DIR}"
+    - sudo /usr/bin/chown -R gitlab-runner "${AAPI_DOCS_WWW_DIR}"
+    - ls -lisah
+    - rsync -av --delete "${AAPI_DOCS_ARTIFACT_DIR}/" "${AAPI_DOCS_WWW_DIR}"
+    - ls -lisah
+    - sudo /usr/bin/chown -R nacsos "${AAPI_DOCS_WWW_DIR}"
+  when: manual
   only:
     - production
 

@@ -224,3 +224,4 @@ conf/
 .config/
 config/
 /docs/site/
+/docs/.github/
