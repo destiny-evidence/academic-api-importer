@@ -48,7 +48,7 @@ flowchart LR
 
 ## Features
 
-* **Token pool** — share Scopus keys across a team, see remaining quota, pause a token
+* **Token pool** — Manage API access tokens, and track remaining quota, pause a token
   without deleting it. See [Managing account, tokens and users](management.md).
 * **Query check** — the search grammar is parsed on the server, so syntax errors are
   reported with line, column and a hint, instead of the generic error the API returns.
@@ -95,3 +95,4 @@ results first, and query analysis to show which terms drive the hit count (see
 | [Managing account, tokens and users](management.md) | Profile, the API token pool, permissions, user administration |
 | [Checking and submitting queries](query-submit.md) | Formatter, grammar check, test button, sub-query settings |
 | [Monitoring queries and tasks](query-monitor.md) | Query list, access rights, task states, logs, downloads |
+| [Development and operations](development.md) | Setup, configuration, running the API and workers, tooling, logging, deployment |

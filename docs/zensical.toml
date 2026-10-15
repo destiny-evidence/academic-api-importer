@@ -15,6 +15,7 @@ nav = [
     { "Managing account, tokens and users" = "management.md" },
     { "Checking and submitting queries" = "query-submit.md" },
     { "Monitoring queries and tasks" = "query-monitor.md" },
+    { "Development and operations" = "development.md" },
     #{ "Markdown in 5min" = "template/markdown.md" },
 ]
 
