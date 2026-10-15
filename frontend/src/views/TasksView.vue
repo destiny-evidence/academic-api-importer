@@ -12,7 +12,8 @@ import {
 
 import { toastReject } from '@/plugins/api';
 import { type QueryProgress, Tasks, type TaskPublic, TaskState } from '@/plugins/api/spec';
-import { formatNumber, formatTimeStamp } from '@/utils';
+import { formatNumber, formatTimeStamp, queryParam } from '@/utils';
+import { updateQuery } from '@/router';
 
 /** Page sizes offered by the page size selector. */
 const PAGE_SIZES = [10, 20, 50, 100];
@@ -27,14 +28,38 @@ const STATUS_VARIANTS: Record<TaskState, string> = {
 
 const route = useRoute();
 
-const selectedQueryId = ref<number | null>(null);
+/** Route-driven, so refreshing or sharing the URL restores what is listed. */
+function initialQueryId(): number | null {
+  const queryId = Number(queryParam(route.params.query_id));
+  return Number.isInteger(queryId) && queryId > 0 ? queryId : null;
+}
+
+const selectedQueryId = ref<number | null>(initialQueryId());
 
 /** '' keeps "all statuses" selectable in the filter dropdown. */
-const statusFilter = ref<TaskState | ''>('');
+const statusFilter = computed<TaskState | ''>({
+  get: () => {
+    const status = queryParam(route.query.status);
+    return (Object.values(TaskState) as string[]).includes(status ?? '')
+      ? (status as TaskState)
+      : '';
+  },
+  // Filtering changes what is listed, so it starts over on the first page.
+  set: (status) => updateQuery(route, { status: status || undefined, page: undefined }),
+});
+
+/** 1-based in the URL ("page=2" is the second page), omitted for the first. */
+const page = computed<number>({
+  get: () => {
+    const value = Number(queryParam(route.query.page));
+    return Number.isInteger(value) && value > 1 ? value - 1 : 0;
+  },
+  set: (value) => updateQuery(route, { page: value > 0 ? String(value + 1) : undefined }),
+});
+
 const progress = ref<QueryProgress[]>([]);
 const tasks = ref<TaskPublic[]>([]);
 const loading = ref(true);
-const page = ref<number>(0);
 const pageLimit = ref<number>(20);
 
 /** Task IDs whose raw progress payload is expanded below their row. */
@@ -105,23 +130,13 @@ function loadTasks() {
     });
 }
 
-// Changing what is listed starts over on the first page. This watcher runs
-// before the one below, so the reset already happened when that one loads.
-watch([selectedQueryId, statusFilter], () => (page.value = 0));
+// Changing what is listed starts over on the first page. The statusFilter
+// setter drops the page itself, so only the query id needs this here.
+watch(selectedQueryId, () => updateQuery(route, { page: undefined }));
 watch([selectedQueryId, statusFilter, page, pageLimit], loadTasks);
 watch(selectedQueryId, loadProgress);
 
 onMounted(() => {
-  try {
-    const raw = Array.isArray(route.params.query_id)
-      ? route.params.query_id[0]
-      : route.params.query_id;
-    const queryId = Number(raw);
-    selectedQueryId.value = Number.isInteger(queryId) && queryId > 0 ? queryId : null;
-  } catch {
-    selectedQueryId.value = null;
-  }
-
   loadTasks();
   loadProgress();
 });

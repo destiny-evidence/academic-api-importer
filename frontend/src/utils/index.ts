@@ -64,3 +64,10 @@ export function formatNumber(
     maximumFractionDigits: decimals,
   }).format(numericValue);
 }
+
+/** Reads the first value of a query parameter, which may repeat as a list. */
+export function queryParam(
+  value: string | null | (string | null)[] | undefined,
+): string | undefined {
+  return (Array.isArray(value) ? value[0] : value) ?? undefined;
+}

@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, type RouteLocationNormalizedLoaded } from 'vue-router';
 
 import LoginView from '@/views/LoginView.vue';
 import ListQueriesView from '@/views/Queries/ListQueriesView.vue';
@@ -87,3 +87,19 @@ router.beforeEach((to) => {
 });
 
 export default router;
+
+/**
+ * Navigates to the same route with modified query parameters, replacing the
+ * history entry so pagination and filtering do not flood the back button.
+ */
+export function updateQuery(
+  route: RouteLocationNormalizedLoaded,
+  patch: Record<string, string | undefined>,
+) {
+  const query = { ...route.query };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) delete query[key];
+    else query[key] = value;
+  }
+  router.replace({ query });
+}
