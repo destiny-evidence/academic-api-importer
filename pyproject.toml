@@ -39,6 +39,7 @@ dev = [
     "pre-commit~=4.2",
     "pytest~=9.0",
     "ruff~=0.16",
+    "zensical>=0.0.70",
 ]
 
 [tool.fastapi]
