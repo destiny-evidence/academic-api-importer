@@ -75,7 +75,7 @@ The settings you are most likely to touch:
 | `AAI_COOKIE_LIFETIME` | `1440` | Login validity in minutes |
 | `AAI_MAX_RETRIES` | `5` | Re-tries per task before it is marked `FAILURE` |
 | `AAI_EMPTY_LOOP_SLEEP` | `30` | Seconds a worker waits when the queue is empty |
-| `AAI_SCOPTUS_PAGE_SIZE` | API maximum (25) | Records per request; lower it to be gentle on a small quota |
+| `AAI_SCOPUS_PAGE_SIZE` | API maximum (25) | Records per request; lower it to be gentle on a small quota |
 
 ## Running it locally
 
