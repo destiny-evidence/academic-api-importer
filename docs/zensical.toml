@@ -148,6 +148,10 @@ pymdownx.emoji.options.custom_icons = ["overrides/.icons"]
 [project.plugins.offline]
 enabled = true
 
+# Renders the Jinja variables in docs/main.py ({{ swagger_ui_url }} and
+# {{ swagger_json_url }}, from AAPI_DOCS_API_URL) into the Markdown pages.
+[project.plugins.macros]
+
 [project.extra]
 
 polyfills = [

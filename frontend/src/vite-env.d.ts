@@ -15,3 +15,9 @@ declare const AAPI_VITE_UI_URL: string | undefined;
  */
 
 declare const AAPI_VITE_API_URL: string | undefined;
+
+/**
+ * URL of the help documentation, linked from the navigation bar. The link is
+ * omitted when unset. Read at build time by `vite.config.ts`.
+ */
+declare const AAPI_VITE_HELP_URL: string | undefined;

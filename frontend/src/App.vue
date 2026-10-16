@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { BCollapse, BDropdown, BDropdownItem } from 'bootstrap-vue-next/components';
+import { BIconPerson, BIconQuestionCircle } from 'bootstrap-icons-vue';
 
 import RepoLinks from '@/components/RepoLinks.vue';
 import ToastsViewer from '@/components/ToastsViewer.vue';
@@ -19,6 +20,10 @@ async function logout() {
 }
 
 const requestInProgress = computed(() => activity.isBusy);
+
+// URL of the help documentation, baked in at build time (see vite.config.ts).
+// The navbar omits the link when the deployment does not configure one.
+const helpUrl = AAPI_VITE_HELP_URL || undefined;
 
 // The collapsible menu (navbar-toggler below) and the Queries dropdown are
 // built from bootstrap-vue-next components because the Bootstrap JS bundle,
@@ -82,10 +87,23 @@ watch(
             <BDropdownItem :to="{ name: 'query-utils' }">Query utils</BDropdownItem>
             <BDropdownItem :to="{ name: 'query-submit' }">Submit query</BDropdownItem>
           </BDropdown>
+
         </div>
 
         <div class="d-flex align-items-lg-center gap-2 mt-2 mt-lg-0">
-          <span class="navbar-text me-2">{{ session.user?.full_name }}</span>
+          <a
+            v-if="helpUrl"
+            class="nav-link me-2"
+            :href="helpUrl"
+            target="_blank"
+            rel="noopener noreferrer">
+            <BIconQuestionCircle class="mb-1" aria-hidden="true" />
+            Help
+          </a>
+          <span class="navbar-text me-2">
+            <BIconPerson class="mb-1" aria-hidden="true" />
+            {{ session.user?.full_name }}
+          </span>
           <button type="button" class="btn btn-outline-secondary btn-sm" @click="logout">
             Log out
           </button>

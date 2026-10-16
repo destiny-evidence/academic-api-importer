@@ -22,7 +22,7 @@ npm run preview
 
 ### Serving under a path / other origin
 
-All three knobs are build-time environment variables (also set as CI/CD
+All of these are build-time environment variables (also set as CI/CD
 variables, e.g. `AAPI_VITE_API_URL=https://domain.com/aapi-api npm run build`;
 a `.env.local` file works locally):
 
@@ -37,6 +37,9 @@ a `.env.local` file works locally):
   without it, API requests go to the same path the frontend is served under —
   with the default `AAPI_VITE_UI_URL` that means plain `/queries` requests,
   as before.
+- `AAPI_VITE_HELP_URL`: URL of the help documentation (e.g. the docs site),
+  linked as **Help** in the navigation bar. Without it, the navbar shows no
+  help link.
 - `VITE_API_TARGET`: dev-server proxy target only; irrelevant to builds.
 
 The API endpoints themselves never move: when the backend runs on a different

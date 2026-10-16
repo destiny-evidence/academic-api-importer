@@ -17,6 +17,12 @@ variables:
   AAPI_VITE_API_URL:
     description: "Root URL of the API; defaults to the path the web UI is served under"
     value: ""
+  AAPI_VITE_HELP_URL:
+    description: "URL of the help documentation linked from the navbar; hidden when empty"
+    value: "http://localhost:8005"
+  AAPI_DOCS_API_URL:
+    description: "Root URL of the API, linked from the documentation front page"
+    value: "http://localhost:8000"
   NODE_ENV: "development"
 
   AAPI_WEB_ARTIFACT_DIR:

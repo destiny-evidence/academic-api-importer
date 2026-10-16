@@ -36,6 +36,7 @@ export default defineConfig(({ mode }) => {
     define: {
       AAPI_VITE_API_URL: JSON.stringify(env.AAPI_VITE_API_URL || ''),
       AAPI_VITE_UI_URL: JSON.stringify(env.AAPI_VITE_UI_URL || ''),
+      AAPI_VITE_HELP_URL: JSON.stringify(env.AAPI_VITE_HELP_URL || ''),
     },
   };
 });

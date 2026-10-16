@@ -95,8 +95,12 @@ turning a downloaded result set into a searchable corpus.
 
 !!! note "API access"
 
-    The web UI talks to a REST API that is documented with OpenAPI — the schema is
-    served at `/openapi.json` and, depending on the deployment, a Swagger UI at `/docs`.
+    The web UI talks to a REST API that is documented with OpenAPI. On this
+    deployment the schema is served at [openapi.json]({{ swagger_json_url }}),
+    and the same schema is rendered as an interactive Swagger UI at
+    [{{ swagger_ui_url }}]({{ swagger_ui_url }}). (The URLs are baked in when
+    the documentation is built; see
+    [Development and operations](development.md#documentation).)
 
 ## Where to go next
 

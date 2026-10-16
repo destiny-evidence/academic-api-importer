@@ -153,7 +153,7 @@ client together with the backend change that caused it.
 
 ### Serving under a path or a different origin
 
-Both knobs are **build-time** variables (env prefix `AAPI_`, also usable as CI/CD
+These are **build-time** variables (env prefix `AAPI_`, also usable as CI/CD
 variables, or in a local `frontend/.env.local`):
 
 * `AAPI_VITE_UI_URL` — URL or bare path the UI is served under, e.g. `https://domain.com/aapi/`
@@ -163,6 +163,8 @@ variables, or in a local `frontend/.env.local`):
 * `AAPI_VITE_API_URL` — root of the API: absolute (`https://api.domain.com`,
   `https://domain.com/aapi-api`) or relative to the origin (`/aapi-api`). It becomes the
   generated client's base URL; unset means API requests go to the path the UI is served under.
+* `AAPI_VITE_HELP_URL` — URL of the help documentation (e.g. this documentation site);
+  it is linked as **Help** in the navigation bar. Unset means the navbar shows no help link.
 
 The API endpoints themselves never move: point the backend at the UI's origin with
 `AAI_WEB_ORIGINS`, and give it `AAI_ROOT_PATH` when it is proxied under a path of its own.
@@ -198,6 +200,12 @@ uv run zensical build --strict --clean                          # static site in
 The sources are Markdown in `docs/docs/`, the config is `docs/zensical.toml`, and
 screenshots for the interface pages live in `docs/docs/screenshots/`. `--strict` fails the
 build on warnings, which is what CI runs.
+
+The link to the API's Swagger UI and OpenAPI schema on the front page is baked in at
+build time by the `macros` plugin (`docs/main.py`): set `AAPI_DOCS_API_URL` to the root
+URL the API is reachable at (e.g. `https://domain.com/aapi/api`, as in the NGINX config
+below), and the links become `<url>/docs` and `<url>/openapi.json`. Unset, they default
+to a local development API at `http://localhost:8000`.
 
 ## Logging
 
