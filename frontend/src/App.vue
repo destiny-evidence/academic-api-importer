@@ -87,7 +87,6 @@ watch(
             <BDropdownItem :to="{ name: 'query-utils' }">Query utils</BDropdownItem>
             <BDropdownItem :to="{ name: 'query-submit' }">Submit query</BDropdownItem>
           </BDropdown>
-
         </div>
 
         <div class="d-flex align-items-lg-center gap-2 mt-2 mt-lg-0">
