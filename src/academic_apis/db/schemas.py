@@ -42,6 +42,8 @@ class QueryInfo(SQLModel):
 
 
 class Query(QueryInfo, table=True):
+    # AUTOINCREMENT keeps SQLite from reusing the ROWID of a deleted row
+    __table_args__ = {"sqlite_autoincrement": True}
     query_id: int | None = Field(default=None, primary_key=True)
 
     created_at: datetime = Field(
