@@ -114,6 +114,22 @@ async def get_current_admin(
     return current_user
 
 
+def ensure_robot_authentication(
+    api_token: Annotated[str | None, Header()] = None,
+) -> bool:
+    if (
+        settings.ods_robot_access_tokens is None
+        or len(settings.ods_robot_access_tokens) == 0
+        or not api_token
+        or api_token not in settings.ods_robot_access_tokens
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    return True
+
+
 if __name__ == "__main__":
     pw = input("Password to hash: ")
     print(hash_password(pw))  # noqa: T201

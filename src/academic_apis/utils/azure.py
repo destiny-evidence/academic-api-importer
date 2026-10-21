@@ -185,10 +185,15 @@ async def upload_concatenated_files(
             logger.warning(f"Skipped {blob_path} (already existed)")
 
 
-async def get_azure_links(blob_path: str) -> AzureAccessLinks:
+async def get_azure_links(
+    blob_path: str,
+    key_lifetime: int | None = None,  # optional override
+) -> AzureAccessLinks:
     # Give the SAS token a longer TTL (e.g., 2 hours) so the user has time to wait + download
     time_start = datetime.now(UTC)
-    time_expire = time_start + timedelta(minutes=settings.azure_storage_key_lifetime)
+    time_expire = time_start + timedelta(
+        minutes=key_lifetime or settings.azure_storage_key_lifetime
+    )
     time_start = time_start - timedelta(minutes=5)
 
     prefix = f"{settings.azure_storage_container_path}{blob_path}"

@@ -154,3 +154,23 @@ class UserQueryPermission(SQLModel, table=True):
     user_id: str = Field(foreign_key="users.user_id", primary_key=True)
     query_id: int = Field(foreign_key="query.query_id", primary_key=True)
     is_owner: bool = False
+
+
+class SearchIngest(SQLModel, table=True):
+    __tablename__ = "search_ingest"
+    ingest_id: str = Field(default_factory=lambda: uuid.uuid6().hex, primary_key=True)
+    query_id: int = Field(foreign_key="query.query_id", unique=True)
+    azure_link: str = Field(
+        nullable=False,
+        description="Link with auth key to result file in azure blob storage",
+    )
+    is_queueing: bool = Field(
+        default=False,
+        nullable=False,
+        description="Status on transfer to ingestion queue (started transfer file to queue)",
+    )
+    is_queued: bool = Field(
+        default=False,
+        nullable=False,
+        description="Status on transfer to ingestion queue (completed transfer file to queue)",
+    )

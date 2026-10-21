@@ -219,6 +219,38 @@ export type QueryProgress = {
 };
 
 /**
+ * SearchIngest
+ */
+export type SearchIngest = {
+    /**
+     * Ingest Id
+     */
+    ingest_id?: string;
+    /**
+     * Query Id
+     */
+    query_id: number;
+    /**
+     * Azure Link
+     *
+     * Link with auth key to result file in azure blob storage
+     */
+    azure_link: string;
+    /**
+     * Is Queueing
+     *
+     * Status on transfer to ingestion queue (started transfer file to queue)
+     */
+    is_queueing?: boolean;
+    /**
+     * Is Queued
+     *
+     * Status on transfer to ingestion queue (completed transfer file to queue)
+     */
+    is_queued?: boolean;
+};
+
+/**
  * TaskPublic
  */
 export type TaskPublic = {
@@ -1475,3 +1507,157 @@ export type ListUserBasesUsersBaseGetResponses = {
 };
 
 export type ListUserBasesUsersBaseGetResponse = ListUserBasesUsersBaseGetResponses[keyof ListUserBasesUsersBaseGetResponses];
+
+export type ListIngestsIngestGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Api-Token
+         */
+        'api-token'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Only Open
+         */
+        only_open?: boolean;
+    };
+    url: '/ingest/';
+};
+
+export type ListIngestsIngestGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListIngestsIngestGetError = ListIngestsIngestGetErrors[keyof ListIngestsIngestGetErrors];
+
+export type ListIngestsIngestGetResponses = {
+    /**
+     * Response List Ingests Ingest  Get
+     *
+     * Successful Response
+     */
+    200: Array<SearchIngest>;
+};
+
+export type ListIngestsIngestGetResponse = ListIngestsIngestGetResponses[keyof ListIngestsIngestGetResponses];
+
+export type MarkQueueingIngestQueueingPutData = {
+    body?: never;
+    headers?: {
+        /**
+         * Api-Token
+         */
+        'api-token'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Ingest Id
+         */
+        ingest_id: string;
+    };
+    url: '/ingest/queueing';
+};
+
+export type MarkQueueingIngestQueueingPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MarkQueueingIngestQueueingPutError = MarkQueueingIngestQueueingPutErrors[keyof MarkQueueingIngestQueueingPutErrors];
+
+export type MarkQueueingIngestQueueingPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: SearchIngest;
+};
+
+export type MarkQueueingIngestQueueingPutResponse = MarkQueueingIngestQueueingPutResponses[keyof MarkQueueingIngestQueueingPutResponses];
+
+export type MarkQueuedIngestQueuedPutData = {
+    body?: never;
+    headers?: {
+        /**
+         * Api-Token
+         */
+        'api-token'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Ingest Id
+         */
+        ingest_id: string;
+    };
+    url: '/ingest/queued';
+};
+
+export type MarkQueuedIngestQueuedPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MarkQueuedIngestQueuedPutError = MarkQueuedIngestQueuedPutErrors[keyof MarkQueuedIngestQueuedPutErrors];
+
+export type MarkQueuedIngestQueuedPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: SearchIngest;
+};
+
+export type MarkQueuedIngestQueuedPutResponse = MarkQueuedIngestQueuedPutResponses[keyof MarkQueuedIngestQueuedPutResponses];
+
+export type AddIngestIngestTransferPutData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Query Id
+         */
+        query_id: number;
+    };
+    url: '/ingest/transfer';
+};
+
+export type AddIngestIngestTransferPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AddIngestIngestTransferPutError = AddIngestIngestTransferPutErrors[keyof AddIngestIngestTransferPutErrors];
+
+export type AddIngestIngestTransferPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: SearchIngest;
+};
+
+export type AddIngestIngestTransferPutResponse = AddIngestIngestTransferPutResponses[keyof AddIngestIngestTransferPutResponses];
