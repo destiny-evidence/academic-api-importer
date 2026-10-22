@@ -113,6 +113,8 @@ async def sync_directory(
 async def _log_upload_progress(file_number: int, query_id: int) -> None:
     async with db_session(mode=Mode.WRITE) as session:
         query = session.get(Query, query_id)
+        if not query:
+            raise AssertionError(f"Found no entry for query_id={query_id}")
         query.azure_progress = file_number
         session.commit()
 
