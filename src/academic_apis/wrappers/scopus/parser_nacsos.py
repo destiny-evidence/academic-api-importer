@@ -21,11 +21,11 @@ def get_doi(obj: dict[str, Any]) -> str | None:
 
 
 def get_id(obj: dict[str, Any]) -> str | None:
-    return obj.get("eid", obj.get("dc:identifier"))
+    return obj.get("eid") or obj.get("dc:identifier")
 
 
 def get_py(obj: dict[str, Any]) -> int | None:
-    py: str | None = obj.get("prism:coverDate")
+    py: str | None = obj.get("prism:coverDate") or obj.get("prism:coverDisplayDate")
     if py and len(py) >= 4:  # noqa: PLR2004
         return int(py[:4])
     return None

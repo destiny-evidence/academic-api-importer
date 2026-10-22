@@ -42,6 +42,8 @@ class QueryInfo(SQLModel):
 
 
 class Query(QueryInfo, table=True):
+    # AUTOINCREMENT keeps SQLite from reusing the ROWID of a deleted row
+    __table_args__ = {"sqlite_autoincrement": True}
     query_id: int | None = Field(default=None, primary_key=True)
 
     created_at: datetime = Field(
@@ -59,6 +61,7 @@ class Query(QueryInfo, table=True):
         default=None,
         sa_column=Column("azure_link", AzureAccessLinksType(), nullable=True),
     )
+    azure_progress: int | None = Field(default=None, nullable=True)
 
 
 class AccessTokenPublic(SQLModel):
@@ -152,3 +155,33 @@ class UserQueryPermission(SQLModel, table=True):
     user_id: str = Field(foreign_key="users.user_id", primary_key=True)
     query_id: int = Field(foreign_key="query.query_id", primary_key=True)
     is_owner: bool = False
+
+
+class SearchIngest(SQLModel, table=True):
+    __tablename__ = "search_ingest"
+    ingest_id: str = Field(default_factory=lambda: uuid.uuid6().hex, primary_key=True)
+    query_id: int = Field(foreign_key="query.query_id", unique=True)
+    azure_link: str = Field(
+        nullable=False,
+        description="Link with auth key to result file in azure blob storage",
+    )
+    is_queueing: bool = Field(
+        default=False,
+        nullable=False,
+        description="Status on transfer to ingestion queue (started transfer file to queue)",
+    )
+    is_queued: bool = Field(
+        default=False,
+        nullable=False,
+        description="Status on transfer to ingestion queue (completed transfer file to queue)",
+    )
+    checkpoint_bytes: int | None = Field(
+        default=None,
+        nullable=True,
+        description="Offset in bytes from the latest commit to the queue (restart from here on failure)",
+    )
+    checkpoint_rows: int | None = Field(
+        default=None,
+        nullable=True,
+        description="Number of lines read from the latest commit to the queue",
+    )

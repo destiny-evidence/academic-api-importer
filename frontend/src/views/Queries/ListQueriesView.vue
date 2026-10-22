@@ -12,6 +12,7 @@ import {
   BIconPersonFill,
   BIconStars,
   BIconTrash,
+  BIconDatabaseAdd,
 } from 'bootstrap-icons-vue';
 import type { TableField } from 'bootstrap-vue-next/types';
 
@@ -20,17 +21,19 @@ import { toastReject, toastSuccessWith } from '@/plugins/api';
 import {
   Queries,
   type Query,
+  Transfer,
   type UserPublicBase,
   type UserQueryPermission,
   Users,
 } from '@/plugins/api/spec';
-import { formatTimeStamp } from '@/utils';
+import { formatNumber, formatTimeStamp } from '@/utils';
 import TwoStageButton from '@/components/TwoStageButton.vue';
 import { useSessionStore } from '@/stores/store-session.ts';
+import RefreshIcon from '@/components/RefreshIcon.vue';
 
 const session = useSessionStore();
 // Longer queries are shortened to this many characters in the table.
-const PREVIEW_LENGTH = 10;
+const PREVIEW_LENGTH = 50;
 type TableQuery = Query & { showLinks?: boolean };
 const router = useRouter();
 const queries = ref<TableQuery[]>([]);
@@ -197,6 +200,12 @@ function syncQuery(query: Query, concatenated: boolean = false) {
     .catch(toastReject);
 }
 
+function transferQuery(query: Query) {
+  Transfer.addIngestIngestTransferPut({ query_id: query.query_id! })
+    .then(toastSuccessWith('Query marked for transfer worker.'))
+    .catch(toastReject);
+}
+
 function clearLogs(query: Query) {
   Queries.deleteQueryLogsQueriesLogsDelete({ query_id: query.query_id! })
     .then(toastSuccessWith('Initiated deletion of query logs.'))
@@ -295,7 +304,7 @@ function refreshAzureToken(query: Query) {
         </BButton>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) < 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud"
@@ -304,12 +313,26 @@ function refreshAzureToken(query: Query) {
         </TwoStageButton>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) < 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud (concatenated)"
           @accepted="syncQuery(item, true)">
           <BIconCloudArrowUpFill />
+        </TwoStageButton>
+
+        <span v-if="(item.azure_progress ?? -1) >= 0" class="me-2">
+          Uploaded {{ formatNumber(item.azure_progress, 0) }}
+          <RefreshIcon :refresh="loadQueries" />
+        </span>
+
+        <TwoStageButton
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) > 0"
+          class="d-inline me-2"
+          btn-style="btn-sm btn-outline-secondary"
+          title="Transfer data from blob to ingest queue"
+          @accepted="transferQuery(item)">
+          <BIconDatabaseAdd />
         </TwoStageButton>
 
         <TwoStageButton

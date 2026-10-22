@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, BodySubmitQueryQueriesPost, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteQueryLogsQueriesLogsDeleteErrors, DeleteQueryLogsQueriesLogsDeleteResponses, DeleteQueryQueriesDeleteErrors, DeleteQueryQueriesDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DownloadQueryQueriesDownloadGetErrors, DownloadQueryQueriesDownloadGetResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RefreshDownloadLinksQueriesDownloadRefreshGetErrors, RefreshDownloadLinksQueriesDownloadRefreshGetResponses, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TaskSummaryTasksSummaryGetErrors, TaskSummaryTasksSummaryGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddIngestIngestTransferPutErrors, AddIngestIngestTransferPutResponses, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, BodySubmitQueryQueriesPost, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteQueryLogsQueriesLogsDeleteErrors, DeleteQueryLogsQueriesLogsDeleteResponses, DeleteQueryQueriesDeleteErrors, DeleteQueryQueriesDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DownloadQueryQueriesDownloadGetErrors, DownloadQueryQueriesDownloadGetResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListIngestsIngestGetErrors, ListIngestsIngestGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, MarkQueuedIngestQueuedPutErrors, MarkQueuedIngestQueuedPutResponses, MarkQueueingIngestQueueingPutErrors, MarkQueueingIngestQueueingPutResponses, QueryInfo, RefreshDownloadLinksQueriesDownloadRefreshGetErrors, RefreshDownloadLinksQueriesDownloadRefreshGetResponses, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TaskSummaryTasksSummaryGetErrors, TaskSummaryTasksSummaryGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateCheckpointIngestCheckpointPutErrors, UpdateCheckpointIngestCheckpointPutResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -618,6 +618,103 @@ export class Users {
         const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }] }]);
         return (options?.client ?? client).get<ListUserBasesUsersBaseGetResponses, ListUserBasesUsersBaseGetErrors, ThrowOnError>({
             url: '/users/base',
+            ...options,
+            ...params
+        });
+    }
+}
+
+export class Transfer {
+    /**
+     * List Ingests
+     */
+    public static listIngestsIngestGet<ThrowOnError extends boolean = true>(parameters?: {
+        'api-token'?: string | null;
+        authorization?: string | null;
+        offset?: number;
+        limit?: number;
+        only_open?: boolean;
+        is_queued?: boolean | null;
+        is_queueing?: boolean | null;
+    }, options?: Options<never, ThrowOnError>): RequestResult<ListIngestsIngestGetResponses, ListIngestsIngestGetErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [
+                    { in: 'headers', key: 'api-token' },
+                    { in: 'headers', key: 'authorization' },
+                    { in: 'query', key: 'offset' },
+                    { in: 'query', key: 'limit' },
+                    { in: 'query', key: 'only_open' },
+                    { in: 'query', key: 'is_queued' },
+                    { in: 'query', key: 'is_queueing' }
+                ] }]);
+        return (options?.client ?? client).get<ListIngestsIngestGetResponses, ListIngestsIngestGetErrors, ThrowOnError>({
+            url: '/ingest/',
+            ...options,
+            ...params
+        });
+    }
+    
+    /**
+     * Mark Queueing
+     */
+    public static markQueueingIngestQueueingPut<ThrowOnError extends boolean = true>(parameters: {
+        'api-token'?: string | null;
+        ingest_id: string;
+    }, options?: Options<never, ThrowOnError>): RequestResult<MarkQueueingIngestQueueingPutResponses, MarkQueueingIngestQueueingPutErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'api-token' }, { in: 'query', key: 'ingest_id' }] }]);
+        return (options?.client ?? client).put<MarkQueueingIngestQueueingPutResponses, MarkQueueingIngestQueueingPutErrors, ThrowOnError>({
+            url: '/ingest/queueing',
+            ...options,
+            ...params
+        });
+    }
+    
+    /**
+     * Mark Queued
+     */
+    public static markQueuedIngestQueuedPut<ThrowOnError extends boolean = true>(parameters: {
+        'api-token'?: string | null;
+        ingest_id: string;
+    }, options?: Options<never, ThrowOnError>): RequestResult<MarkQueuedIngestQueuedPutResponses, MarkQueuedIngestQueuedPutErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'api-token' }, { in: 'query', key: 'ingest_id' }] }]);
+        return (options?.client ?? client).put<MarkQueuedIngestQueuedPutResponses, MarkQueuedIngestQueuedPutErrors, ThrowOnError>({
+            url: '/ingest/queued',
+            ...options,
+            ...params
+        });
+    }
+    
+    /**
+     * Update Checkpoint
+     */
+    public static updateCheckpointIngestCheckpointPut<ThrowOnError extends boolean = true>(parameters: {
+        'api-token'?: string | null;
+        ingest_id: string;
+        checkpoint_bytes: number;
+        checkpoint_rows: number;
+    }, options?: Options<never, ThrowOnError>): RequestResult<UpdateCheckpointIngestCheckpointPutResponses, UpdateCheckpointIngestCheckpointPutErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [
+                    { in: 'headers', key: 'api-token' },
+                    { in: 'query', key: 'ingest_id' },
+                    { in: 'query', key: 'checkpoint_bytes' },
+                    { in: 'query', key: 'checkpoint_rows' }
+                ] }]);
+        return (options?.client ?? client).put<UpdateCheckpointIngestCheckpointPutResponses, UpdateCheckpointIngestCheckpointPutErrors, ThrowOnError>({
+            url: '/ingest/checkpoint',
+            ...options,
+            ...params
+        });
+    }
+    
+    /**
+     * Add Ingest
+     */
+    public static addIngestIngestTransferPut<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        query_id: number;
+    }, options?: Options<never, ThrowOnError>): RequestResult<AddIngestIngestTransferPutResponses, AddIngestIngestTransferPutErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'query_id' }] }]);
+        return (options?.client ?? client).put<AddIngestIngestTransferPutResponses, AddIngestIngestTransferPutErrors, ThrowOnError>({
+            url: '/ingest/transfer',
             ...options,
             ...params
         });
