@@ -336,6 +336,17 @@ export const QuerySchema = {
                     type: 'null'
                 }
             ]
+        },
+        azure_progress: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Azure Progress'
         }
     },
     type: 'object',
@@ -437,6 +448,12 @@ export const SearchIngestSchema = {
             title: 'Is Queued',
             description: 'Status on transfer to ingestion queue (completed transfer file to queue)',
             default: false
+        },
+        checkpoint: {
+            type: 'integer',
+            title: 'Checkpoint',
+            description: 'Offset in bytes from the latest commit to the queue (restart from here on failure)',
+            default: 0
         }
     },
     type: 'object',

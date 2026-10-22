@@ -12,6 +12,7 @@ import {
   BIconPersonFill,
   BIconStars,
   BIconTrash,
+  BIconDatabaseAdd,
 } from 'bootstrap-icons-vue';
 import type { TableField } from 'bootstrap-vue-next/types';
 
@@ -19,18 +20,19 @@ import ModalDialog from '@/components/ModalDialog.vue';
 import { toastReject, toastSuccessWith } from '@/plugins/api';
 import {
   Queries,
-  type Query,
+  type Query, Transfer,
   type UserPublicBase,
   type UserQueryPermission,
   Users,
 } from '@/plugins/api/spec';
-import { formatTimeStamp } from '@/utils';
+import { formatNumber, formatTimeStamp } from '@/utils';
 import TwoStageButton from '@/components/TwoStageButton.vue';
 import { useSessionStore } from '@/stores/store-session.ts';
+import RefreshIcon from '@/components/RefreshIcon.vue';
 
 const session = useSessionStore();
 // Longer queries are shortened to this many characters in the table.
-const PREVIEW_LENGTH = 10;
+const PREVIEW_LENGTH = 50;
 type TableQuery = Query & { showLinks?: boolean };
 const router = useRouter();
 const queries = ref<TableQuery[]>([]);
@@ -110,13 +112,13 @@ function updatePermission(user: UserPublicBase, access: boolean, owner = false) 
   };
   const request = access
     ? Queries.upsertPermissionQueriesPermissionPut(
-        { userQueryPermission },
-        { credentials: 'include' },
-      )
+      { userQueryPermission },
+      { credentials: 'include' },
+    )
     : Queries.dropPermissionQueriesPermissionDelete(
-        { userQueryPermission },
-        { credentials: 'include' },
-      );
+      { userQueryPermission },
+      { credentials: 'include' },
+    );
   request
     .then((result) => {
       queryPermissions.value = result.data ?? [];
@@ -197,6 +199,12 @@ function syncQuery(query: Query, concatenated: boolean = false) {
     .catch(toastReject);
 }
 
+function transferQuery(query: Query) {
+  Transfer.addIngestIngestTransferPut({ query_id: query.query_id! })
+    .then(toastSuccessWith('Query marked for transfer worker.'))
+    .catch(toastReject);
+}
+
 function clearLogs(query: Query) {
   Queries.deleteQueryLogsQueriesLogsDelete({ query_id: query.query_id! })
     .then(toastSuccessWith('Initiated deletion of query logs.'))
@@ -256,7 +264,7 @@ function refreshAzureToken(query: Query) {
             <li v-for="(url, key) in item.azure_link" :key="key">
               {{ key }}:
               <a :href="url as string" target="_blank"
-                >{{ (url as string).substring(0, 100) }}...</a
+              >{{ (url as string).substring(0, 100) }}...</a
               >
             </li>
           </ul>
@@ -295,7 +303,7 @@ function refreshAzureToken(query: Query) {
         </BButton>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? 1) < 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud"
@@ -304,12 +312,26 @@ function refreshAzureToken(query: Query) {
         </TwoStageButton>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? 1) < 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud (concatenated)"
           @accepted="syncQuery(item, true)">
           <BIconCloudArrowUpFill />
+        </TwoStageButton>
+
+        <span v-if="(item.azure_progress ?? -1) >= 0">
+          Uploaded {{ formatNumber(item.azure_progress) }}
+          <RefreshIcon :refresh="loadQueries" />
+        </span>
+
+        <TwoStageButton
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) >= 0"
+          class="d-inline me-2"
+          btn-style="btn-sm btn-outline-secondary"
+          title="Transfer data from blob to ingest queue"
+          @accepted="transferQuery(item)">
+          <BIconDatabaseAdd />
         </TwoStageButton>
 
         <TwoStageButton
@@ -346,34 +368,34 @@ function refreshAzureToken(query: Query) {
       <div v-else class="table-responsive">
         <table class="table table-sm align-middle">
           <thead>
-            <tr>
-              <th scope="col">User</th>
-              <th scope="col">Has access</th>
-              <th scope="col">Is owner</th>
-            </tr>
+          <tr>
+            <th scope="col">User</th>
+            <th scope="col">Has access</th>
+            <th scope="col">Is owner</th>
+          </tr>
           </thead>
           <tbody>
-            <tr v-for="user in users" :key="user.user_id">
-              <td>
-                {{ user.full_name }} (<code>{{ user.user_id }}</code
-                >)
-              </td>
-              <td>
-                <BFormCheckbox
-                  :model-value="Boolean(permissionFor(user.user_id))"
-                  switch
-                  title="Revoke access by switching this off"
-                  @update:model-value="(access) => updatePermission(user, Boolean(access))" />
-              </td>
-              <td>
-                <BFormCheckbox
-                  :model-value="Boolean(permissionFor(user.user_id)?.is_owner)"
-                  :disabled="!permissionFor(user.user_id)"
-                  switch
-                  title="Ownership requires access"
-                  @update:model-value="(owner) => updatePermission(user, true, Boolean(owner))" />
-              </td>
-            </tr>
+          <tr v-for="user in users" :key="user.user_id">
+            <td>
+              {{ user.full_name }} (<code>{{ user.user_id }}</code
+            >)
+            </td>
+            <td>
+              <BFormCheckbox
+                :model-value="Boolean(permissionFor(user.user_id))"
+                switch
+                title="Revoke access by switching this off"
+                @update:model-value="(access) => updatePermission(user, Boolean(access))" />
+            </td>
+            <td>
+              <BFormCheckbox
+                :model-value="Boolean(permissionFor(user.user_id)?.is_owner)"
+                :disabled="!permissionFor(user.user_id)"
+                switch
+                title="Ownership requires access"
+                @update:model-value="(owner) => updatePermission(user, true, Boolean(owner))" />
+            </td>
+          </tr>
           </tbody>
         </table>
       </div>

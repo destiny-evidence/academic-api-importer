@@ -180,6 +180,10 @@ export type Query = {
      */
     latest_result?: string | null;
     azure_link?: AzureAccessLinks | null;
+    /**
+     * Azure Progress
+     */
+    azure_progress?: number | null;
 };
 
 /**
@@ -248,6 +252,12 @@ export type SearchIngest = {
      * Status on transfer to ingestion queue (completed transfer file to queue)
      */
     is_queued?: boolean;
+    /**
+     * Checkpoint
+     *
+     * Offset in bytes from the latest commit to the queue (restart from here on failure)
+     */
+    checkpoint?: number;
 };
 
 /**
@@ -1625,6 +1635,46 @@ export type MarkQueuedIngestQueuedPutResponses = {
 };
 
 export type MarkQueuedIngestQueuedPutResponse = MarkQueuedIngestQueuedPutResponses[keyof MarkQueuedIngestQueuedPutResponses];
+
+export type UpdateCheckpointIngestCheckpointPutData = {
+    body?: never;
+    headers?: {
+        /**
+         * Api-Token
+         */
+        'api-token'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Ingest Id
+         */
+        ingest_id: string;
+        /**
+         * Checkpoint
+         */
+        checkpoint: number;
+    };
+    url: '/ingest/checkpoint';
+};
+
+export type UpdateCheckpointIngestCheckpointPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateCheckpointIngestCheckpointPutError = UpdateCheckpointIngestCheckpointPutErrors[keyof UpdateCheckpointIngestCheckpointPutErrors];
+
+export type UpdateCheckpointIngestCheckpointPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: SearchIngest;
+};
+
+export type UpdateCheckpointIngestCheckpointPutResponse = UpdateCheckpointIngestCheckpointPutResponses[keyof UpdateCheckpointIngestCheckpointPutResponses];
 
 export type AddIngestIngestTransferPutData = {
     body?: never;
