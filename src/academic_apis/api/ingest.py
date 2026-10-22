@@ -6,7 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import desc, select
 from starlette import status
 
-from academic_apis.api.utils.auth import ensure_robot_authentication, get_current_admin
+from academic_apis.api.utils.auth import (
+    ensure_robot_authentication,
+    ensure_robot_or_admin_authentication,
+    get_current_admin,
+)
 from academic_apis.db import db_session
 from academic_apis.db.schemas import (
     Query,
@@ -26,10 +30,12 @@ ELLIPSIS = "..."
 
 @route.get("/")
 async def list_ingests(
-    _is_authorised: Annotated[bool, Depends(ensure_robot_authentication)],
+    _is_authorised: Annotated[bool, Depends(ensure_robot_or_admin_authentication)],
     offset: int = 0,
     limit: int = 5,
     only_open: bool = False,
+    is_queued: bool | None = None,
+    is_queueing: bool | None = None,
 ) -> Sequence[SearchIngest]:
     async with db_session() as session:
         stmt = (
@@ -43,6 +49,11 @@ async def list_ingests(
                 SearchIngest.is_queued == False,
                 SearchIngest.is_queueing == False,
             )
+        else:
+            if is_queued is not None:
+                stmt = stmt.where(SearchIngest.is_queued == is_queued)
+            if is_queueing is not None:
+                stmt = stmt.where(SearchIngest.is_queueing == is_queueing)
         return session.exec(stmt).all()
 
 
@@ -93,6 +104,34 @@ async def mark_queued(
             return ingest
 
         ingest.is_queued = True
+        session.commit()
+        session.refresh(ingest)
+        return ingest
+
+
+@route.put("/checkpoint")
+async def update_checkpoint(
+    _is_authorised: Annotated[bool, Depends(ensure_robot_authentication)],
+    ingest_id: str,
+    checkpoint_bytes: int,
+    checkpoint_rows: int,
+) -> SearchIngest:
+    async with db_session(mode=Mode.WRITE) as session:
+        ingest = session.get(SearchIngest, ingest_id)
+        if ingest is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No info found for ingest_id={ingest_id}",
+            )
+
+        if not ingest.is_queueing or ingest.is_queued:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Trying to write checkpoint for unqueued for fully queued ingest_id={ingest_id}",
+            )
+
+        ingest.checkpoint_bytes = checkpoint_bytes
+        ingest.checkpoint_rows = checkpoint_rows
         session.commit()
         session.refresh(ingest)
         return ingest

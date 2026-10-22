@@ -449,11 +449,29 @@ export const SearchIngestSchema = {
             description: 'Status on transfer to ingestion queue (completed transfer file to queue)',
             default: false
         },
-        checkpoint: {
-            type: 'integer',
-            title: 'Checkpoint',
-            description: 'Offset in bytes from the latest commit to the queue (restart from here on failure)',
-            default: 0
+        checkpoint_bytes: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Checkpoint Bytes',
+            description: 'Offset in bytes from the latest commit to the queue (restart from here on failure)'
+        },
+        checkpoint_rows: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Checkpoint Rows',
+            description: 'Number of lines read from the latest commit to the queue'
         }
     },
     type: 'object',

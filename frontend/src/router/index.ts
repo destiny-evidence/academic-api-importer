@@ -10,6 +10,7 @@ import UsersView from '@/views/UsersView.vue';
 import ProfileView from '@/views/ProfileView.vue';
 import QueryUtilsView from '@/views/Queries/QueryUtilsView.vue';
 import QuerySubmitView from '@/views/Queries/QuerySubmitView.vue';
+import TransferView from '@/views/TransferView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -45,6 +46,11 @@ const router = createRouter({
       path: '/tasks/:query_id?',
       name: 'tasks',
       component: TasksView,
+    },
+    {
+      path: '/transfer',
+      name: 'transfer',
+      component: TransferView,
     },
     {
       path: '/users',

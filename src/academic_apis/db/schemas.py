@@ -61,6 +61,7 @@ class Query(QueryInfo, table=True):
         default=None,
         sa_column=Column("azure_link", AzureAccessLinksType(), nullable=True),
     )
+    azure_progress: int | None = Field(default=None, nullable=True)
 
 
 class AccessTokenPublic(SQLModel):
@@ -173,4 +174,14 @@ class SearchIngest(SQLModel, table=True):
         default=False,
         nullable=False,
         description="Status on transfer to ingestion queue (completed transfer file to queue)",
+    )
+    checkpoint_bytes: int | None = Field(
+        default=None,
+        nullable=True,
+        description="Offset in bytes from the latest commit to the queue (restart from here on failure)",
+    )
+    checkpoint_rows: int | None = Field(
+        default=None,
+        nullable=True,
+        description="Number of lines read from the latest commit to the queue",
     )

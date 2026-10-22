@@ -253,11 +253,17 @@ export type SearchIngest = {
      */
     is_queued?: boolean;
     /**
-     * Checkpoint
+     * Checkpoint Bytes
      *
      * Offset in bytes from the latest commit to the queue (restart from here on failure)
      */
-    checkpoint?: number;
+    checkpoint_bytes?: number | null;
+    /**
+     * Checkpoint Rows
+     *
+     * Number of lines read from the latest commit to the queue
+     */
+    checkpoint_rows?: number | null;
 };
 
 /**
@@ -1525,6 +1531,10 @@ export type ListIngestsIngestGetData = {
          * Api-Token
          */
         'api-token'?: string | null;
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
     };
     path?: never;
     query?: {
@@ -1540,6 +1550,14 @@ export type ListIngestsIngestGetData = {
          * Only Open
          */
         only_open?: boolean;
+        /**
+         * Is Queued
+         */
+        is_queued?: boolean | null;
+        /**
+         * Is Queueing
+         */
+        is_queueing?: boolean | null;
     };
     url: '/ingest/';
 };
@@ -1651,9 +1669,13 @@ export type UpdateCheckpointIngestCheckpointPutData = {
          */
         ingest_id: string;
         /**
-         * Checkpoint
+         * Checkpoint Bytes
          */
-        checkpoint: number;
+        checkpoint_bytes: number;
+        /**
+         * Checkpoint Rows
+         */
+        checkpoint_rows: number;
     };
     url: '/ingest/checkpoint';
 };

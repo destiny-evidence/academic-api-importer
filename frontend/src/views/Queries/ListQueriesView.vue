@@ -303,7 +303,7 @@ function refreshAzureToken(query: Query) {
         </BButton>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin && (item.azure_progress ?? 1) < 0"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) < 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud"
@@ -312,7 +312,7 @@ function refreshAzureToken(query: Query) {
         </TwoStageButton>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin && (item.azure_progress ?? 1) < 0"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) < 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud (concatenated)"
@@ -320,13 +320,13 @@ function refreshAzureToken(query: Query) {
           <BIconCloudArrowUpFill />
         </TwoStageButton>
 
-        <span v-if="(item.azure_progress ?? -1) >= 0">
-          Uploaded {{ formatNumber(item.azure_progress) }}
+        <span v-if="(item.azure_progress ?? -1) >= 0" class="me-2">
+          Uploaded {{ formatNumber(item.azure_progress, 0) }}
           <RefreshIcon :refresh="loadQueries" />
         </span>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) >= 0"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) > 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Transfer data from blob to ingest queue"

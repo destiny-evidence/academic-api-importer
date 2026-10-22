@@ -8,25 +8,32 @@ report the progress of that transfer, and ``GET /ingest/`` lists what is tracked
 
 The rules covered here:
 
-==========================  =======================  ==========================
-                          robot endpoints          ``PUT /ingest/transfer``
-==========================  =======================  ==========================
-without credentials         401                      401
-logged-in user              401                      403 (plain) / 200 (admin)
-robot token                 200                      401
-==========================  =======================  ==========================
+==========================  ================  ================  ==========================
+                         robot write       ``GET /ingest/``  ``PUT /ingest/transfer``
+                         endpoints
+==========================  ================  ================  ==========================
+without credentials        401               401               401
+logged-in user             401               403 / 200         403 (plain) / 200 (admin)
+robot token                200               200               401
+==========================  ================  ================  ==========================
 
-The three robot endpoints authenticate with a token from
-``settings.ods_robot_access_tokens``, sent in the ``api-token`` header; neither
-an inactive nor a plain user login opens them, and an unset or empty token list
-shuts them down even when a token is offered. ``PUT /ingest/transfer`` is the
-mirror image: it demands a logged-in admin and ignores the robot token.
+The robot write endpoints (``PUT /ingest/queueing`` and ``PUT /ingest/queued``)
+authenticate with a token from ``settings.ods_robot_access_tokens``, sent in the
+``api-token`` header; neither an inactive nor a plain user login opens them, and
+an unset or empty token list shuts them down even when a token is offered.
+``GET /ingest/`` accepts such a token as well, but also opens for a logged-in
+admin. ``PUT /ingest/transfer`` is the mirror image of the write endpoints: it
+demands a logged-in admin and ignores the robot token.
 
 Authentication
 - the robot endpoints only accept a token from ``settings.ods_robot_access_tokens``
   in the ``api-token`` header: missing, empty or wrong tokens, and an unset or
   empty configuration all leave every one of them closed; a user login does not
-  open them, and ``PUT /ingest/transfer`` conversely ignores the robot token
+  open the write endpoints (only ``GET /ingest/`` also takes an admin), and
+  ``PUT /ingest/transfer`` conversely ignores the robot token
+- ``GET /ingest/`` additionally opens for a logged-in admin: malformed and
+  ghost logins are 401, inactive admins and plain users 403; cookie logins
+  work like bearer tokens
 - ``PUT /ingest/transfer`` demands a logged-in admin (anonymous, malformed and
   ghost logins are 401, inactive admins and plain users 403); cookie logins and
   admins without the query-submit permission are accepted
@@ -108,6 +115,16 @@ ENDPOINTS: dict[str, tuple[str, str, dict[str, str]]] = {
 }
 
 ALL_ENDPOINTS = pytest.mark.parametrize("endpoint", ENDPOINTS.values(), ids=ENDPOINTS)
+
+#: the robot endpoints that stay closed to user logins; ``GET /ingest/``
+#: additionally opens for an admin and is covered by its own test class
+WRITE_ENDPOINTS = {
+    name: endpoint for name, endpoint in ENDPOINTS.items() if name != "list"
+}
+
+ALL_WRITE_ENDPOINTS = pytest.mark.parametrize(
+    "endpoint", WRITE_ENDPOINTS.values(), ids=WRITE_ENDPOINTS
+)
 
 
 def _run[T](coroutine: Coroutine[Any, Any, T]) -> T:
@@ -327,7 +344,7 @@ def stored_ingest(
 
 
 class TestRobotAuthentication:
-    """The three robot endpoints only open for a configured ``api-token``."""
+    """The robot endpoints only open for a configured ``api-token``."""
 
     @ALL_ENDPOINTS
     def test_requests_without_the_header_are_rejected(
@@ -376,7 +393,7 @@ class TestRobotAuthentication:
         response = call(client, endpoint, headers={"api-token": ROBOT_TOKEN})
         assert response.status_code == 401
 
-    @ALL_ENDPOINTS
+    @ALL_WRITE_ENDPOINTS
     def test_a_user_login_is_no_substitute(
         self,
         client: TestClient,
@@ -384,7 +401,8 @@ class TestRobotAuthentication:
         admin_user: User,
     ) -> None:
         # the token list is not consulted at all, so this fails with 401 even
-        # though an admin is logged in
+        # though an admin is logged in (``GET /ingest/`` is the exception and
+        # has its own tests below)
         response = call(client, endpoint, headers=auth_header(admin_user))
         assert response.status_code == 401
 
@@ -412,6 +430,66 @@ class TestRobotAuthentication:
             ).status_code
             == 200
         )
+
+
+class TestListIngestsUserAuthentication:
+    """``GET /ingest/`` additionally opens for a logged-in admin."""
+
+    def test_an_admin_login_lists_the_ingests(
+        self,
+        client: TestClient,
+        admin_user: User,
+        make_query: Callable[..., int],
+        make_ingest: Callable[..., str],
+    ) -> None:
+        query_id = make_query()
+        ingest_id = make_ingest(query_id=query_id)
+        response = client.get("/ingest/", headers=auth_header(admin_user))
+        assert response.status_code == 200
+        assert ingested_ids(response) == [ingest_id]
+
+    def test_cookie_login_is_accepted_like_a_bearer_token(
+        self, client: TestClient, admin_user: User
+    ) -> None:
+        client.cookies.set(settings.cookie_name, create_access_token(admin_user))
+        assert client.get("/ingest/").status_code == 200
+
+    def test_plain_users_are_refused(
+        self, client: TestClient, normal_user: User
+    ) -> None:
+        response = client.get("/ingest/", headers=auth_header(normal_user))
+        assert response.status_code == 403
+        assert response.json()["detail"] == NO_ADMIN_AUTH
+
+    def test_inactive_admins_are_refused(
+        self, client: TestClient, inactive_user: User
+    ) -> None:
+        response = client.get("/ingest/", headers=auth_header(inactive_user))
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Inactive user"
+
+    def test_malformed_credentials_are_rejected(self, client: TestClient) -> None:
+        response = client.get("/ingest/", headers={"Authorization": "Bearer not-a-jwt"})
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Could not validate credentials"
+
+    def test_well_signed_token_of_unknown_user_is_rejected(
+        self, client: TestClient
+    ) -> None:
+        response = client.get("/ingest/", headers=ghost_auth_header())
+        assert response.status_code == 401
+        assert response.json()["detail"] == "User not found"
+
+    def test_the_robot_token_is_consulted_first(
+        self,
+        client: TestClient,
+        enable_robots: Callable[..., dict[str, str]],
+        normal_user: User,
+    ) -> None:
+        """A valid robot token passes even while the offered user login would not."""
+        headers = enable_robots(ROBOT_TOKEN)
+        headers.update(auth_header(normal_user))
+        assert client.get("/ingest/", headers=headers).status_code == 200
 
 
 class TestTransferAuthentication:

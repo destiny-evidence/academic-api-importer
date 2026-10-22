@@ -630,15 +630,21 @@ export class Transfer {
      */
     public static listIngestsIngestGet<ThrowOnError extends boolean = true>(parameters?: {
         'api-token'?: string | null;
+        authorization?: string | null;
         offset?: number;
         limit?: number;
         only_open?: boolean;
+        is_queued?: boolean | null;
+        is_queueing?: boolean | null;
     }, options?: Options<never, ThrowOnError>): RequestResult<ListIngestsIngestGetResponses, ListIngestsIngestGetErrors, ThrowOnError> {
         const params = buildClientParams([parameters], [{ args: [
                     { in: 'headers', key: 'api-token' },
+                    { in: 'headers', key: 'authorization' },
                     { in: 'query', key: 'offset' },
                     { in: 'query', key: 'limit' },
-                    { in: 'query', key: 'only_open' }
+                    { in: 'query', key: 'only_open' },
+                    { in: 'query', key: 'is_queued' },
+                    { in: 'query', key: 'is_queueing' }
                 ] }]);
         return (options?.client ?? client).get<ListIngestsIngestGetResponses, ListIngestsIngestGetErrors, ThrowOnError>({
             url: '/ingest/',
@@ -683,12 +689,14 @@ export class Transfer {
     public static updateCheckpointIngestCheckpointPut<ThrowOnError extends boolean = true>(parameters: {
         'api-token'?: string | null;
         ingest_id: string;
-        checkpoint: number;
+        checkpoint_bytes: number;
+        checkpoint_rows: number;
     }, options?: Options<never, ThrowOnError>): RequestResult<UpdateCheckpointIngestCheckpointPutResponses, UpdateCheckpointIngestCheckpointPutErrors, ThrowOnError> {
         const params = buildClientParams([parameters], [{ args: [
                     { in: 'headers', key: 'api-token' },
                     { in: 'query', key: 'ingest_id' },
-                    { in: 'query', key: 'checkpoint' }
+                    { in: 'query', key: 'checkpoint_bytes' },
+                    { in: 'query', key: 'checkpoint_rows' }
                 ] }]);
         return (options?.client ?? client).put<UpdateCheckpointIngestCheckpointPutResponses, UpdateCheckpointIngestCheckpointPutErrors, ThrowOnError>({
             url: '/ingest/checkpoint',
