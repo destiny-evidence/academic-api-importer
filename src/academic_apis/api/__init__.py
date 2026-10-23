@@ -10,7 +10,6 @@ from starlette.staticfiles import StaticFiles
 from academic_apis.broker.broker import broker
 from academic_apis.utils import init_logging, settings
 
-from .ingest import route as ingest_app
 from .progress import route as progress_app
 from .queries import route as manage_app
 from .tokens import route as token_app
@@ -37,9 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa: ARG001
 
 api = FastAPI(
     lifespan=lifespan,
-    openapi_url=settings.OPENAPI_FILE,
-    openapi_prefix=settings.OPENAPI_PREFIX,
-    root_path=settings.ROOT_PATH,
+    openapi_url=settings.openapi_url,
     separate_input_output_schemas=False,
 )
 
@@ -62,4 +59,3 @@ api.include_router(manage_app, prefix="/queries", tags=["Queries"])
 api.include_router(token_app, prefix="/tokens", tags=["Tokens"])
 api.include_router(progress_app, prefix="/tasks", tags=["Tasks"])
 api.include_router(users_app, prefix="/users", tags=["Users"])
-api.include_router(ingest_app, prefix="/ingest", tags=["Transfer"])

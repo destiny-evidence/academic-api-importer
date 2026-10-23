@@ -88,6 +88,7 @@ class TestGetAvailableToken:
         token_id = make_token(owner=user, token="scopus-key")
         query_id = make_query(owner=user)
         token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is not None
         assert token.token_id == token_id
         # Detached: the fields are still readable after the session has been closed.
         assert token.token == "scopus-key"
@@ -105,6 +106,7 @@ class TestGetAvailableToken:
         )
         query_id = make_query(owner=user)
         token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is not None
         assert token.token_id == token_id
 
     def test_query_access_without_ownership_is_not_enough(
@@ -174,6 +176,7 @@ class TestGetAvailableToken:
         token_id = make_token(owner=user, locked_until=utc(-1))
         query_id = make_query(owner=user)
         token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is not None
         assert token.token_id == token_id
 
     def test_the_least_recently_used_token_is_returned(
@@ -189,6 +192,7 @@ class TestGetAvailableToken:
         make_token(owner=user, token="oldest", last_used=utc(-3))
         query_id = make_query(owner=user)
         token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is not None
         assert token.token == "oldest"
 
     def test_an_unused_token_is_preferred_over_a_used_one(
@@ -203,6 +207,7 @@ class TestGetAvailableToken:
         token_id = make_token(owner=user, token="never-used", last_used=None)
         query_id = make_query(owner=user)
         token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is not None
         assert token.token_id == token_id
         assert token.token == "never-used"
 
@@ -218,6 +223,7 @@ class TestGetAvailableToken:
         token_id = make_token(owner=user, token="usable", last_used=utc(-5))
         query_id = make_query(owner=user)
         token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is not None
         assert token.token_id == token_id
         assert token.token == "usable"
 
@@ -233,6 +239,7 @@ class TestGetAvailableToken:
         token_id = make_token(owner=owner, users=[(borrower, False)])
         query_id = make_query(owner=owner, users=[(borrower, True)])
         token = run(get_available_token(query_id=query_id, wrapper=Wrapper.SCOPUS))
+        assert token is not None
         assert token.token_id == token_id
 
     def test_a_token_is_only_available_for_queries_its_owner_may_run(
@@ -270,6 +277,7 @@ class TestGetAvailableTokenForUser:
         token = run(
             get_available_token_for_user(user_id=user.user_id, wrapper=Wrapper.SCOPUS)
         )
+        assert token is not None
         assert token.token_id == token_id
         # Detached: the fields are still readable after the session has been closed.
         assert token.token == "scopus-key"
@@ -288,6 +296,7 @@ class TestGetAvailableTokenForUser:
                 user_id=borrower.user_id, wrapper=Wrapper.SCOPUS
             )
         )
+        assert token is not None
         assert token.token_id == token_id
 
     def test_a_token_of_another_user_is_not_returned(
@@ -343,6 +352,7 @@ class TestGetAvailableTokenForUser:
         token = run(
             get_available_token_for_user(user_id=user.user_id, wrapper=Wrapper.SCOPUS)
         )
+        assert token is not None
         assert token.token_id == token_id
 
     def test_the_least_recently_used_token_is_returned(
@@ -358,6 +368,7 @@ class TestGetAvailableTokenForUser:
         token = run(
             get_available_token_for_user(user_id=user.user_id, wrapper=Wrapper.SCOPUS)
         )
+        assert token is not None
         assert token.token == "oldest"
 
     def test_an_unused_token_is_preferred_over_a_used_one(
@@ -372,6 +383,7 @@ class TestGetAvailableTokenForUser:
         token = run(
             get_available_token_for_user(user_id=user.user_id, wrapper=Wrapper.SCOPUS)
         )
+        assert token is not None
         assert token.token_id == token_id
         assert token.token == "never-used"
 
@@ -387,6 +399,7 @@ class TestGetAvailableTokenForUser:
         token = run(
             get_available_token_for_user(user_id=user.user_id, wrapper=Wrapper.SCOPUS)
         )
+        assert token is not None
         assert token.token_id == token_id
         assert token.token == "usable"
 
@@ -400,4 +413,5 @@ class TestGetAvailableTokenForUser:
                 user_id=inactive_user.user_id, wrapper=Wrapper.SCOPUS
             ),
         )
+        assert token is not None
         assert token.token_id == token_id

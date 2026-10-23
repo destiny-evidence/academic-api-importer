@@ -140,10 +140,10 @@ class Config(BaseSettings):
         ),
     )
 
-    OPENAPI_FILE: str = "/openapi.json"  # absolute URL path to openapi.json file
     # see https://fastapi.tiangolo.com/advanced/behind-a-proxy/
-    OPENAPI_PREFIX: str = ""
-    ROOT_PATH: str = ""
+    root_path: str = ""
+    # see https://fastapi.tiangolo.com/tutorial/metadata/#openapi-url
+    openapi_url: str = "/openapi.json"  # absolute URL path to openapi.json file
 
     def responses_dir(self, query_id: int) -> Path:
         target = self.result_dir / str(query_id) / "responses"

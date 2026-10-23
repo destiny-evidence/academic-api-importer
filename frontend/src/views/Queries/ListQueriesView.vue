@@ -21,7 +21,6 @@ import { toastReject, toastSuccessWith } from '@/plugins/api';
 import {
   Queries,
   type Query,
-  Transfer,
   type UserPublicBase,
   type UserQueryPermission,
   Users,
@@ -201,8 +200,11 @@ function syncQuery(query: Query, concatenated: boolean = false) {
 }
 
 function transferQuery(query: Query) {
-  Transfer.addIngestIngestTransferPut({ query_id: query.query_id! })
-    .then(toastSuccessWith('Query marked for transfer worker.'))
+  Queries.addIngestQueriesTransferPut({ query_id: query.query_id! })
+    .then((response) => {
+      query.transfer_link = response.data.transfer_link;
+      toastSuccessWith('Generated new long-lasting azure link to be used elsewhere.')(response);
+    })
     .catch(toastReject);
 }
 
@@ -261,7 +263,7 @@ function refreshAzureToken(query: Query) {
             @click.stop="refreshAzureToken(item)">
             <BIconArrowClockwise />
           </BButton>
-          <ul v-if="item.azure_link">
+          <ul v-if="item.azure_link" class="mb-2">
             <li v-for="(url, key) in item.azure_link" :key="key">
               {{ key }}:
               <a :href="url as string" target="_blank"
@@ -269,6 +271,20 @@ function refreshAzureToken(query: Query) {
               >
             </li>
           </ul>
+
+          <TwoStageButton
+            v-if="session.user?.permission_admin && (item.azure_progress ?? -1) > 0"
+            class="d-inline me-2"
+            btn-style="btn-sm btn-outline-secondary"
+            title="Create transfer link for ingest queue"
+            @accepted="transferQuery(item)">
+            <BIconDatabaseAdd />
+          </TwoStageButton>
+          <div v-if="item.transfer_link">
+            <a :href="item.transfer_link" target="_blank"
+              >{{ item.transfer_link.substring(0, 100) }}...</a
+            >
+          </div>
         </div>
       </template>
       <template #cell(wrapper)="{ item }">
@@ -325,15 +341,6 @@ function refreshAzureToken(query: Query) {
           Uploaded {{ formatNumber(item.azure_progress, 0) }}
           <RefreshIcon :refresh="loadQueries" />
         </span>
-
-        <TwoStageButton
-          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) > 0"
-          class="d-inline me-2"
-          btn-style="btn-sm btn-outline-secondary"
-          title="Transfer data from blob to ingest queue"
-          @accepted="transferQuery(item)">
-          <BIconDatabaseAdd />
-        </TwoStageButton>
 
         <TwoStageButton
           class="d-inline me-2"

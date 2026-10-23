@@ -184,6 +184,12 @@ export type Query = {
      * Azure Progress
      */
     azure_progress?: number | null;
+    /**
+     * Transfer Link
+     *
+     * azure link with longer-lasting SAS token so other services can consume this
+     */
+    transfer_link?: string | null;
 };
 
 /**
@@ -220,50 +226,6 @@ export type QueryProgress = {
      * N Retrieved
      */
     n_retrieved: number;
-};
-
-/**
- * SearchIngest
- */
-export type SearchIngest = {
-    /**
-     * Ingest Id
-     */
-    ingest_id?: string;
-    /**
-     * Query Id
-     */
-    query_id: number;
-    /**
-     * Azure Link
-     *
-     * Link with auth key to result file in azure blob storage
-     */
-    azure_link: string;
-    /**
-     * Is Queueing
-     *
-     * Status on transfer to ingestion queue (started transfer file to queue)
-     */
-    is_queueing?: boolean;
-    /**
-     * Is Queued
-     *
-     * Status on transfer to ingestion queue (completed transfer file to queue)
-     */
-    is_queued?: boolean;
-    /**
-     * Checkpoint Bytes
-     *
-     * Offset in bytes from the latest commit to the queue (restart from here on failure)
-     */
-    checkpoint_bytes?: number | null;
-    /**
-     * Checkpoint Rows
-     *
-     * Number of lines read from the latest commit to the queue
-     */
-    checkpoint_rows?: number | null;
 };
 
 /**
@@ -937,6 +899,42 @@ export type DownloadQueryQueriesDownloadGetResponses = {
 
 export type DownloadQueryQueriesDownloadGetResponse = DownloadQueryQueriesDownloadGetResponses[keyof DownloadQueryQueriesDownloadGetResponses];
 
+export type AddIngestQueriesTransferPutData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Query Id
+         */
+        query_id: number;
+    };
+    url: '/queries/transfer';
+};
+
+export type AddIngestQueriesTransferPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AddIngestQueriesTransferPutError = AddIngestQueriesTransferPutErrors[keyof AddIngestQueriesTransferPutErrors];
+
+export type AddIngestQueriesTransferPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Query;
+};
+
+export type AddIngestQueriesTransferPutResponse = AddIngestQueriesTransferPutResponses[keyof AddIngestQueriesTransferPutResponses];
+
 export type RefreshDownloadLinksQueriesDownloadRefreshGetData = {
     body?: never;
     headers?: {
@@ -1523,213 +1521,3 @@ export type ListUserBasesUsersBaseGetResponses = {
 };
 
 export type ListUserBasesUsersBaseGetResponse = ListUserBasesUsersBaseGetResponses[keyof ListUserBasesUsersBaseGetResponses];
-
-export type ListIngestsIngestGetData = {
-    body?: never;
-    headers?: {
-        /**
-         * Api-Token
-         */
-        'api-token'?: string | null;
-        /**
-         * Authorization
-         */
-        authorization?: string | null;
-    };
-    path?: never;
-    query?: {
-        /**
-         * Offset
-         */
-        offset?: number;
-        /**
-         * Limit
-         */
-        limit?: number;
-        /**
-         * Only Open
-         */
-        only_open?: boolean;
-        /**
-         * Is Queued
-         */
-        is_queued?: boolean | null;
-        /**
-         * Is Queueing
-         */
-        is_queueing?: boolean | null;
-    };
-    url: '/ingest/';
-};
-
-export type ListIngestsIngestGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ListIngestsIngestGetError = ListIngestsIngestGetErrors[keyof ListIngestsIngestGetErrors];
-
-export type ListIngestsIngestGetResponses = {
-    /**
-     * Response List Ingests Ingest  Get
-     *
-     * Successful Response
-     */
-    200: Array<SearchIngest>;
-};
-
-export type ListIngestsIngestGetResponse = ListIngestsIngestGetResponses[keyof ListIngestsIngestGetResponses];
-
-export type MarkQueueingIngestQueueingPutData = {
-    body?: never;
-    headers?: {
-        /**
-         * Api-Token
-         */
-        'api-token'?: string | null;
-    };
-    path?: never;
-    query: {
-        /**
-         * Ingest Id
-         */
-        ingest_id: string;
-    };
-    url: '/ingest/queueing';
-};
-
-export type MarkQueueingIngestQueueingPutErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type MarkQueueingIngestQueueingPutError = MarkQueueingIngestQueueingPutErrors[keyof MarkQueueingIngestQueueingPutErrors];
-
-export type MarkQueueingIngestQueueingPutResponses = {
-    /**
-     * Successful Response
-     */
-    200: SearchIngest;
-};
-
-export type MarkQueueingIngestQueueingPutResponse = MarkQueueingIngestQueueingPutResponses[keyof MarkQueueingIngestQueueingPutResponses];
-
-export type MarkQueuedIngestQueuedPutData = {
-    body?: never;
-    headers?: {
-        /**
-         * Api-Token
-         */
-        'api-token'?: string | null;
-    };
-    path?: never;
-    query: {
-        /**
-         * Ingest Id
-         */
-        ingest_id: string;
-    };
-    url: '/ingest/queued';
-};
-
-export type MarkQueuedIngestQueuedPutErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type MarkQueuedIngestQueuedPutError = MarkQueuedIngestQueuedPutErrors[keyof MarkQueuedIngestQueuedPutErrors];
-
-export type MarkQueuedIngestQueuedPutResponses = {
-    /**
-     * Successful Response
-     */
-    200: SearchIngest;
-};
-
-export type MarkQueuedIngestQueuedPutResponse = MarkQueuedIngestQueuedPutResponses[keyof MarkQueuedIngestQueuedPutResponses];
-
-export type UpdateCheckpointIngestCheckpointPutData = {
-    body?: never;
-    headers?: {
-        /**
-         * Api-Token
-         */
-        'api-token'?: string | null;
-    };
-    path?: never;
-    query: {
-        /**
-         * Ingest Id
-         */
-        ingest_id: string;
-        /**
-         * Checkpoint Bytes
-         */
-        checkpoint_bytes: number;
-        /**
-         * Checkpoint Rows
-         */
-        checkpoint_rows: number;
-    };
-    url: '/ingest/checkpoint';
-};
-
-export type UpdateCheckpointIngestCheckpointPutErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UpdateCheckpointIngestCheckpointPutError = UpdateCheckpointIngestCheckpointPutErrors[keyof UpdateCheckpointIngestCheckpointPutErrors];
-
-export type UpdateCheckpointIngestCheckpointPutResponses = {
-    /**
-     * Successful Response
-     */
-    200: SearchIngest;
-};
-
-export type UpdateCheckpointIngestCheckpointPutResponse = UpdateCheckpointIngestCheckpointPutResponses[keyof UpdateCheckpointIngestCheckpointPutResponses];
-
-export type AddIngestIngestTransferPutData = {
-    body?: never;
-    headers?: {
-        /**
-         * Authorization
-         */
-        authorization?: string | null;
-    };
-    path?: never;
-    query: {
-        /**
-         * Query Id
-         */
-        query_id: number;
-    };
-    url: '/ingest/transfer';
-};
-
-export type AddIngestIngestTransferPutErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type AddIngestIngestTransferPutError = AddIngestIngestTransferPutErrors[keyof AddIngestIngestTransferPutErrors];
-
-export type AddIngestIngestTransferPutResponses = {
-    /**
-     * Successful Response
-     */
-    200: SearchIngest;
-};
-
-export type AddIngestIngestTransferPutResponse = AddIngestIngestTransferPutResponses[keyof AddIngestIngestTransferPutResponses];

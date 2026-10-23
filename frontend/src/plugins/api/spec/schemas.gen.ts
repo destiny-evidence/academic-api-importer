@@ -347,6 +347,18 @@ export const QuerySchema = {
                 }
             ],
             title: 'Azure Progress'
+        },
+        transfer_link: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Transfer Link',
+            description: 'azure link with longer-lasting SAS token so other services can consume this'
         }
     },
     type: 'object',
@@ -420,66 +432,6 @@ export const QueryProgressSchema = {
         'n_retrieved'
     ],
     title: 'QueryProgress'
-} as const;
-
-export const SearchIngestSchema = {
-    properties: {
-        ingest_id: {
-            type: 'string',
-            title: 'Ingest Id'
-        },
-        query_id: {
-            type: 'integer',
-            title: 'Query Id'
-        },
-        azure_link: {
-            type: 'string',
-            title: 'Azure Link',
-            description: 'Link with auth key to result file in azure blob storage'
-        },
-        is_queueing: {
-            type: 'boolean',
-            title: 'Is Queueing',
-            description: 'Status on transfer to ingestion queue (started transfer file to queue)',
-            default: false
-        },
-        is_queued: {
-            type: 'boolean',
-            title: 'Is Queued',
-            description: 'Status on transfer to ingestion queue (completed transfer file to queue)',
-            default: false
-        },
-        checkpoint_bytes: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Checkpoint Bytes',
-            description: 'Offset in bytes from the latest commit to the queue (restart from here on failure)'
-        },
-        checkpoint_rows: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Checkpoint Rows',
-            description: 'Number of lines read from the latest commit to the queue'
-        }
-    },
-    type: 'object',
-    required: [
-        'query_id',
-        'azure_link'
-    ],
-    title: 'SearchIngest'
 } as const;
 
 export const TaskPublicSchema = {

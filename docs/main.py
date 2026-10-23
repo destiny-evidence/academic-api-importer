@@ -8,8 +8,8 @@ import os
 from typing import Any
 
 # Root the API is reachable at, e.g. https://domain.com/aapi/api (no trailing
-# slash). Swagger UI and the OpenAPI schema are served below it at the paths
-# configured on the backend (AAI_ROOT_PATH and AAI_OPENAPI_FILE there).
+# slash). Swagger UI and the OpenAPI schema live below it at the fixed paths
+# /docs and /openapi.json; the prefix comes from the server's --root-path.
 API_URL = os.environ.get("AAPI_DOCS_API_URL", "http://localhost:8000").rstrip("/")
 
 

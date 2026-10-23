@@ -31,7 +31,6 @@ export default defineConfig(({ mode }) => {
         '/tasks': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
         '/tokens': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
         '/profile': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
-        '/ingest': { target: apiTarget, changeOrigin: true, bypass: bypassHtml },
       },
     },
     define: {

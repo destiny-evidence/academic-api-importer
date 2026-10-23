@@ -44,7 +44,7 @@ def test_unset_stays_none(make_config: Callable[[str | None], Config]) -> None:
     ],
 )
 def test_random_strings_become_a_list(
-    make_config: Callable[[str | None], Config], raw: str, expected: list[str]
+    make_config: Callable[[str | None], Config], raw: str, expected: set[str]
 ) -> None:
     assert make_config(raw).ods_robot_access_tokens == expected
 

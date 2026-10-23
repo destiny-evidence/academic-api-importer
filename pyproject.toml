@@ -1,6 +1,6 @@
 [project]
 name = "academic-apis"
-version = "0.1.0"
+version = "0.3.0"
 description = "This toolkit provides wrappers to interact with APIs of academic literature databases, such as Scopus, Web of Science, PubMed, and others."
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
@@ -15,9 +15,9 @@ dependencies = [
     #"taskiq-dashboard==0.4.4",
     #"taskiq-admin",
     "filelock~=4.0",
-    "sqlmodel~=0.0.47",
+    "sqlmodel~=0.0.48",
     "pandas[excel]~=3.0",
-    "fastapi[standard]~=0.142",
+    "fastapi[standard]~=0.161.1",
     "orjson~=3.12",
     "socksio==1.*",
     "argon2-cffi~=25.1",
@@ -29,17 +29,17 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-nacsos-data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.58" }
+nacsos-data = { git = "https://gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.59" }
 #nacsos-data = { git = "git+ssh://git@gitlab.pik-potsdam.de/mcc-apsis/nacsos/nacsos-data.git", tag = "v0.24.55" }
 
 [dependency-groups]
 dev = [
     "academic-apis",
-    "mypy~=2.3",
-    "pre-commit~=4.2",
-    "pytest~=9.0",
-    "ruff~=0.16",
-    "zensical>=0.0.70",
+    "mypy~=2.4",
+    "pre-commit~=4.7.0",
+    "pytest~=9.1.1",
+    "ruff~=0.17.2",
+    "zensical~=0.0.72",
 ]
 
 [tool.fastapi]

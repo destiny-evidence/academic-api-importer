@@ -72,7 +72,6 @@ watch(
         <div class="navbar-nav me-auto">
           <RouterLink class="nav-link" :to="{ name: 'query-list' }">Queries</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'tasks' }">Tasks</RouterLink>
-          <RouterLink class="nav-link" :to="{ name: 'transfer' }">Transfer</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'tokens' }">Tokens</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'profile' }">Profile</RouterLink>
           <RouterLink v-if="session.user?.permission_admin" class="nav-link" :to="{ name: 'users' }"
