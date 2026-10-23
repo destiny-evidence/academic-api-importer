@@ -180,6 +180,16 @@ export type Query = {
      */
     latest_result?: string | null;
     azure_link?: AzureAccessLinks | null;
+    /**
+     * Azure Progress
+     */
+    azure_progress?: number | null;
+    /**
+     * Transfer Link
+     *
+     * azure link with longer-lasting SAS token so other services can consume this
+     */
+    transfer_link?: string | null;
 };
 
 /**
@@ -888,6 +898,42 @@ export type DownloadQueryQueriesDownloadGetResponses = {
 };
 
 export type DownloadQueryQueriesDownloadGetResponse = DownloadQueryQueriesDownloadGetResponses[keyof DownloadQueryQueriesDownloadGetResponses];
+
+export type AddIngestQueriesTransferPutData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Query Id
+         */
+        query_id: number;
+    };
+    url: '/queries/transfer';
+};
+
+export type AddIngestQueriesTransferPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AddIngestQueriesTransferPutError = AddIngestQueriesTransferPutErrors[keyof AddIngestQueriesTransferPutErrors];
+
+export type AddIngestQueriesTransferPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Query;
+};
+
+export type AddIngestQueriesTransferPutResponse = AddIngestQueriesTransferPutResponses[keyof AddIngestQueriesTransferPutResponses];
 
 export type RefreshDownloadLinksQueriesDownloadRefreshGetData = {
     body?: never;

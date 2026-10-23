@@ -336,6 +336,29 @@ export const QuerySchema = {
                     type: 'null'
                 }
             ]
+        },
+        azure_progress: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Azure Progress'
+        },
+        transfer_link: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Transfer Link',
+            description: 'azure link with longer-lasting SAS token so other services can consume this'
         }
     },
     type: 'object',

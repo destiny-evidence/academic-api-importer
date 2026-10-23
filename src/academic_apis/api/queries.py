@@ -20,6 +20,7 @@ from academic_apis.db.schemas import QueryInfo, UserQueryPermission
 from academic_apis.db.tokens import get_available_token_for_user
 from academic_apis.grammars.scopus import QuerySyntaxError, query_to_indented_text
 from academic_apis.utils import Wrapper, settings
+from academic_apis.utils.azure import get_azure_links
 from academic_apis.utils.types import AzureAccessLinks
 from academic_apis.wrappers import WRAPPERS
 
@@ -513,6 +514,29 @@ async def download_query(
         )
 
     return links
+
+
+@route.put("/transfer")
+async def add_ingest(
+    _current_admin: Annotated[User, Depends(get_current_admin)],
+    query_id: int,
+) -> Query:
+    async with db_session(mode=Mode.WRITE) as session:
+        query = session.get(Query, query_id)
+        if query is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No query found for query_id={query_id}",
+            )
+        blob_path = f"{settings.azure_storage_container_path}{query_id}"
+        links = await get_azure_links(
+            blob_path=blob_path,
+            key_lifetime=settings.azure_storage_robot_key_lifetime,
+        )
+        query.transfer_link = links.responses_url
+        session.commit()
+        session.refresh(query)
+        return query
 
 
 @route.get("/download/refresh")

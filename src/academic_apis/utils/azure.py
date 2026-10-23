@@ -19,8 +19,9 @@ from azure.storage.blob import (
 )
 from azure.storage.blob.aio import BlobServiceClient as BlobServiceClientAsync
 
+from academic_apis.db import Query, db_session
 from academic_apis.utils import settings
-from academic_apis.utils.types import AzureAccessLinks
+from academic_apis.utils.types import AzureAccessLinks, Mode
 
 logger = logging.getLogger(__name__)
 
@@ -109,8 +110,20 @@ async def sync_directory(
         await asyncio.gather(*(sema_task(t) for t in upload_tasks))
 
 
+async def _log_upload_progress(file_number: int, query_id: int) -> None:
+    async with db_session(mode=Mode.WRITE) as session:
+        query = session.get(Query, query_id)
+        if not query:
+            raise AssertionError(f"Found no entry for query_id={query_id}")
+        query.azure_progress = file_number
+        session.commit()
+
+
 async def _read_concatenated_files(
-    file_paths: list[str], include_file_headers: bool = False
+    file_paths: list[str],
+    include_file_headers: bool = False,
+    log_to_database: bool = False,
+    query_id: int | None = None,
 ) -> AsyncIterator[bytes]:
     """
     Streams the contents of `file_paths` line by line, one file after another.
@@ -119,10 +132,17 @@ async def _read_concatenated_files(
     constant no matter how large the individual files are. Newlines are inserted where
     one is missing between files, so that lines of neighbouring files are never joined
     and the concatenated stream always ends with a newline.
+
+    Optionally, this will keep track of the progress by logging how many files were
+    iterated in the query table.
     """
     buffer = bytearray()
     ends_with_newline = True
-    for file_path in file_paths:
+
+    if log_to_database and query_id:
+        await _log_upload_progress(query_id=query_id, file_number=0)
+
+    for fi, file_path in enumerate(file_paths):
         logger.info(f"Streaming {file_path}...")
         if include_file_headers:
             buffer += (
@@ -139,10 +159,18 @@ async def _read_concatenated_files(
                 if len(buffer) >= settings.azure_storage_buffer_size:
                     yield bytes(buffer)
                     buffer = bytearray()
+
+        if log_to_database and query_id:
+            await _log_upload_progress(query_id=query_id, file_number=fi)
+
     if not ends_with_newline:
         buffer += b"\n"
+
     if buffer:
         yield bytes(buffer)
+
+    if log_to_database and query_id:
+        await _log_upload_progress(query_id=query_id, file_number=len(file_paths))
 
 
 async def upload_concatenated_files(
@@ -150,6 +178,8 @@ async def upload_concatenated_files(
     target_file: str,
     overwrite: bool = False,
     include_file_headers: bool = False,
+    log_to_database: bool = False,
+    query_id: int | None = None,
 ) -> None:
     """
     Uploads all files matching `pattern` below `source_dir` as one concatenated blob.
@@ -177,7 +207,10 @@ async def upload_concatenated_files(
         try:
             await blob_client.upload_blob(
                 _read_concatenated_files(
-                    file_paths, include_file_headers=include_file_headers
+                    file_paths,
+                    include_file_headers=include_file_headers,
+                    query_id=query_id,
+                    log_to_database=log_to_database,
                 ),
                 overwrite=overwrite,
             )
@@ -185,10 +218,15 @@ async def upload_concatenated_files(
             logger.warning(f"Skipped {blob_path} (already existed)")
 
 
-async def get_azure_links(blob_path: str) -> AzureAccessLinks:
+async def get_azure_links(
+    blob_path: str,
+    key_lifetime: int | None = None,  # optional override
+) -> AzureAccessLinks:
     # Give the SAS token a longer TTL (e.g., 2 hours) so the user has time to wait + download
     time_start = datetime.now(UTC)
-    time_expire = time_start + timedelta(minutes=settings.azure_storage_key_lifetime)
+    time_expire = time_start + timedelta(
+        minutes=key_lifetime or settings.azure_storage_key_lifetime
+    )
     time_start = time_start - timedelta(minutes=5)
 
     prefix = f"{settings.azure_storage_container_path}{blob_path}"

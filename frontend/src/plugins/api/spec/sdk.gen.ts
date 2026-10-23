@@ -2,7 +2,7 @@
 
 import { buildClientParams, type Client, type ClientMeta, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AccessToken, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, BodySubmitQueryQueriesPost, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteQueryLogsQueriesLogsDeleteErrors, DeleteQueryLogsQueriesLogsDeleteResponses, DeleteQueryQueriesDeleteErrors, DeleteQueryQueriesDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DownloadQueryQueriesDownloadGetErrors, DownloadQueryQueriesDownloadGetResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RefreshDownloadLinksQueriesDownloadRefreshGetErrors, RefreshDownloadLinksQueriesDownloadRefreshGetResponses, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TaskSummaryTasksSummaryGetErrors, TaskSummaryTasksSummaryGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
+import type { AccessToken, AddIngestQueriesTransferPutErrors, AddIngestQueriesTransferPutResponses, AddTokenTokensSubmitPostErrors, AddTokenTokensSubmitPostResponses, BodySubmitQueryQueriesPost, CreateUserUsersPostErrors, CreateUserUsersPostResponses, DeletePermissionsTokensPermissionsDeleteErrors, DeletePermissionsTokensPermissionsDeleteResponses, DeleteQueryLogsQueriesLogsDeleteErrors, DeleteQueryLogsQueriesLogsDeleteResponses, DeleteQueryQueriesDeleteErrors, DeleteQueryQueriesDeleteResponses, DeleteTokenTokensDeleteDeleteErrors, DeleteTokenTokensDeleteDeleteResponses, DownloadQueryQueriesDownloadGetErrors, DownloadQueryQueriesDownloadGetResponses, DropPermissionQueriesPermissionDeleteErrors, DropPermissionQueriesPermissionDeleteResponses, EditPermissionsTokensPermissionsPostErrors, EditPermissionsTokensPermissionsPostResponses, GetMyInfoUsersMeGetErrors, GetMyInfoUsersMeGetResponses, GetPermissionsQueriesPermissionGetErrors, GetPermissionsQueriesPermissionGetResponses, ListPermissionsTokensPermissionGetErrors, ListPermissionsTokensPermissionGetResponses, ListQueriesQueriesGetErrors, ListQueriesQueriesGetResponses, ListTasksTasksGetErrors, ListTasksTasksGetResponses, ListTokensTokensListGetErrors, ListTokensTokensListGetResponses, ListUserBasesUsersBaseGetErrors, ListUserBasesUsersBaseGetResponses, ListUsersUsersGetErrors, ListUsersUsersGetResponses, LoginRequest, LoginUsersLoginPostErrors, LoginUsersLoginPostResponses, LogoutUsersLogoutPostErrors, LogoutUsersLogoutPostResponses, QueryInfo, RefreshDownloadLinksQueriesDownloadRefreshGetErrors, RefreshDownloadLinksQueriesDownloadRefreshGetResponses, RenderQueryQueriesRenderPostErrors, RenderQueryQueriesRenderPostResponses, SubmitQueryQueriesPostErrors, SubmitQueryQueriesPostResponses, TaskState, TaskSummaryTasksSummaryGetErrors, TaskSummaryTasksSummaryGetResponses, TestQueryQueriesTestPostErrors, TestQueryQueriesTestPostResponses, UpdateTokenTokensUpdatePostErrors, UpdateTokenTokensUpdatePostResponses, UpdateUserUsersPutErrors, UpdateUserUsersPutResponses, UpsertPermissionQueriesPermissionPutErrors, UpsertPermissionQueriesPermissionPutResponses, UserCreate, UserQueryPermission, UserTokenPermission, UserUpdate } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -254,6 +254,21 @@ export class Queries {
                 ] }]);
         return (options?.client ?? client).get<DownloadQueryQueriesDownloadGetResponses, DownloadQueryQueriesDownloadGetErrors, ThrowOnError>({
             url: '/queries/download',
+            ...options,
+            ...params
+        });
+    }
+    
+    /**
+     * Add Ingest
+     */
+    public static addIngestQueriesTransferPut<ThrowOnError extends boolean = true>(parameters: {
+        authorization?: string | null;
+        query_id: number;
+    }, options?: Options<never, ThrowOnError>): RequestResult<AddIngestQueriesTransferPutResponses, AddIngestQueriesTransferPutErrors, ThrowOnError> {
+        const params = buildClientParams([parameters], [{ args: [{ in: 'headers', key: 'authorization' }, { in: 'query', key: 'query_id' }] }]);
+        return (options?.client ?? client).put<AddIngestQueriesTransferPutResponses, AddIngestQueriesTransferPutErrors, ThrowOnError>({
+            url: '/queries/transfer',
             ...options,
             ...params
         });
