@@ -58,9 +58,9 @@ instead of keys with `AAI_AZURE_STORAGE_USE_ENTRA=true`.
 !!! note "Reading `.config/default.env`"
 
     Only one env file is read (`AAI_CONF_FILE`, default `.config/secret.env`), and
-    `.config/default.env` is a template rather than a fallback — copy what you need. Two
-    of its lines do nothing as written: the data root is set with `AAI_DATA_ROOT` (not
-    `AAI_DATA_DIR`), and `AAI=OPENAPI_PREFIX=""` is missing its second underscore.
+    `.config/default.env` is a template rather than a fallback — copy what you need.
+    One of its lines does nothing as written: the data root is set with
+    `AAI_DATA_ROOT` (not `AAI_DATA_DIR`).
 
 The settings you are most likely to touch:
 
@@ -167,7 +167,8 @@ variables, or in a local `frontend/.env.local`):
   it is linked as **Help** in the navigation bar. Unset means the navbar shows no help link.
 
 The API endpoints themselves never move: point the backend at the UI's origin with
-`AAI_WEB_ORIGINS`, and give it `AAI_ROOT_PATH` when it is proxied under a path of its own.
+`AAI_WEB_ORIGINS`. When the API is proxied under a path of its own, give the server a
+matching root path — `uv run fastapi run --root-path /aapi-api`.
 
 The backend can also serve the build itself: setting `AAI_STATIC_FILES` mounts it as
 `/static`, though in practice the SPA is deployed as static files next to the API
@@ -317,6 +318,17 @@ workers are only restarted after a code update (a restart re-queues unfinished t
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Prefix /aapi/api;
     }
+```
+
+The API process behind that location must know the prefix it is served under, so its
+service starts the server with a matching root path. It is recommended to still keep
+the `AAI_ROOT_PATH` in your environment file and read from there for consistency.
+
+```bash
+uv run fastapi run --root-path /aapi/api --port 7050
+
+# if you want to read from your config (assuming `.config/secret.env`)
+uv run fastapi run --root-path "$(sed -n 's/^AAI_ROOT_PATH=//p' .config/secret.env 2>/dev/null | tr -d '"' | tr -d "'" | grep . || echo '/aapi/api')" --port 7050
 ```
 
 ### Ad-hoc operations

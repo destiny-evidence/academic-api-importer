@@ -1,14 +1,38 @@
+import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, BeforeValidator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CONFIG_ENV_VAR = "AAI_CONF_FILE"
 DEFAULT_CONFIG_FILE = ".config/secret.env"
 CONFIG_FILE = os.getenv(CONFIG_ENV_VAR, DEFAULT_CONFIG_FILE)
+
+
+def _as_string_set(value: object) -> object:
+    """
+    Turn a plain string setting into a list of strings.
+
+    pydantic expects JSON for list fields, but tokens are usually pasted into
+    a dotenv file as a simple comma separated list. JSON lists (``["a", "b"]``)
+    are handed through unchanged, everything else is split on commas,
+    semicolons and whitespace.
+    """
+    if not isinstance(value, str):
+        return value
+    text = value.strip()
+    if not text:
+        return None
+    if text.startswith("["):
+        try:
+            return set(json.loads(text))
+        except ValueError:
+            pass  # not JSON after all: treat the whole thing as plain text
+    return {item for item in re.split(r"[,;\s]+", text) if item}
 
 
 class Config(BaseSettings):
@@ -84,8 +108,12 @@ class Config(BaseSettings):
         description="Base folder in the container",
     )
     azure_storage_key_lifetime: int = Field(
-        default=1440,
+        default=1440,  # defaults to 24h
         description="Lifetime of azure download tokens in minutes.",
+    )
+    azure_storage_robot_key_lifetime: int = Field(
+        default=20160,  # defaults to 14 days
+        description="Lifetime of azure download tokens for ingest robot in minutes.",
     )
     azure_storage_buffer_size: int = Field(
         default=4 * 1024 * 1024,
@@ -101,10 +129,21 @@ class Config(BaseSettings):
         description="Number of records to request per page. If not set, using API maximum.",
     )
 
-    OPENAPI_FILE: str = "/openapi.json"  # absolute URL path to openapi.json file
+    ods_robot_access_tokens: Annotated[
+        set[str] | None, BeforeValidator(_as_string_set)
+    ] = Field(
+        default=None,
+        description=(
+            "Access tokens that the bulk-abstract-ingest robot can use to "
+            "interact with the API. Either a JSON list or a plain list of "
+            "tokens separated by commas, semicolons or whitespace."
+        ),
+    )
+
     # see https://fastapi.tiangolo.com/advanced/behind-a-proxy/
-    OPENAPI_PREFIX: str = ""
-    ROOT_PATH: str = ""
+    root_path: str = ""
+    # see https://fastapi.tiangolo.com/tutorial/metadata/#openapi-url
+    openapi_url: str = "/openapi.json"  # absolute URL path to openapi.json file
 
     def responses_dir(self, query_id: int) -> Path:
         target = self.result_dir / str(query_id) / "responses"
