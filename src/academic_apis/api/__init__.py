@@ -36,9 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa: ARG001
 
 api = FastAPI(
     lifespan=lifespan,
-    openapi_url=settings.OPENAPI_FILE,
-    openapi_prefix=settings.OPENAPI_PREFIX,
-    root_path=settings.ROOT_PATH,
+    openapi_url=settings.openapi_url,
     separate_input_output_schemas=False,
 )
 

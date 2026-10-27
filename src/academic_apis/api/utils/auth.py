@@ -114,6 +114,43 @@ async def get_current_admin(
     return current_user
 
 
+def _has_robot_access(api_token: str | None) -> bool:
+    return bool(
+        settings.ods_robot_access_tokens
+        and api_token
+        and api_token in settings.ods_robot_access_tokens
+    )
+
+
+def ensure_robot_authentication(
+    api_token: Annotated[str | None, Header()] = None,
+) -> bool:
+    if not _has_robot_access(api_token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    return True
+
+
+async def ensure_robot_or_admin_authentication(
+    api_token: Annotated[str | None, Header()] = None,
+    aai_user_token: Annotated[str | None, Cookie()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+) -> bool:
+    """Assert that we have valid robot authentication or an admin user."""
+    if _has_robot_access(api_token):
+        return True
+    if aai_user_token or authorization:
+        current_user = await get_current_user(aai_user_token, authorization)
+        await get_current_admin(current_user)
+        return True
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+    )
+
+
 if __name__ == "__main__":
     pw = input("Password to hash: ")
     print(hash_password(pw))  # noqa: T201

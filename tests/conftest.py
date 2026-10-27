@@ -229,6 +229,7 @@ def make_query() -> Callable[..., int]:
                 grants: list[tuple[User, bool]] = (
                     [(owner, True)] if owner is not None else []
                 ) + list(users)
+                assert new_query.query_id is not None
                 for user, is_owner in grants:
                     session.add(
                         UserQueryPermission(

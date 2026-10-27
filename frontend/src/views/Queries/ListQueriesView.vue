@@ -12,6 +12,7 @@ import {
   BIconPersonFill,
   BIconStars,
   BIconTrash,
+  BIconDatabaseAdd,
 } from 'bootstrap-icons-vue';
 import type { TableField } from 'bootstrap-vue-next/types';
 
@@ -24,13 +25,14 @@ import {
   type UserQueryPermission,
   Users,
 } from '@/plugins/api/spec';
-import { formatTimeStamp } from '@/utils';
+import { formatNumber, formatTimeStamp } from '@/utils';
 import TwoStageButton from '@/components/TwoStageButton.vue';
 import { useSessionStore } from '@/stores/store-session.ts';
+import RefreshIcon from '@/components/RefreshIcon.vue';
 
 const session = useSessionStore();
 // Longer queries are shortened to this many characters in the table.
-const PREVIEW_LENGTH = 10;
+const PREVIEW_LENGTH = 50;
 type TableQuery = Query & { showLinks?: boolean };
 const router = useRouter();
 const queries = ref<TableQuery[]>([]);
@@ -197,6 +199,15 @@ function syncQuery(query: Query, concatenated: boolean = false) {
     .catch(toastReject);
 }
 
+function transferQuery(query: Query) {
+  Queries.addIngestQueriesTransferPut({ query_id: query.query_id! })
+    .then((response) => {
+      query.transfer_link = response.data.transfer_link;
+      toastSuccessWith('Generated new long-lasting azure link to be used elsewhere.')(response);
+    })
+    .catch(toastReject);
+}
+
 function clearLogs(query: Query) {
   Queries.deleteQueryLogsQueriesLogsDelete({ query_id: query.query_id! })
     .then(toastSuccessWith('Initiated deletion of query logs.'))
@@ -252,7 +263,7 @@ function refreshAzureToken(query: Query) {
             @click.stop="refreshAzureToken(item)">
             <BIconArrowClockwise />
           </BButton>
-          <ul v-if="item.azure_link">
+          <ul v-if="item.azure_link" class="mb-2">
             <li v-for="(url, key) in item.azure_link" :key="key">
               {{ key }}:
               <a :href="url as string" target="_blank"
@@ -260,6 +271,20 @@ function refreshAzureToken(query: Query) {
               >
             </li>
           </ul>
+
+          <TwoStageButton
+            v-if="session.user?.permission_admin && (item.azure_progress ?? -1) > 0"
+            class="d-inline me-2"
+            btn-style="btn-sm btn-outline-secondary"
+            title="Create transfer link for ingest queue"
+            @accepted="transferQuery(item)">
+            <BIconDatabaseAdd />
+          </TwoStageButton>
+          <div v-if="item.transfer_link">
+            <a :href="item.transfer_link" target="_blank"
+              >{{ item.transfer_link.substring(0, 100) }}...</a
+            >
+          </div>
         </div>
       </template>
       <template #cell(wrapper)="{ item }">
@@ -295,7 +320,7 @@ function refreshAzureToken(query: Query) {
         </BButton>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) < 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud"
@@ -304,13 +329,18 @@ function refreshAzureToken(query: Query) {
         </TwoStageButton>
 
         <TwoStageButton
-          v-if="session.user?.permission_admin"
+          v-if="session.user?.permission_admin && (item.azure_progress ?? -1) < 0"
           class="d-inline me-2"
           btn-style="btn-sm btn-outline-secondary"
           title="Sync results with cloud (concatenated)"
           @accepted="syncQuery(item, true)">
           <BIconCloudArrowUpFill />
         </TwoStageButton>
+
+        <span v-if="(item.azure_progress ?? -1) >= 0" class="me-2">
+          Uploaded {{ formatNumber(item.azure_progress, 0) }}
+          <RefreshIcon :refresh="loadQueries" />
+        </span>
 
         <TwoStageButton
           class="d-inline me-2"

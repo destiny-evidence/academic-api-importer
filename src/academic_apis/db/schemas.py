@@ -42,6 +42,8 @@ class QueryInfo(SQLModel):
 
 
 class Query(QueryInfo, table=True):
+    # AUTOINCREMENT keeps SQLite from reusing the ROWID of a deleted row
+    __table_args__ = {"sqlite_autoincrement": True}
     query_id: int | None = Field(default=None, primary_key=True)
 
     created_at: datetime = Field(
@@ -58,6 +60,12 @@ class Query(QueryInfo, table=True):
     azure_link: AzureAccessLinks | None = Field(
         default=None,
         sa_column=Column("azure_link", AzureAccessLinksType(), nullable=True),
+    )
+    azure_progress: int | None = Field(default=None, nullable=True)
+    transfer_link: str | None = Field(
+        default=None,
+        nullable=True,
+        description="azure link with longer-lasting SAS token so other services can consume this",
     )
 
 
